@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "venni-rider-staging",
+    "test": "venni-rider-test"
+  }
+}

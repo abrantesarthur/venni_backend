@@ -1,9 +1,8 @@
-import * as functions from "firebase-functions";
+// import dependencies
+const admin = require("firebase-admin");
 
-// // Start writing Firebase Functions
-// // https://firebase.google.com/docs/functions/typescript
-//
-// export const helloWorld = functions.https.onRequest((request, response) => {
-//   functions.logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+// initilize
+admin.initializeApp();
+
+// Expose Express API as a single Cloud Function:
+exports.ride = require("./ride");
