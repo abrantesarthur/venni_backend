@@ -11,6 +11,9 @@ firebase-debug.*.log*
 functions/adminCredentials.json
 functions/testAdminCredentials.json
 
+# runtimeconfig
+functions/.runtimeconfig.json
+
 # Firebase cache
 .firebase/
 

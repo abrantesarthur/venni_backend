@@ -1,6 +1,4 @@
-const { app } = require("firebase-functions");
-
-function calculateFare(distanceMeters) {
+export function calculateFare(distanceMeters: number) {
   if (distanceMeters <= 1500) {
     return 4;
   }
@@ -9,5 +7,3 @@ function calculateFare(distanceMeters) {
   }
   return (0.7 * distanceMeters) / 1000 + 3;
 }
-
-exports.calculateFare = calculateFare;

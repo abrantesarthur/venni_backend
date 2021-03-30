@@ -30,9 +30,13 @@ dependencies:
 # start the Firebase Local Emulator Suite with non-emulated services pointing to test project
 emulator: use-test-project ./functions/testAdminCredentials.json emulator-config
 # install firebase-tools if it's not already installed
+# export credentials so function tests can access google and firebase APIs
+# execute npm run build in functions folder so typescript is transpiled to javascript
 	@$(NPM) list -g firebase-tools &> /dev/null || $(NPM) install -g firebase-tools && \
 	export GOOGLE_APPLICATION_CREDENTIALS=$(shell pwd)/functions/testAdminCredentials.json && \
+	npm --prefix functions run build && \
 	firebase emulators:start
+	
 
 # start online testing with services pointing to test project
 test: dependencies functions/testAdminCredentials.json

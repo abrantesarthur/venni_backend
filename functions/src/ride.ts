@@ -3,7 +3,7 @@ import * as express from "express";
 import { Request, Response, NextFunction, RequestHandler } from "express";
 import * as firebaseAdmin from "firebase-admin";
 import { authenticate } from "./auth";
-import * as fare from "./fare";
+import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 
 type JsonResponseStatus =
@@ -145,7 +145,7 @@ const requestRide = function () {
         ride_status: RideStatus.waitingConfirmation,
         origin_place_id: body.origin_place_id,
         destination_place_id: body.destination_place_id,
-        fare_price: fare.calculateFare(route.legs[0].distance.value),
+        fare_price: calculateFare(route.legs[0].distance.value),
         distance_meters: route.legs[0].distance.value,
         distance_text: route.legs[0].distance.text,
         duration_seconds: route.legs[0].duration.value,
