@@ -1,7 +1,8 @@
 {
   "name": "functions",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --strict -noEmitOnError",
+    "test": "mocha --reporter spec",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
@@ -9,7 +10,7 @@
     "logs": "firebase functions:log"
   },
   "engines": {
-    "node": "12"
+    "node": "14"
   },
   "main": "lib/index.js",
   "dependencies": {

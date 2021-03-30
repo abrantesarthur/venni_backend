@@ -7,10 +7,10 @@ NPM := npm --prefix ./functions
 ########## GENERAL
 
 use-test-project:
-	@firebase use test
+	@firebase use venni-rider-test
 
 use-default-project:
-	@firebase use default
+	@firebase use venni-rider-staging
 
 config:
 # set googlemaps.apikey from environment
