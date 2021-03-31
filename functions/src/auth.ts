@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { Request, Response, NextFunction } from "express";
+import { JsonResponse } from "./httpInterfaces";
 
 export const authenticate = async function (
   req: Request,
@@ -9,8 +10,13 @@ export const authenticate = async function (
   const idToken = req.headers.authorization;
   if (!idToken) {
     return res
-      .status(403)
-      .json({ error_message: "Missing authentication credentials!" });
+      .status(401)
+      .json(
+        new JsonResponse(
+          "REQUEST_DENIED",
+          "Missing authentication credentials!"
+        )
+      );
   }
   try {
     let decodedToken = await admin.auth().verifyIdToken(idToken);
@@ -18,6 +24,13 @@ export const authenticate = async function (
     req.body.uid = decodedToken.uid;
     return next();
   } catch (e) {
-    return res.status(400).json(e);
+    return res
+      .status(401)
+      .json(
+        new JsonResponse(
+          "UNAUTHENTICATED",
+          "Failed to verify authentication token."
+        )
+      );
   }
 };

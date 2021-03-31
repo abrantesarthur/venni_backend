@@ -5,12 +5,7 @@ import * as firebaseAdmin from "firebase-admin";
 import { authenticate } from "./auth";
 import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
-
-type JsonResponseStatus =
-  | "OK"
-  | "INVALID_REQUEST"
-  | "REQUEST_DENIED"
-  | "UNKNOWN_ERROR";
+import { JsonResponse } from "./httpInterfaces";
 
 enum RideStatus {
   waitingConfirmation = "waiting-confirmation",
@@ -35,22 +30,6 @@ interface RideResponseInterface {
   encoded_points: string;
 }
 
-class JsonResponse {
-  status: JsonResponseStatus;
-  errorMessage?: string;
-  result?: RideResponseInterface;
-
-  constructor(
-    status: JsonResponseStatus,
-    errorMessage?: string,
-    result?: RideResponseInterface
-  ) {
-    this.status = status;
-    this.errorMessage = errorMessage;
-    this.result = result;
-  }
-}
-
 // initialize google maps API client
 const googleMaps = new Client({});
 
@@ -73,7 +52,7 @@ const validateRequest: RequestHandler = (
     return res
       .status(400)
       .json(
-        new JsonResponse(
+        new JsonResponse<RideResponseInterface>(
           "INVALID_REQUEST",
           "Both origin_place_id and destination_place_id fields must be present in request body."
         )
@@ -110,7 +89,7 @@ const requestRide = function () {
         return res
           .status(200)
           .json(
-            new JsonResponse(
+            new JsonResponse<RideResponseInterface>(
               "REQUEST_DENIED",
               "The user already has an active ride request"
             )
@@ -132,7 +111,7 @@ const requestRide = function () {
         return res
           .status(500)
           .json(
-            new JsonResponse(
+            new JsonResponse<RideResponseInterface>(
               "UNKNOWN_ERROR",
               "Something wrong happened.Try again later."
             )
@@ -156,7 +135,9 @@ const requestRide = function () {
 
       // enrich result with uid and return it.
       result.uid = body.uid;
-      return res.status(200).json(new JsonResponse("OK", undefined, result));
+      return res
+        .status(200)
+        .json(new JsonResponse<RideResponseInterface>("OK", undefined, result));
     });
   });
 
@@ -170,8 +151,8 @@ const confirmRide = function () {
 
   app.use(authenticate);
 
-  app.get("/", (req, res) => {
-    return res.status(200).json({ message: "oK" });
+  app.post("/", (req, res) => {
+    return res.status(200).json(new JsonResponse("OK"));
   });
 
   return app;

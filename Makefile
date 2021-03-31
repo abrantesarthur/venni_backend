@@ -4,7 +4,7 @@ NPM := npm --prefix ./functions
 
 .PHONY: emulator test environment use-test-project use-default-project deploy deploy-test config
 
-########## GENERAL
+########## CONFIG
 
 use-test-project:
 	@firebase use venni-rider-test
@@ -27,11 +27,12 @@ dependencies:
 	@$(NPM) list mocha &> /dev/null || $(NPM) install --save-dev mocha && \
 	$(NPM) list firebase-functions-test &> /dev/null || $(NPM) install --save-dev firebase-functions-test
 
-# start the Firebase Local Emulator Suite with non-emulated services pointing to test project
+# start the Firebase Local Emulator Suite with non-emulated services pointing to venni-rider-test project
 emulator: use-test-project ./functions/testAdminCredentials.json emulator-config
 # install firebase-tools if it's not already installed
-# export credentials so function tests can access google and firebase APIs
-# execute npm run build in functions folder so typescript is transpiled to javascript
+# export service account credentials so functions can access the APIs not being emulated
+# typescript is transpiled into javascript by executing npm run build
+# start the emulator
 	@$(NPM) list -g firebase-tools &> /dev/null || $(NPM) install -g firebase-tools && \
 	export GOOGLE_APPLICATION_CREDENTIALS=$(shell pwd)/functions/testAdminCredentials.json && \
 	npm --prefix functions run build && \
@@ -49,7 +50,6 @@ deploy-test: use-test-project config
 
 deploy: use-default-project config
 	firebase deploy
-
 
 
 
