@@ -30,3 +30,17 @@ make emulator
 ```
 
 ### Deploying
+
+To deploy to default project, do
+
+```bash
+make deploy
+```
+
+To deploy to test project, do
+
+```bash
+make deploy-test
+```
+
+**Important**: avoid usings these commands when deploying more than 10 functions at a time. Doing so may [exceed the standard quota](https://firebase.google.com/docs/functions/manage-functions) and receive HTTP 429 or 500 error messages.

@@ -46,10 +46,10 @@ test: dependencies functions/testAdminCredentials.json
 ########## DEPLOYING
 
 deploy-test: use-test-project config
-	firebase deploy
+	firebase deploy --only functions
 
 deploy: use-default-project config
-	firebase deploy
+	firebase deploy --only functions
 
 
 
