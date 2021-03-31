@@ -5,6 +5,10 @@ NPM := npm --prefix ./functions
 .PHONY: emulator test environment use-test-project use-default-project deploy deploy-test config
 
 ########## CONFIG
+check-env:
+ifndef GOOGLEAPIKEY
+	$(error GOOGLEAPIKEY is undefined)
+endif
 
 use-test-project:
 	@firebase use venni-rider-test
@@ -12,7 +16,7 @@ use-test-project:
 use-default-project:
 	@firebase use venni-rider-staging
 
-config:
+config: check-env
 # set googlemaps.apikey from environment
 	@firebase functions:config:set googleapi.key=$(GOOGLEAPIKEY)
 
