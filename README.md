@@ -43,4 +43,6 @@ To deploy to test project, do
 make deploy-test
 ```
 
+In both cases, if the `DEPLOYGROUP` environment variable is set, only functions belonging to the specified group are deployed.
+
 **Important**: avoid usings these commands when deploying more than 10 functions at a time. Doing so may [exceed the standard quota](https://firebase.google.com/docs/functions/manage-functions) and receive HTTP 429 or 500 error messages.

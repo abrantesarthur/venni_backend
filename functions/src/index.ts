@@ -7,6 +7,10 @@ import * as admin from "firebase-admin";
  * GOOGLE_APPLICATION_CREDENTIALS. Otherwise, it uses the service account that is attached to the
  * resource that is running your code. Otherwise, it uses the default service account that Cloud Functions
  * provide.
+ *
+ * Additionally, some environment variables are automatically populated in the functions runtime and
+ * locally emulated functions (e.g., FIREBASE_CONFIG variable). These are applied automatically when
+ * initializeApp is called.
  */
 admin.initializeApp();
 

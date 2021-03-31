@@ -50,11 +50,18 @@ test: dependencies functions/testAdminCredentials.json
 ########## DEPLOYING
 
 deploy-test: use-test-project config
+ifndef DEPLOYGROUP
 	firebase deploy --only functions
+else
+	firebase deploy --only functions:$(DEPLOYGROUP)
+endif
 
 deploy: use-default-project config
+ifndef DEPLOYGROUP
 	firebase deploy --only functions
-
+else 
+	firebase deploy --only functions:$(DEPLOYGROUP)
+endif
 
 
 
