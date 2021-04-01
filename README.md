@@ -21,6 +21,8 @@ TODO: how does this relate to make emulator
 make test
 ```
 
+If you want to interact manually with the emulator, note that you'll need to add a Bearer user identity token to the request Authorization header. You can retrieve this token by running the venni-rider app and logging the result of calling `FirebaseAuth.instance.currentuser.getIdToken()` to the terminal.
+
 ### Emulating
 
 Should you want to test how your functions behave before deploying them or even write end-to-end tests in your apps, you can start a local emulator. You can then send requests to an emulated environment running locally.
@@ -37,10 +39,10 @@ To deploy to default project, do
 make deploy
 ```
 
-To deploy to test project, do
+To deploy to the venni-rider-development project, do
 
 ```bash
-make deploy-test
+make deploy-dev
 ```
 
 In both cases, if the `DEPLOYGROUP` environment variable is set, only functions belonging to the specified group are deployed.

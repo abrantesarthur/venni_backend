@@ -2,7 +2,7 @@ SHELL=/bin/bash
 
 NPM := npm --prefix ./functions
 
-.PHONY: emulator test environment use-dev-project use-default-project deploy deploy-test config
+.PHONY: emulator test environment use-dev-project use-default-project deploy deploy-dev config
 
 ########## ENVIRONMENT VARIABLES
 
@@ -56,7 +56,7 @@ test: dependencies functions/testAdminCredentials.json
 
 ########## DEPLOYING
 
-deploy-test: use-dev-project config
+deploy-dev: use-dev-project config
 ifndef DEPLOYGROUP
 	firebase deploy --only functions
 else
