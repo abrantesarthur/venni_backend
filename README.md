@@ -29,7 +29,7 @@ Should you want to test how your functions behave before deploying them or even 
 make emulator
 ```
 
-This will start an emulator which will emulate the Cloud Functions and Firebase Realtime Database locally and whose UI will be available in the port `4000`. Note that other firebase resources, such as Authentication and Storage, will still run in the project specified by the `functions/testAdminCredentials.json` file.
+This will start an emulator which will emulate the Cloud Functions and Firebase Realtime Database locally and whose UI will be available in the port `4000`. Note that other firebase resources, such as Authentication and Storage, will still run remotely in the project specified by the `functions/testAdminCredentials.json` file.
 
 In order to send requests to the emulated resources, you'll need to add a Bearer user identity token to the request Authorization header. You can retrieve this token by running the venni-rider app, signing in, and printing the result of calling `FirebaseAuth.instance.currentuser.getIdToken()` to the terminal.
 
