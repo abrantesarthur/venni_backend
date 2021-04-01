@@ -18,8 +18,10 @@ export const authenticate = async function (
         )
       );
   }
+  // TODO: split token into Bearer and JWT before proceeding. This way we can check if token
+  // is bearer and return error if not.
   try {
-    let decodedToken = await admin.auth().verifyIdToken(idToken);
+    let decodedToken = await admin.auth().verifyIdToken(idToken.replace("Bearer ", ""));
     // pass user id to next handler
     req.body.uid = decodedToken.uid;
     return next();
