@@ -1,4 +1,4 @@
-export function calculateFare(distanceMeters: number) {
+export function calculateFare(distanceMeters: number): number {
   if (distanceMeters <= 1500) {
     return 4;
   }

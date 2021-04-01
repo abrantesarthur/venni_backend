@@ -2,16 +2,20 @@ SHELL=/bin/bash
 
 NPM := npm --prefix ./functions
 
-.PHONY: emulator test environment use-test-project use-default-project deploy deploy-test config
+.PHONY: emulator test environment use-dev-project use-default-project deploy deploy-test config
+
+########## ENVIRONMENT VARIABLES
+
 
 ########## CONFIG
+
 check-env:
 ifndef GOOGLEAPIKEY
 	$(error GOOGLEAPIKEY is undefined)
 endif
 
-use-test-project:
-	@firebase use venni-rider-test
+use-dev-project:
+	@firebase use venni-rider-development
 
 use-default-project:
 	@firebase use venni-rider-staging
@@ -22,7 +26,10 @@ config: check-env
 
 emulator-config: config
 # add configuration variables to the runtimeconfig so the emulator can access them
-	@firebase functions:config:get > functions/.runtimeconfig.json
+	@firebase functions:config:set runmode.value=TEST && \
+	firebase functions:config:set emulator.authendpoint=$(FIREBASE_AUTH_EMULATOR_HOST) && \
+	firebase functions:config:get > functions/.runtimeconfig.json
+
 
 
 ########## TESTING
@@ -32,7 +39,7 @@ dependencies:
 	$(NPM) list firebase-functions-test &> /dev/null || $(NPM) install --save-dev firebase-functions-test
 
 # start the Firebase Local Emulator Suite with non-emulated services pointing to venni-rider-test project
-emulator: use-test-project ./functions/testAdminCredentials.json emulator-config
+emulator: use-dev-project ./functions/testAdminCredentials.json emulator-config
 # install firebase-tools if it's not already installed
 # export service account credentials so functions can access the APIs not being emulated
 # typescript is transpiled into javascript by executing npm run build
@@ -49,7 +56,7 @@ test: dependencies functions/testAdminCredentials.json
 
 ########## DEPLOYING
 
-deploy-test: use-test-project config
+deploy-test: use-dev-project config
 ifndef DEPLOYGROUP
 	firebase deploy --only functions
 else
