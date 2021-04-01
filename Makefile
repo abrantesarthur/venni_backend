@@ -10,8 +10,8 @@ NPM := npm --prefix ./functions
 ########## CONFIG
 
 check-env:
-ifndef GOOGLEAPIKEY
-	$(error GOOGLEAPIKEY is undefined)
+ifndef GOOGLE_API_KEY
+	$(error GOOGLE_API_KEY is undefined)
 endif
 
 use-dev-project:
@@ -22,7 +22,7 @@ use-default-project:
 
 config: check-env
 # set googlemaps.apikey from environment
-	@firebase functions:config:set googleapi.key=$(GOOGLEAPIKEY)
+	@firebase functions:config:set googleapi.key=$(GOOGLE_API_KEY)
 
 emulator-config: config
 # add configuration variables to the runtimeconfig so the emulator can access them

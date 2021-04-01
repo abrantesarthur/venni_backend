@@ -31,7 +31,8 @@ export const authenticate = async function (
       .json(
         new JsonResponse(
           "UNAUTHENTICATED",
-          "Failed to verify authentication token."
+          e,
+          // "Failed to verify authentication token."
         )
       );
   }

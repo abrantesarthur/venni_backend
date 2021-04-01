@@ -40,7 +40,7 @@ const validateRequest: RequestHandler = (
   next: NextFunction
 ) => {
   // isRideRequest checks whether obj implements RideRequestInterface
-  function isRideRequest(obj: any): obj is RideRequestInterface {
+  function isRideRequest(obj: RideRequestInterface): obj is RideRequestInterface {
     return (
       typeof obj.uid === "string" &&
       typeof obj.origin_place_id === "string" &&
@@ -48,15 +48,17 @@ const validateRequest: RequestHandler = (
     );
   }
   // return error if req.body doesn't implement RideRequestInterface
-  if (!isRideRequest(req.body)) {
+  try {
+    isRideRequest(req.body);
+  } catch (e) {
     return res
-      .status(400)
-      .json(
-        new JsonResponse<RideResponseInterface>(
-          "INVALID_REQUEST",
-          "Both origin_place_id and destination_place_id fields must be present in request body."
-        )
-      );
+    .status(400)
+    .json(
+      new JsonResponse<RideResponseInterface>(
+        "INVALID_REQUEST",
+        "Both origin_place_id and destination_place_id fields must be present in request body."
+      )
+    );
   }
 
   return next();
