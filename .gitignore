@@ -9,7 +9,7 @@ firebase-debug.*.log*
 
 # admin credentials
 functions/adminCredentials.json
-functions/testAdminCredentials.json
+functions/devAdminCredentials.json
 
 # runtimeconfig
 functions/.runtimeconfig.json

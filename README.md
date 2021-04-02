@@ -8,9 +8,9 @@ This repository contains the cloud functions used in the Firebase backend of the
 
 ### Setup
 
-For the commands below to work, you must properly set up the environment. First, following the [Initialize SDK in online mode](https://firebase.google.com/docs/functions/unit-testing?authuser=1) tutorial, open the `venni-rider-test` project in the Firebase console add the specified service account's key file to the path `functions/testAdminCredentials.json`. This will grant permission for Cloud Functions to access other APIs such as Realtime Database when emulated.
+For the commands below to work, you must properly set up the environment. First, following the [Initialize SDK in online mode](https://firebase.google.com/docs/functions/unit-testing?authuser=1) tutorial, add the specified service account's key file to the path `functions/devAdminCredentials.json`. This will grant permission for Cloud Functions to access other APIs such as Realtime Database when emulated.
 
-Second, be sure to set a `GOOGLEAPIKEY` environment variable containing a google maps API key crendential that can be used for the Directions API. This will allow functions to access the google maps APIs.
+Second, be sure to set a `GOOGLE_MAPS_API_KEY` environment variable containing a google maps API key crendential that can be used for the Directions API. This will allow functions to access the google maps APIs.
 
 ### Testing
 
@@ -29,7 +29,7 @@ Should you want to test how your functions behave before deploying them or even 
 make emulator
 ```
 
-This will start an emulator which will emulate the Cloud Functions and Firebase Realtime Database locally and whose UI will be available in the port `4000`. Note that other firebase resources, such as Authentication and Storage, will still run remotely in the project specified by the `functions/testAdminCredentials.json` file.
+This will start an emulator which will emulate the Cloud Functions and Firebase Realtime Database locally and whose UI will be available in the port `4000`. Note that other firebase resources, such as Authentication and Storage, will still run remotely in the project specified by the `functions/devAdminCredentials.json` file.
 
 In order to send requests to the emulated resources, you'll need to add a Bearer user identity token to the request Authorization header. You can retrieve this token by running the venni-rider app, signing in, and printing the result of calling `FirebaseAuth.instance.currentuser.getIdToken()` to the terminal.
 

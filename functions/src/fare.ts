@@ -1,9 +1,14 @@
-export function calculateFare(distanceMeters: number): number {
+export function calculateFare(distanceMeters: number): string {
+  var result : number;
   if (distanceMeters <= 1500) {
-    return 4;
+    result = 4;
+    return result.toString();
   }
   if (distanceMeters > 1500 && distanceMeters < 10) {
-    return 0.67 * distanceMeters + 3;
+    result = 0.67 * distanceMeters + 3;
+    return result.toString();
   }
-  return (0.7 * distanceMeters) / 1000 + 3;
+  result = (0.7 * distanceMeters) / 1000 + 3;
+  return result.toString();
+
 }

@@ -22,10 +22,10 @@ interface RideResponseInterface {
   ride_status: RideStatus;
   origin_place_id: string;
   destination_place_id: string;
-  fare_price: number;
-  distance_meters: number;
+  fare_price: string;
+  distance_meters: string;
   distance_text: string;
-  duration_seconds: number;
+  duration_seconds: string;
   duration_text: string;
   encoded_points: string;
 }
@@ -135,9 +135,9 @@ const requestRide = function () {
         origin_place_id: body.origin_place_id,
         destination_place_id: body.destination_place_id,
         fare_price: calculateFare(route.legs[0].distance.value),
-        distance_meters: route.legs[0].distance.value,
+        distance_meters: route.legs[0].distance.value.toString(),
         distance_text: route.legs[0].distance.text,
-        duration_seconds: route.legs[0].duration.value,
+        duration_seconds: route.legs[0].duration.value.toString(),
         duration_text: route.legs[0].duration.text,
         encoded_points: route.overview_polyline.points,
       };
@@ -219,9 +219,9 @@ const editRide = function () {
         origin_place_id: body.origin_place_id,
         destination_place_id: body.destination_place_id,
         fare_price: calculateFare(route.legs[0].distance.value),
-        distance_meters: route.legs[0].distance.value,
+        distance_meters: route.legs[0].distance.value.toString(),
         distance_text: route.legs[0].distance.text,
-        duration_seconds: route.legs[0].duration.value,
+        duration_seconds: route.legs[0].duration.value.toString(),
         duration_text: route.legs[0].duration.text,
         encoded_points: route.overview_polyline.points,
       };

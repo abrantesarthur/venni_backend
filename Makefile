@@ -10,8 +10,8 @@ NPM := npm --prefix ./functions
 ########## CONFIG
 
 check-env:
-ifndef GOOGLE_API_KEY
-	$(error GOOGLE_API_KEY is undefined)
+ifndef GOOGLE_MAPS_API_KEY
+	$(error GOOGLE_MAPS_API_KEY is undefined)
 endif
 
 use-dev-project:
@@ -22,7 +22,7 @@ use-default-project:
 
 config: check-env
 # set googlemaps.apikey from environment
-	@firebase functions:config:set googleapi.key=$(GOOGLE_API_KEY)
+	@firebase functions:config:set googleapi.key=$(GOOGLE_MAPS_API_KEY)
 
 emulator-config: config
 # add configuration variables to the runtimeconfig so the emulator can access them
@@ -39,19 +39,19 @@ dependencies:
 	$(NPM) list firebase-functions-test &> /dev/null || $(NPM) install --save-dev firebase-functions-test
 
 # start the Firebase Local Emulator Suite with non-emulated services pointing to venni-rider-test project
-emulator: use-dev-project ./functions/testAdminCredentials.json emulator-config
+emulator: use-dev-project ./functions/devAdminCredentials.json emulator-config
 # install firebase-tools if it's not already installed
 # export service account credentials so functions can access the APIs not being emulated
 # typescript is transpiled into javascript by executing npm run build
 # start the emulator
 	@$(NPM) list -g firebase-tools &> /dev/null || $(NPM) install -g firebase-tools && \
-	export GOOGLE_APPLICATION_CREDENTIALS=$(shell pwd)/functions/testAdminCredentials.json && \
+	export GOOGLE_APPLICATION_CREDENTIALS=$(shell pwd)/functions/devAdminCredentials.json && \
 	npm --prefix functions run build && \
 	firebase emulators:start
 	
 
 # start online testing with services pointing to test project
-test: dependencies functions/testAdminCredentials.json
+test: dependencies functions/devAdminCredentials.json
 	@$(NPM) test
 
 ########## DEPLOYING

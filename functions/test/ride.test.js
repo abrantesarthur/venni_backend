@@ -6,7 +6,7 @@ const test = require("firebase-functions-test")(
     storageBucket: "venni-rider-test.appspot.com",
     projectId: "venni-rider-test",
   },
-  "../testAdminCredentials.json"
+  "../devAdminCredentials.json"
 );
 
 // TODO: mock functions config if necessary
