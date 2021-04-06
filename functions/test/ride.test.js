@@ -5,13 +5,14 @@ const admin = require("firebase-admin");
 const chai = require("chai");
 const assert = chai.assert;
 
-// the tests actually hit venni-rider-development project in firebases
+// the tests actually hit venni-rider-development project in firebase
 const test = firebaseFunctionsTest(
   {
     databaseURL:
       "https://venni-rider-development-8a3f8-default-rtdb.firebaseio.com/",
-    storageBucket: "venni-rider-development-8a3f8.appspot.com",
     projectId: "venni-rider-development-8a3f8",
+    storageBucket: "venni-rider-development-8a3f8.appspot.com",
+    storageBucket: "venni-rider-development-8a3f8.appspot.com",
   },
   "./devAdminCredentials.json"
 );
@@ -23,7 +24,9 @@ describe("ride", () => {
   let valid_destination_place_id;
 
   before(() => {
-    admin.initializeApp();
+    if (admin.apps.length == 0) {
+      admin.initializeApp();
+    }
     ride = require("../lib/ride");
     defaultCtx = {
       auth: {
