@@ -16,3 +16,4 @@ admin.initializeApp();
 
 // Expose Express API as a single Cloud Function:
 exports.ride = require("./ride");
+exports.auth_events = require("./authEvents");

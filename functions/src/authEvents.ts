@@ -2,7 +2,7 @@ import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
 
 //clean user data whenever user is deleted
-export const cleanUserData = functions.auth
+export const clean_user_data = functions.auth
   .user()
   .onDelete(
     async (user: functions.auth.UserRecord, _: functions.EventContext) => {

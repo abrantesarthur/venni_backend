@@ -30,13 +30,13 @@ describe("authEvents", () => {
     test.cleanup();
   });
 
-  describe("cleanUserData", () => {
-    let cleanUserData;
+  describe("clean_user_data", () => {
+    let clean_user_data;
     let defaultUID;
     let defaultRideRequest;
 
     before(() => {
-      cleanUserData = test.wrap(authEvents.cleanUserData);
+      clean_user_data = test.wrap(authEvents.clean_user_data);
       defaultUID = "defaultUID";
       defaultRideRequest = {
         uid: defaultUID,
@@ -61,8 +61,8 @@ describe("authEvents", () => {
         .once("value");
       assert.strictEqual(snapshot.val().uid, defaultUID);
 
-      // trigger cleanUserData
-      cleanUserData({ uid: defaultUID }, {});
+      // trigger clean_user_data
+      clean_user_data({ uid: defaultUID }, {});
 
       // verify that user has no data on realtime database
       snapshot = await admin
