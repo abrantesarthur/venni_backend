@@ -29,9 +29,7 @@ Should you want to test how your functions behave before deploying them or even 
 make emulator
 ```
 
-This will start an emulator which will emulate the Cloud Functions and Firebase Realtime Database locally and whose UI will be available in the port `4000`. Note that other firebase resources, such as Authentication and Storage, will still run remotely in the project specified by the `functions/devAdminCredentials.json` file.
-
-In order to send requests to the emulated resources, you'll need to add a Bearer user identity token to the request Authorization header. You can retrieve this token by running the venni-rider app, signing in, and printing the result of calling `FirebaseAuth.instance.currentuser.getIdToken()` to the terminal.
+The emulator will run the Cloud Functions locally and its UI will be available in the port `4000`. Note that other firebase resources, such as Database, Authentication and Storage, will still run remotely in the project specified by the `functions/devAdminCredentials.json` file. You can send request to the emulator from your apps by using the `httpsCallable` method of the `FirebaseFunctions` flutter library.
 
 ### Deploying
 
@@ -49,4 +47,4 @@ make deploy-dev
 
 In both cases, if the `DEPLOYGROUP` environment variable is set, only functions belonging to the specified group are deployed.
 
-**Important**: avoid usings these commands when deploying more than 10 functions at a time. Doing so may [exceed the standard quota](https://firebase.google.com/docs/functions/manage-functions) and receive HTTP 429 or 500 error messages.
+**Important**: avoid usings these commands when deploying more than 10 functions at a time. Doing so may [exceed the standard quota](https://firebase.google.com/docs/functions/manage-functions) and receive HTTP 429 or 500 error messages. Instead, deploy each function manually.
