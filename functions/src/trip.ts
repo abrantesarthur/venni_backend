@@ -4,18 +4,18 @@ import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 
-enum RideStatus {
+enum TripStatus {
   waitingConfirmation = "waiting-confirmation",
 }
 
-interface RideRequestInterface {
+interface TripRequestInterface {
   origin_place_id: string;
   destination_place_id: string;
 }
 
-interface RideResponseInterface {
+interface TripResponseInterface {
   uid?: string;
-  ride_status: RideStatus;
+  trip_status: TripStatus;
   origin_place_id: string;
   destination_place_id: string;
   fare_price: string;
@@ -59,7 +59,7 @@ function validateRequest(obj: any) {
   }
 }
 
-const requestRide = async (
+const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
@@ -76,12 +76,12 @@ const requestRide = async (
   const db = firebaseAdmin.database();
 
   // type cast data
-  const body = data as RideRequestInterface;
+  const body = data as TripRequestInterface;
 
-  // get a reference to user's ride request
-  const rideRequestRef = db.ref("trip-requests").child(context.auth?.uid);
+  // get a reference to user's trip request
+  const tripRequestRef = db.ref("trip-requests").child(context.auth?.uid);
 
-  return rideRequestRef.once("value").then(async (snapshot) => {
+  return tripRequestRef.once("value").then(async (snapshot) => {
     // otherwise, request directions API for further route information
     let directionsResponse;
     try {
@@ -98,10 +98,10 @@ const requestRide = async (
       throw new functions.https.HttpsError(error.code, error.message);
     }
 
-    // create a ride request entry in the database
+    // create a trip request entry in the database
     const route = directionsResponse.data.routes[0];
-    const result: RideResponseInterface = {
-      ride_status: RideStatus.waitingConfirmation,
+    const result: TripResponseInterface = {
+      trip_status: TripStatus.waitingConfirmation,
       origin_place_id: body.origin_place_id,
       destination_place_id: body.destination_place_id,
       fare_price: calculateFare(route.legs[0].distance.value),
@@ -111,7 +111,7 @@ const requestRide = async (
       duration_text: route.legs[0].duration.text,
       encoded_points: route.overview_polyline.points,
     };
-    await rideRequestRef.set(result);
+    await tripRequestRef.set(result);
 
     // enrich result with uid and return it.
     result.uid = context.auth?.uid;
@@ -119,7 +119,7 @@ const requestRide = async (
   });
 };
 
-const editRide = async (
+const editTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
@@ -136,17 +136,17 @@ const editRide = async (
   const db = firebaseAdmin.database();
 
   // type cast data
-  const body = data as RideRequestInterface;
+  const body = data as TripRequestInterface;
 
-  // get a reference to user's ride request
-  const rideRequestRef = db.ref("trip-requests").child(context.auth?.uid);
+  // get a reference to user's trip request
+  const tripRequestRef = db.ref("trip-requests").child(context.auth?.uid);
 
-  return rideRequestRef.once("value").then(async (snapshot) => {
+  return tripRequestRef.once("value").then(async (snapshot) => {
     if (snapshot.val() == null) {
-      // if a a ride request doesn't exist for the user, throw not-found
+      // if a a trip request doesn't exist for the user, throw not-found
       throw new functions.https.HttpsError(
         "not-found",
-        "The user already has no active ride request"
+        "The user already has no active trip request"
       );
     }
 
@@ -166,10 +166,10 @@ const editRide = async (
       throw new functions.https.HttpsError(error.code, error.message);
     }
 
-    // create a ride request entry in the database
+    // create a trip request entry in the database
     const route = directionsResponse.data.routes[0];
-    const result: RideResponseInterface = {
-      ride_status: RideStatus.waitingConfirmation,
+    const result: TripResponseInterface = {
+      trip_status: TripStatus.waitingConfirmation,
       origin_place_id: body.origin_place_id,
       destination_place_id: body.destination_place_id,
       fare_price: calculateFare(route.legs[0].distance.value),
@@ -180,7 +180,7 @@ const editRide = async (
       encoded_points: route.overview_polyline.points,
     };
 
-    await rideRequestRef.set(result);
+    await tripRequestRef.set(result);
 
     // enrich result with uid and return it.
     result.uid = context.auth?.uid;
@@ -188,11 +188,11 @@ const editRide = async (
   });
 };
 
-export const request = functions.https.onCall(requestRide);
-export const edit = functions.https.onCall(editRide);
+export const request = functions.https.onCall(requestTrip);
+export const edit = functions.https.onCall(editTrip);
 
 /**
  * TESTS
- *  1) if user already has an active ride request, return "REQUEST_DENIED"
+ *  1) if user already has an active trip request, return "REQUEST_DENIED"
  *  2) request wiht missing body fields receive "INVALID_REQUEST"
  */

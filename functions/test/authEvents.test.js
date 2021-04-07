@@ -33,12 +33,12 @@ describe("authEvents", () => {
   describe("clean_user_data", () => {
     let clean_user_data;
     let defaultUID;
-    let defaultRideRequest;
+    let defaultTripRequest;
 
     before(() => {
       clean_user_data = test.wrap(authEvents.clean_user_data);
       defaultUID = "defaultUID";
-      defaultRideRequest = {
+      defaultTripRequest = {
         uid: defaultUID,
       };
     });
@@ -49,7 +49,7 @@ describe("authEvents", () => {
         .database()
         .ref("trip-requests")
         .child(defaultUID)
-        .set(defaultRideRequest);
+        .set(defaultTripRequest);
     });
 
     it("deletes user's data when invoked", async () => {

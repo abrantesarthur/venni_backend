@@ -15,5 +15,5 @@ import * as admin from "firebase-admin";
 admin.initializeApp();
 
 // Expose Express API as a single Cloud Function:
-exports.ride = require("./ride");
+exports.trip = require("./trip");
 exports.auth_events = require("./authEvents");

@@ -17,8 +17,8 @@ const test = firebaseFunctionsTest(
   "./devAdminCredentials.json"
 );
 
-describe("ride", () => {
-  let ride;
+describe("trip", () => {
+  let trip;
   let defaultCtx;
   let valid_origin_place_id;
   let valid_destination_place_id;
@@ -27,7 +27,7 @@ describe("ride", () => {
     if (admin.apps.length == 0) {
       admin.initializeApp();
     }
-    ride = require("../lib/ride");
+    trip = require("../lib/trip");
     defaultCtx = {
       auth: {
         uid: "any uid",
@@ -55,7 +55,7 @@ describe("ride", () => {
       ctx = defaultCtx,
       succeeed = false
     ) => {
-      const wrapped = test.wrap(ride.request);
+      const wrapped = test.wrap(trip.request);
       try {
         await wrapped(data, ctx);
         if (succeeed) {
@@ -217,7 +217,7 @@ describe("ride", () => {
       let snapshot = await db.once("value");
       assert.isTrue(
         snapshot.val() == null,
-        "ride reqeust has not been created on database"
+        "trip reqeust has not been created on database"
       );
 
       // run test with valid origin and destinations and expect it to succeed
@@ -240,7 +240,7 @@ describe("ride", () => {
       snapshot = await db.once("value");
       assert.isTrue(
         snapshot.val() != null,
-        "ride reqeust was successfully created on database"
+        "trip reqeust was successfully created on database"
       );
 
       // reset the database
@@ -268,7 +268,7 @@ describe("ride", () => {
       ctx = defaultCtx,
       succeeed = false
     ) => {
-      const wrapped = test.wrap(ride.edit);
+      const wrapped = test.wrap(trip.edit);
       try {
         await wrapped(data, ctx);
         if (succeeed) {
@@ -378,8 +378,8 @@ describe("ride", () => {
       );
     });
 
-    it("throws 'not-found' if user already has not active ride request", async () => {
-      // set database to not have ride request for the user
+    it("throws 'not-found' if user already has not active trip request", async () => {
+      // set database to not have trip request for the user
       await admin.database().ref("trip-requests").child(defaultUID).remove();
 
       // run test with specified ui and expect 'not-found' error
@@ -389,7 +389,7 @@ describe("ride", () => {
           destination_place_id: "some_destination_place_id",
         },
         "not-found",
-        "The user already has no active ride request",
+        "The user already has no active trip request",
         {
           auth: {
             uid: defaultUID,
@@ -398,8 +398,8 @@ describe("ride", () => {
       );
     });
 
-    const createRideRequest = async () => {
-      let defaultRideRequest = {
+    const createTripRequest = async () => {
+      let defaultTripRequest = {
         uid: defaultUID,
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
@@ -408,12 +408,12 @@ describe("ride", () => {
         .database()
         .ref("trip-requests")
         .child(defaultUID)
-        .set(defaultRideRequest);
+        .set(defaultTripRequest);
     };
 
     it("throws 'invalid-argument' if user provides invalid destination_place_id", async () => {
-      // set database to have valid ride request
-      await createRideRequest();
+      // set database to have valid trip request
+      await createTripRequest();
 
       const invalid_destination = "invalid_destination_place_id";
 
@@ -439,8 +439,8 @@ describe("ride", () => {
     });
 
     it("throws 'invalid-argument' if user provides invalid origin_place_id", async () => {
-      // set database to have valid ride request
-      await createRideRequest();
+      // set database to have valid trip request
+      await createTripRequest();
 
       const invalid_origin = "invalid_origin_place_id";
 
@@ -470,7 +470,7 @@ describe("ride", () => {
       const db = admin.database().ref("trip-requests").child(defaultUID);
 
       // set database to have valid ride request using valid_destination_place_id
-      await createRideRequest();
+      await createTripRequest();
 
       // expect detination_place_id to be valid_destination_place_id
       snapshot = await db.once("value");
@@ -499,7 +499,7 @@ describe("ride", () => {
       snapshot = await db.once("value");
       assert.isTrue(
         snapshot.val() != null,
-        "ride reqeust was successfully created on database"
+        "trip reqeust was successfully created on database"
       );
 
       // expect detination_place_id to have been updated

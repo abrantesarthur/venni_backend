@@ -1,3 +1,3 @@
 /**
- * TODO: handle ride requests, cancellations, etc
+ * TODO: handle trip requests, cancellations, etc
  */
