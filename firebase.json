@@ -1,0 +1,17 @@
+{
+  "emulators": {
+    "functions": {
+      "port": "5001",
+      "host": "172.20.10.2"
+    },
+    "ui": {
+      "enabled": "true"
+    }
+  },
+  "googleapi": {
+    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+  },
+  "functions": {
+    "predeploy": "npm --prefix \"functions\" run build"
+  }
+}

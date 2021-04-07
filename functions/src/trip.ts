@@ -116,7 +116,9 @@ const requestTrip = async (
     // enrich result with uid and return it.
     result.uid = context.auth?.uid;
     return result;
-  });
+  }).catch((e) => {
+    throw new functions.https.HttpsError("internal", "failed to request trip.");
+  });;
 };
 
 const editTrip = async (
@@ -185,11 +187,39 @@ const editTrip = async (
     // enrich result with uid and return it.
     result.uid = context.auth?.uid;
     return result;
+  }).catch((e) => {
+    throw new functions.https.HttpsError("internal", "failed to edit trip.");
   });
+};
+
+const cancelTrip = async (
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  // define the db
+  const db = firebaseAdmin.database();
+
+  // get a reference to user's trip request
+  const tripRequestRef = db.ref("trip-requests").child(context.auth?.uid);
+
+  // delete trip request
+  return tripRequestRef.remove().then(() => {
+    return {};
+  }).catch((e) => {
+    throw new functions.https.HttpsError("unknown", "failed to cancel trip");
+  })
 };
 
 export const request = functions.https.onCall(requestTrip);
 export const edit = functions.https.onCall(editTrip);
+export const cancel = functions.https.onCall(cancelTrip);
 
 /**
  * TESTS
