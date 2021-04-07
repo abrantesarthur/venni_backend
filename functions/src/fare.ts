@@ -6,11 +6,9 @@ export function calculateFare(distanceMeters: number): string {
   }
   if (distanceMeters > 1500 && distanceMeters < 10000) {
     result = 0.67 * distanceMeters / 1000 + 3;
-    console.log(result);
-    return Math.round((result * 100) / 100).toString();
+    return ((result * 100) / 100).toFixed(2).toString();
   }
   result = 0.7 * distanceMeters / 1000 + 3;
-  console.log(result);
-  return  Math.round((result * 100) / 100).toString();
+  return  ((result * 100) / 100).toFixed(2).toString();
 
 }

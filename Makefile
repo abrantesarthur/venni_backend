@@ -119,28 +119,24 @@ test: functions/devAdminCredentials.json use-dev-project test-dependencies test-
 ################################################################################
 ## DEPLOYING
 ################################################################################
-.PHONY: deploy-dev deploy
+.PHONY: deploy-dev deploy-stag deploy-prod deploy
 
-deploy-dev: use-dev-project deploy-config
-ifndef DEPLOYGROUP
-	$(FIREBASEDEPLOY) --only functions
-else
+deploy:
+ifdef DEPLOYGROUP
 	$(FIREBASEDEPLOY) --only functions:$(DEPLOYGROUP)
-endif
-
-deploy-stag: use-stag-project deploy-config
-ifndef DEPLOYGROUP
-	$(FIREBASEDEPLOY) --only functions
 else
-	$(FIREBASEDEPLOY) --only functions:$(DEPLOYGROUP)
-endif
-
-deploy: use-prod-project deploy-config
-ifndef DEPLOYGROUP
-	$(FIREBASEDEPLOY) --only functions
+ifdef FUNCTIONNAME
+	$(FIREBASEDEPLOY) --only functions:$(FUNCTIONNAME)
 else 
-	$(FIREBASEDEPLOY) --only functions:$(DEPLOYGROUP)
+	$(FIREBASEDEPLOY) --only functions
 endif
+endif
+
+deploy-dev: use-dev-project deploy-config deploy
+
+deploy-stag: use-stag-project deploy-config deploy
+
+deploy-prod: use-prod-project deploy-config deploy
 
 
 
