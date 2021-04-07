@@ -8,7 +8,7 @@ export const clean_user_data = functions.auth
     async (user: functions.auth.UserRecord, _: functions.EventContext) => {
       // delete user's realtime database data
       const db = firebaseAdmin.database();
-      await db.ref("ride-requests").child(user.uid).remove();
+      await db.ref("trip-requests").child(user.uid).remove();
       await db.ref("users").child(user.uid).remove();
 
       // delete user's storage data

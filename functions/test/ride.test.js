@@ -45,7 +45,7 @@ describe("ride", () => {
   describe("request", () => {
     afterEach(() => {
       // reset the database
-      admin.database().ref("ride-requests").remove();
+      admin.database().ref("trip-requests").remove();
     });
 
     const genericTest = async (
@@ -213,7 +213,7 @@ describe("ride", () => {
       const uid = "some_uid";
 
       // expect database not to be populated
-      let db = admin.database().ref("ride-requests").child(uid);
+      let db = admin.database().ref("trip-requests").child(uid);
       let snapshot = await db.once("value");
       assert.isTrue(
         snapshot.val() == null,
@@ -244,7 +244,7 @@ describe("ride", () => {
       );
 
       // reset the database
-      admin.database().ref("ride-requests").remove();
+      admin.database().ref("trip-requests").remove();
     });
   });
 
@@ -258,7 +258,7 @@ describe("ride", () => {
 
     after(() => {
       // reset the database
-      admin.database().ref("ride-requests").remove();
+      admin.database().ref("trip-requests").remove();
     });
 
     const genericTest = async (
@@ -380,7 +380,7 @@ describe("ride", () => {
 
     it("throws 'not-found' if user already has not active ride request", async () => {
       // set database to not have ride request for the user
-      await admin.database().ref("ride-requests").child(defaultUID).remove();
+      await admin.database().ref("trip-requests").child(defaultUID).remove();
 
       // run test with specified ui and expect 'not-found' error
       await genericTest(
@@ -406,7 +406,7 @@ describe("ride", () => {
       };
       await admin
         .database()
-        .ref("ride-requests")
+        .ref("trip-requests")
         .child(defaultUID)
         .set(defaultRideRequest);
     };
@@ -435,7 +435,7 @@ describe("ride", () => {
       );
 
       // reset database
-      await admin.database().ref("ride-requests").child(defaultUID).remove();
+      await admin.database().ref("trip-requests").child(defaultUID).remove();
     });
 
     it("throws 'invalid-argument' if user provides invalid origin_place_id", async () => {
@@ -462,12 +462,12 @@ describe("ride", () => {
       );
 
       // reset database
-      await admin.database().ref("ride-requests").child(defaultUID).remove();
+      await admin.database().ref("trip-requests").child(defaultUID).remove();
     });
 
     it("succeed when all parameters are valid", async () => {
       const new_destination_place_id = "ChIJwyTrjnRKqJQRxHOnccCdkws";
-      const db = admin.database().ref("ride-requests").child(defaultUID);
+      const db = admin.database().ref("trip-requests").child(defaultUID);
 
       // set database to have valid ride request using valid_destination_place_id
       await createRideRequest();
@@ -509,7 +509,7 @@ describe("ride", () => {
       );
 
       // reset the database
-      admin.database().ref("ride-requests").remove();
+      admin.database().ref("trip-requests").remove();
     });
   });
 });

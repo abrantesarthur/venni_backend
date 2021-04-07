@@ -79,7 +79,7 @@ const requestRide = async (
   const body = data as RideRequestInterface;
 
   // get a reference to user's ride request
-  const rideRequestRef = db.ref("ride-requests").child(context.auth?.uid);
+  const rideRequestRef = db.ref("trip-requests").child(context.auth?.uid);
 
   return rideRequestRef.once("value").then(async (snapshot) => {
     // otherwise, request directions API for further route information
@@ -139,7 +139,7 @@ const editRide = async (
   const body = data as RideRequestInterface;
 
   // get a reference to user's ride request
-  const rideRequestRef = db.ref("ride-requests").child(context.auth?.uid);
+  const rideRequestRef = db.ref("trip-requests").child(context.auth?.uid);
 
   return rideRequestRef.once("value").then(async (snapshot) => {
     if (snapshot.val() == null) {

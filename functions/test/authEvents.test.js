@@ -47,7 +47,7 @@ describe("authEvents", () => {
       // set up realtime database and storage
       await admin
         .database()
-        .ref("ride-requests")
+        .ref("trip-requests")
         .child(defaultUID)
         .set(defaultRideRequest);
     });
@@ -56,7 +56,7 @@ describe("authEvents", () => {
       // verify that user has data on realtime database
       let snapshot = await admin
         .database()
-        .ref("ride-requests")
+        .ref("trip-requests")
         .child(defaultUID)
         .once("value");
       assert.strictEqual(snapshot.val().uid, defaultUID);
@@ -67,7 +67,7 @@ describe("authEvents", () => {
       // verify that user has no data on realtime database
       snapshot = await admin
         .database()
-        .ref("ride-requests")
+        .ref("trip-requests")
         .child(defaultUID)
         .once("value");
       assert(snapshot.val() == null);
