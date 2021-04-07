@@ -165,31 +165,6 @@ describe("ride", () => {
       );
     });
 
-    it("throws 'already-exists' if user already has a ride request", async () => {
-      const uid = "some_uid";
-
-      // set database to already have ride request for the user
-      const db = admin.database().ref("ride-requests").child(uid);
-      await db.set({
-        request: "anything",
-      });
-
-      // run test with specified ui and expect 'already-exists' error
-      await genericTest(
-        {
-          origin_place_id: "some_origin_place_id",
-          destination_place_id: "some_destination_place_id",
-        },
-        "already-exists",
-        "The user already has an active ride request",
-        {
-          auth: {
-            uid: uid,
-          },
-        }
-      );
-    });
-
     it("throws 'invalid-argument' if user provides invalid destination_place_id", async () => {
       const uid = "some_uid";
       const invalid_destination = "invalid_destination_place_id";

@@ -82,14 +82,6 @@ const requestRide = async (
   const rideRequestRef = db.ref("ride-requests").child(context.auth?.uid);
 
   return rideRequestRef.once("value").then(async (snapshot) => {
-    if (snapshot.val() != null) {
-      // if a a ride request already exists for the user, throw already-exists
-      throw new functions.https.HttpsError(
-        "already-exists",
-        "The user already has an active ride request"
-      );
-    }
-
     // otherwise, request directions API for further route information
     let directionsResponse;
     try {
