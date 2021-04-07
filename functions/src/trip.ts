@@ -81,120 +81,50 @@ const requestTrip = async (
   // get a reference to user's trip request
   const tripRequestRef = db.ref("trip-requests").child(context.auth?.uid);
 
-  return tripRequestRef.once("value").then(async (snapshot) => {
-    // otherwise, request directions API for further route information
-    let directionsResponse;
-    try {
-      directionsResponse = await googleMaps.directions({
-        params: {
-          key: functions.config().googleapi.key,
-          origin: "place_id:" + body.origin_place_id,
-          destination: "place_id:" + body.destination_place_id,
-          language: Language.pt_BR,
-        },
-      });
-    } catch (e) {
-      const error: StandardError = treatDirectionsError(e);
-      throw new functions.https.HttpsError(error.code, error.message);
-    }
+  // request directions API for further route information
+  let directionsResponse;
+  try {
+    directionsResponse = await googleMaps.directions({
+      params: {
+        key: functions.config().googleapi.key,
+        origin: "place_id:" + body.origin_place_id,
+        destination: "place_id:" + body.destination_place_id,
+        language: Language.pt_BR,
+      },
+    });
+  } catch (e) {
+    const error: StandardError = treatDirectionsError(e);
+    throw new functions.https.HttpsError(error.code, error.message);
+  }
 
-    // create a trip request entry in the database
-    const route = directionsResponse.data.routes[0];
-    const result: TripResponseInterface = {
-      trip_status: TripStatus.waitingConfirmation,
-      origin_place_id: body.origin_place_id,
-      destination_place_id: body.destination_place_id,
-      fare_price: calculateFare(route.legs[0].distance.value),
-      distance_meters: route.legs[0].distance.value.toString(),
-      distance_text: route.legs[0].distance.text,
-      duration_seconds: route.legs[0].duration.value.toString(),
-      duration_text: route.legs[0].duration.text,
-      encoded_points: route.overview_polyline.points,
-    };
-    await tripRequestRef.set(result);
+  // create a trip request entry in the database
+  const route = directionsResponse.data.routes[0];
+  const result: TripResponseInterface = {
+    trip_status: TripStatus.waitingConfirmation,
+    origin_place_id: body.origin_place_id,
+    destination_place_id: body.destination_place_id,
+    fare_price: calculateFare(route.legs[0].distance.value),
+    distance_meters: route.legs[0].distance.value.toString(),
+    distance_text: route.legs[0].distance.text,
+    duration_seconds: route.legs[0].duration.value.toString(),
+    duration_text: route.legs[0].duration.text,
+    encoded_points: route.overview_polyline.points,
+  };
+  await tripRequestRef.set(result);
 
-    // enrich result with uid and return it.
-    result.uid = context.auth?.uid;
-    return result;
-  }).catch((e) => {
-    throw new functions.https.HttpsError("internal", "failed to request trip.");
-  });;
+  // enrich result with uid and return it.
+  result.uid = context.auth?.uid;
+  return result;
 };
 
 const editTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
-  // validate authentication and request
-  if (context.auth == null) {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Missing authentication credentials."
-    );
-  }
-  validateRequest(data);
-
-  // define the db
-  const db = firebaseAdmin.database();
-
-  // type cast data
-  const body = data as TripRequestInterface;
-
-  // get a reference to user's trip request
-  const tripRequestRef = db.ref("trip-requests").child(context.auth?.uid);
-
-  return tripRequestRef.once("value").then(async (snapshot) => {
-    if (snapshot.val() == null) {
-      // if a a trip request doesn't exist for the user, throw not-found
-      throw new functions.https.HttpsError(
-        "not-found",
-        "The user already has no active trip request"
-      );
-    }
-
-    // otherwise, request directions API for further route information
-    let directionsResponse;
-    try {
-      directionsResponse = await googleMaps.directions({
-        params: {
-          key: functions.config().googleapi.key,
-          origin: "place_id:" + body.origin_place_id,
-          destination: "place_id:" + body.destination_place_id,
-          language: Language.pt_BR,
-        },
-      });
-    } catch (e) {
-      const error: StandardError = treatDirectionsError(e);
-      throw new functions.https.HttpsError(error.code, error.message);
-    }
-
-    // create a trip request entry in the database
-    const route = directionsResponse.data.routes[0];
-    const result: TripResponseInterface = {
-      trip_status: TripStatus.waitingConfirmation,
-      origin_place_id: body.origin_place_id,
-      destination_place_id: body.destination_place_id,
-      fare_price: calculateFare(route.legs[0].distance.value),
-      distance_meters: route.legs[0].distance.value.toString(),
-      distance_text: route.legs[0].distance.text,
-      duration_seconds: route.legs[0].duration.value.toString(),
-      duration_text: route.legs[0].duration.text,
-      encoded_points: route.overview_polyline.points,
-    };
-
-    await tripRequestRef.set(result);
-
-    // enrich result with uid and return it.
-    result.uid = context.auth?.uid;
-    return result;
-  }).catch((e) => {
-    throw new functions.https.HttpsError("internal", "failed to edit trip.");
-  });
+  return requestTrip(data, context);
 };
 
-const cancelTrip = async (
-  context: functions.https.CallableContext
-) => {
+const cancelTrip = async (_: any, context: functions.https.CallableContext) => {
   // validate authentication
   if (context.auth == null) {
     throw new functions.https.HttpsError(
@@ -203,18 +133,16 @@ const cancelTrip = async (
     );
   }
 
-  // define the db
-  const db = firebaseAdmin.database();
-
   // get a reference to user's trip request
-  const tripRequestRef = db.ref("trip-requests").child(context.auth?.uid);
+  const tripRequestRef = firebaseAdmin
+    .database()
+    .ref("trip-requests")
+    .child(context.auth?.uid);
 
   // delete trip request
   return tripRequestRef.remove().then(() => {
     return {};
-  }).catch((e) => {
-    throw new functions.https.HttpsError("unknown", "failed to cancel trip");
-  })
+  });
 };
 
 export const request = functions.https.onCall(requestTrip);
