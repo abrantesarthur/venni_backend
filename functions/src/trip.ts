@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
+import { findPilots } from "./matchingAlgorithm";
 import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
@@ -14,6 +15,14 @@ enum TripStatus {
   completed = "completed",
   canceled = "canceled",
   paymentFailed = "payment-failed",
+}
+
+enum PilotStatus {
+  available = "available",
+  offline = "offline", // logged out or without internet
+  unavailable = "unavailable",
+  busy = "busy",
+  requested = "requested",
 }
 
 interface RequestTripInterface {
@@ -42,11 +51,38 @@ interface TripInterface {
   driver_id?: string;
 }
 
+interface VehicleInterface {
+  brand: string;
+  model: string;
+  year: number;
+  plate: string;
+}
+
+export interface PilotInterface {
+  uid: string;
+  current_client_uid?: string;
+  current_latitude: number;
+  current_longitude: number;
+  status: PilotStatus;
+  vehicles: Array<VehicleInterface>;
+  idle_since: number;
+  rating: number;
+  score: number;
+  position: PilotPosition;
+}
+
+export interface PilotPosition {
+  client_uid: string;
+  distance_text: string;
+  distance_value: number;
+  duration_text: string;
+  duration_value: number;
+}
+
 // initialize google maps API client
 const googleMaps = new Client({});
 
 function validateRequest(obj: any) {
-  console.log("validating data");
   if (
     !(typeof obj.origin_place_id === "string") ||
     obj.origin_place_id.length === 0
@@ -74,7 +110,6 @@ function validateRequest(obj: any) {
       "destination_place_id and origin_place_id are the same."
     );
   }
-
 }
 
 // TODO: only accept requests departing from Paracatu
@@ -82,7 +117,6 @@ const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
-  console.log("called editTrip");
   // validate authentication and request
   if (context.auth == null) {
     throw new functions.https.HttpsError(
@@ -91,7 +125,6 @@ const requestTrip = async (
     );
   }
   validateRequest(data);
-
 
   // define the db
   const db = firebaseAdmin.database();
@@ -118,9 +151,6 @@ const requestTrip = async (
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
-  console.log(directionsResponse.data);
-
-
   // create a trip request entry in the database
   const route = directionsResponse.data.routes[0];
   const result: TripInterface = {
@@ -139,8 +169,6 @@ const requestTrip = async (
 
   // enrich result with uid and return it.
   result.uid = context.auth?.uid;
-  console.log("returning result");
-  console.log(result);
   return result;
 };
 
@@ -148,7 +176,6 @@ const editTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
-  console.log("called editTrip");
   return requestTrip(data, context);
 };
 
@@ -205,7 +232,7 @@ const confirmTrip = async (
     );
   }
 
-  // save request value
+  // save original trip-request value
   const tripRequest = snapshot.val() as TripInterface;
 
   // change trip-request status to waiting-payment
@@ -235,7 +262,15 @@ const confirmTrip = async (
 
   // TODO: start looking for drivers according to the matching algorithm
   // let availableDrivers = [];
-  // findPilots();
+  try {
+    findPilots(context.auth.uid, tripRequest.origin_place_id);
+  } catch (e) {
+    console.log(e);
+    // TODO: update trip-request status
+    throw e;
+  }
+
+  // check if response was empty
 
   return;
 };
@@ -257,53 +292,6 @@ set status of pilot who successfully picked the ride to busy.
 set trip_status to waiting-driver
 if timeout expires
 set status of pilots who failed to pick a ride back to available and current_client_id to null as long as it status equals requested and current_client_id equals the user's uuid, meaning it received our request, didn't respond in time, and didn't reset the pilot's status.
-*/
-
-// const findPilots = async (
-//   clientLatitude: number,
-//   clientLongitude: number,
-//   driverLatitude: number,
-//   driverLongitude: number
-// ) => {
-//   let distanceMatrixResponse;
-//   try {
-//     distanceMatrixResponse = await googleMaps.distancematrix({
-//       params: {
-//         key: functions.config().googleapi.key,
-//         origins: [{
-//           lat: clientLatitude,
-//           lng: clientLongitude,
-//         }],
-//         destinations: [{
-//           lat: driverLatitude,
-//           lng: driverLongitude,
-//         }],
-//         language: Language.pt_BR,
-//       },
-//     });
-//     console.log(distanceMatrixResponse.data);
-//   } catch (e) {
-//     console.log(e)
-//   }
-// };
-/**
-Looks for 3 pilots in the area of the client and rank them according to:
-1) D - Distance to the client (50% weight)
-below 100m is 50 points
-above 4999m is 0pt
-between 100m and 4999m is (5000 - D) / 98
-2) T - For how long the pilot has been idle (40% weight)
-it varies linearly according to (4/30) * T, such that idle for 0 seconds gives 0 points and idle for 5 minutes gives 40 points
-3) S - Pilot score (10%)
-less than 3 gives 0 points
-from 3 to 5 it varies according to to 5S - 15
-Distance gives at most 50 points, score at most 10points, and time idle is unlimited. This way, no matter a pilot's distance and score, at some point they will receive a ride.
-The city is divided into squares that are stored in the database. As pilots drive around, they send their new latitude and longitude to the system every time they move 100 meters. The system places them in the square to which they belong.
-The matching algorithm receives the client position as an argument and uses it to determine the client's square.
-Select all available pilots in the client's square and squares adjacent to the pilot's square.
-If there is no pilot, it picks pilots in squares adjacent to the adjacent squares, and so on until it finds up to 3 riders.
-If it doesn't find any pilots, throw failure and notify the client.
-If it finds pilots, rank them according to the above criteria and return the top three pilots.
 */
 
 export const request = functions.https.onCall(requestTrip);
