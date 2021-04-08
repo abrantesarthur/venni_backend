@@ -22,9 +22,6 @@ describe("trip", () => {
   let defaultCtx;
   let valid_origin_place_id;
   let valid_destination_place_id;
-  let default_origin_longitude;
-  let default_origin_latitude;
-  let createTripRequest;
   let defaultUID;
 
   before(() => {
@@ -40,8 +37,6 @@ describe("trip", () => {
     };
     valid_origin_place_id = "ChIJzY-urWVKqJQRGA8-aIMZJ4I";
     valid_destination_place_id = "ChIJ31rnOmVKqJQR8FM30Au7boM";
-    default_origin_longitude = "17.485672";
-    default_origin_latitude = "-46.576438"
     // createTripRequest populates the database with request
     createTripRequest = async () => {
       let defaultTripRequest = {
@@ -103,66 +98,10 @@ describe("trip", () => {
       );
     };
 
-    const invalidCoordinatesTest = async (data, message) => {
-      await genericTest(
-        data,
-        "invalid-argument",
-        message
-      )
-    }
-
-    it("origin_latitude argument must be present", async () => {
-      await invalidCoordinatesTest(
-        {
-          origin_place_id: valid_origin_place_id,
-          destination_place_id: valid_destination_place_id,
-          origin_longitude: default_origin_longitude,
-        },
-        "argument origin_latitude is missing."
-      )
-    });
-
-    it("origin_latitude argument must be numeric", async () => {
-      await invalidCoordinatesTest(
-        {
-          origin_place_id: valid_origin_place_id,
-          destination_place_id: valid_destination_place_id,
-          origin_longitude: default_origin_longitude,
-          origin_latitude: "abc",
-        },
-        "argument origin_latitude can't be parsed to a number."
-      )
-    });
-
-    it("origin_longitude argument must be present", async () => {
-      await invalidCoordinatesTest(
-        {
-          origin_place_id: valid_origin_place_id,
-          destination_place_id: valid_destination_place_id,
-          origin_latitude: default_origin_latitude,
-        },
-        "argument origin_longitude is missing."
-      )
-    });
-
-    it("origin_longitude argument must be numeric", async () => {
-      await invalidCoordinatesTest(
-        {
-          origin_place_id: valid_origin_place_id,
-          destination_place_id: valid_destination_place_id,
-          origin_latitude: default_origin_latitude,
-          origin_longitude: "abc",
-        },
-        "argument origin_longitude can't be parsed to a number."
-      )
-    });
-
     it("destination_place_id argument must be present", async () => {
       await ivalidPlaceIDTest(
         {
           origin_place_id: "origin_place_id",
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "destination_place_id"
       );
@@ -173,8 +112,6 @@ describe("trip", () => {
         {
           destination_place_id: "",
           origin_place_id: "origin_place_id",
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "destination_place_id"
       );
@@ -185,8 +122,6 @@ describe("trip", () => {
         {
           destination_place_id: 1,
           origin_place_id: "origin_place_id",
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "destination_place_id"
       );
@@ -196,8 +131,6 @@ describe("trip", () => {
       await ivalidPlaceIDTest(
         {
           destination_place_id: "destination_place_id",
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "origin_place_id"
       );
@@ -208,8 +141,6 @@ describe("trip", () => {
         {
           destination_place_id: "destination_place_id",
           origin_place_id: "",
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "origin_place_id"
       );
@@ -220,8 +151,6 @@ describe("trip", () => {
         {
           destination_place_id: "destination_place_id",
           origin_place_id: 1,
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "origin_place_id"
       );
@@ -232,8 +161,6 @@ describe("trip", () => {
         {
           origin_place_id: "same_id",
           destination_place_id: "same_id",
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "invalid-argument",
         "destination_place_id and origin_place_id are the same."
@@ -246,8 +173,6 @@ describe("trip", () => {
         {
           origin_place_id: "valid_origin_place_id",
           destination_place_id: "valid_destination_place_id",
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "failed-precondition",
         "Missing authentication credentials.",
@@ -264,8 +189,6 @@ describe("trip", () => {
         {
           origin_place_id: valid_origin_place_id,
           destination_place_id: invalid_destination,
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "invalid-argument",
         "Invalid request. Invalid 'destination' parameter. '" +
@@ -288,8 +211,6 @@ describe("trip", () => {
         {
           origin_place_id: invalid_origin,
           destination_place_id: valid_destination_place_id,
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "invalid-argument",
         "Invalid request. Invalid 'origin' parameter. '" +
@@ -319,8 +240,6 @@ describe("trip", () => {
         {
           origin_place_id: valid_origin_place_id,
           destination_place_id: valid_destination_place_id,
-          origin_latitude: default_origin_latitude,
-          origin_longitude: default_origin_longitude,
         },
         "",
         "",

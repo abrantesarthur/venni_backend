@@ -40,14 +40,13 @@ interface TripInterface {
   encoded_points: string;
   request_time: number; // number of milliseconds since 01/01/1970
   driver_id?: string;
-  origin_latitude: number,
-  origin_longitude: number,
 }
 
 // initialize google maps API client
 const googleMaps = new Client({});
 
 function validateRequest(obj: any) {
+  console.log("validating data");
   if (
     !(typeof obj.origin_place_id === "string") ||
     obj.origin_place_id.length === 0
@@ -76,41 +75,6 @@ function validateRequest(obj: any) {
     );
   }
 
-  if (
-    !(typeof obj.origin_latitude === "string") ||
-    obj.origin_latitude.length === 0
-  ) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "argument origin_latitude is missing."
-    );
-  }
-
-  // origin_latitude must be numeric
-  if(isNaN(obj.origin_latitude) || isNaN(Number.parseFloat(obj.origin_latitude))) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "argument origin_latitude can't be parsed to a number."
-    );
-  }
-
-  if (
-    !(typeof obj.origin_longitude === "string") ||
-    obj.origin_longitude.length === 0
-  ) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "argument origin_longitude is missing."
-    );
-  }
-
-  // origin_longitude must be numeric
-  if(isNaN(obj.origin_longitude) || isNaN(Number.parseFloat(obj.origin_longitude))) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "argument origin_longitude can't be parsed to a number."
-    );
-  }
 }
 
 // TODO: only accept requests departing from Paracatu
@@ -118,6 +82,7 @@ const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
+  console.log("called editTrip");
   // validate authentication and request
   if (context.auth == null) {
     throw new functions.https.HttpsError(
@@ -126,6 +91,7 @@ const requestTrip = async (
     );
   }
   validateRequest(data);
+
 
   // define the db
   const db = firebaseAdmin.database();
@@ -152,6 +118,9 @@ const requestTrip = async (
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
+  console.log(directionsResponse.data);
+
+
   // create a trip request entry in the database
   const route = directionsResponse.data.routes[0];
   const result: TripInterface = {
@@ -165,13 +134,13 @@ const requestTrip = async (
     duration_text: route.legs[0].duration.text,
     encoded_points: route.overview_polyline.points,
     request_time: Date.now(),
-    origin_latitude: Number.parseFloat(body.origin_latitude),
-    origin_longitude: Number.parseFloat(body.origin_longitude),
   };
   await tripRequestRef.set(result);
 
   // enrich result with uid and return it.
   result.uid = context.auth?.uid;
+  console.log("returning result");
+  console.log(result);
   return result;
 };
 
@@ -179,6 +148,7 @@ const editTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
+  console.log("called editTrip");
   return requestTrip(data, context);
 };
 
@@ -265,8 +235,9 @@ const confirmTrip = async (
 
   // TODO: start looking for drivers according to the matching algorithm
   // let availableDrivers = [];
+  // findPilots();
 
-  return {};
+  return;
 };
 
 /**
@@ -288,18 +259,32 @@ if timeout expires
 set status of pilots who failed to pick a ride back to available and current_client_id to null as long as it status equals requested and current_client_id equals the user's uuid, meaning it received our request, didn't respond in time, and didn't reset the pilot's status.
 */
 
-// TODO: if pilot goes offline or u
 // const findPilots = async (
-//   originPlaceID: String,
-//   destinationLatitude: number,
-//   destinationLongitude: number
+//   clientLatitude: number,
+//   clientLongitude: number,
+//   driverLatitude: number,
+//   driverLongitude: number
 // ) => {
-//   googleMaps.distancematrix({
-//     params: {
-//       key: functions.config().googleapi.key,
-//       origins: []
-//     },
-//   });
+//   let distanceMatrixResponse;
+//   try {
+//     distanceMatrixResponse = await googleMaps.distancematrix({
+//       params: {
+//         key: functions.config().googleapi.key,
+//         origins: [{
+//           lat: clientLatitude,
+//           lng: clientLongitude,
+//         }],
+//         destinations: [{
+//           lat: driverLatitude,
+//           lng: driverLongitude,
+//         }],
+//         language: Language.pt_BR,
+//       },
+//     });
+//     console.log(distanceMatrixResponse.data);
+//   } catch (e) {
+//     console.log(e)
+//   }
 // };
 /**
 Looks for 3 pilots in the area of the client and rank them according to:
