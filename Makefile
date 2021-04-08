@@ -114,6 +114,8 @@ emulator: use-dev-project ./functions/devAdminCredentials.json emulator-config
 # should we want to update files to be tested, don't forget to set the
 # GOOGLE_APPLICATION_CREDENTIALS and run $(NPMRUN) buid
 test: functions/devAdminCredentials.json use-dev-project test-dependencies test-config
+	export GOOGLE_APPLICATION_CREDENTIALS=$(shell pwd)/functions/devAdminCredentials.json && \
+	$(NPMRUN) build && \
 	$(NPMTEST)
 
 ################################################################################
