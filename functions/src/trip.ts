@@ -221,14 +221,20 @@ const confirmTrip = async (
     );
   }
 
-  // transactionUpdate is the callback used to update pilots' statuses
+  // variable that will hold list of pilots who received trip request
+  let requestedPilotsUIDs: string[] = [];
+
+  // reference to pilots
+  const pilotsRef = firebaseAdmin.database().ref("pilots");
+
+  // requestPilot is the callback used to update pilots' statuses
   // it tires to set availablePilot's status to 'requested' and current_client_id to client's uid
-  const transactionUpdate = (pilot: PilotInterface) => {
+  const requestPilot = (pilot: PilotInterface) => {
     if (pilot == null) {
       // we should always check for null even if there is data at this reference in the server.
       // If there is no cached data for this node, the SDK will 'guess' its value as 'null'.
       // The server lets the SDK know the actual value it stores. If it is not null, the transaction
-      // is retried with the correct value. If data on server is actually null
+      // is retried with the correct value. If data on server is actually null,
       // this transaction will be completed and not retried.
       // In our case, we return {} for this case. After all, if the data is indeed null, we don't want
       // to replace it with something else.
@@ -245,11 +251,33 @@ const confirmTrip = async (
       // client and try updating its driver_id field.
       pilot.status = PilotStatus.requested;
       pilot.current_client_uid = context.auth?.uid;
+
+      // mark pilot as requested.
+      requestedPilotsUIDs.push(pilot.uid);
+
       return pilot;
     } else {
       // abort transaction if pilot is no longer available
       return;
     }
+  };
+
+  const unrequestPilot = (pilot: PilotInterface) => {
+    if (pilot == null) {
+      // we always check for null. Read comments above for explanation.
+      return {};
+    }
+    if (
+      pilot.status == "requested" &&
+      pilot.current_client_uid == context.auth?.uid
+    ) {
+      // if pilot was requested to this trip, cancel request.
+      pilot.status = PilotStatus.available;
+      pilot.current_client_uid = "";
+      return pilot;
+    }
+    // abort transaction in other cases
+    return;
   };
 
   // start listening for changes in trip request's driver_id with a
@@ -259,6 +287,8 @@ const confirmTrip = async (
   // which will update the trip-request's driver_id field with the uid of the pilot.
   // we detect that change here.
   let cancelFurtherPilotRequests = false;
+
+  // TODO: add timeout
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen. If it does, something is very broken!
@@ -274,18 +304,29 @@ const confirmTrip = async (
     if (trip.driver_id != undefined && trip.driver_id.length > 0) {
       // stop sendin requests to more pilots;
       cancelFurtherPilotRequests = true;
+
+      // for pilots who were requested but failed to respond in time, set status to available
+      // and clear current_client_id as long as its status equals requested and current_client_id
+      // equals the client's uuid. This means it received our request, didn't respond in time,
+      // and didn't reset the pilot's status.
+      requestedPilotsUIDs.forEach((pilotUID) => {
+        pilotsRef.child(pilotUID).transaction(unrequestPilot);
+      });
+
+      // set status of pilot who successfully picked the ride to busy.
+      // set trip_status to waiting-driver
     }
   });
 
   // run transaction for each pilot
-  const pilotsRef = firebaseAdmin.database().ref("pilots");
   for (var i = 0; i < availablePilots.length; i++) {
     if (cancelFurtherPilotRequests) {
+      console.log("broke at iteration " + i);
       break;
     }
-    await pilotsRef
-      .child(availablePilots[i].uid)
-      .transaction(transactionUpdate);
+    console.log("running iteration " + i);
+    await pilotsRef.child(availablePilots[i].uid).transaction(requestPilot);
+
     // wait 4 seconds before tring to turn next pilot into 'requested'
     // this is so that first pilot to receive request has 5 seconds of
     // advantage to respond. Don't wait after runnign transactoin for last pilot, though.
@@ -295,18 +336,11 @@ const confirmTrip = async (
     }
   }
 
+  // if timeout expires
+  // set status of pilots who failed to pick a ride back to available and current_client_id to null as long as it status equals requested and current_client_id equals the user's uuid, meaning it received our request, didn't respond in time, and didn't reset the pilot's status.
+
   return;
 };
-
-/**
-when hears change in driver_id
-cancel sending of requests to pilots who were not yet requested.
-for those who were requested but failed to respond in time, set status to available and current_client_id to null as long as it status equals requested and current_client_id equals the user's uuid, meaning it received our request, didn't respond in time, and didn't reset the pilot's status.
-set status of pilot who successfully picked the ride to busy.
-set trip_status to waiting-driver
-if timeout expires
-set status of pilots who failed to pick a ride back to available and current_client_id to null as long as it status equals requested and current_client_id equals the user's uuid, meaning it received our request, didn't respond in time, and didn't reset the pilot's status.
-*/
 
 export const request = functions.https.onCall(requestTrip);
 export const edit = functions.https.onCall(editTrip);

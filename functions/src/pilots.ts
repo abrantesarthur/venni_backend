@@ -4,6 +4,7 @@ import { LatLngLiteral, Status } from "@googlemaps/google-maps-services-js";
 import { PilotInterface, TripInterface } from "./interfaces";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { getZonesAdjacentTo, ZoneName } from "./zones";
+import { createMockPilots } from "./mock";
 
 // initialize google maps API client
 const googleMaps = new Client({});
@@ -163,6 +164,7 @@ export const findPilots = async (
     .once("value");
   if (snapshot.val() == null) {
     // if none is available, return empty list
+    createMockPilots(200);
     return [];
   }
   let pilots = pilotsFromObj(snapshot.val());
