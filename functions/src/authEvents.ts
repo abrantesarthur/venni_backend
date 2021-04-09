@@ -8,27 +8,25 @@ export const clean_user_data = functions.auth
     async (user: functions.auth.UserRecord, _: functions.EventContext) => {
       // delete user's realtime database data
       const db = firebaseAdmin.database();
-      await db.ref("trip-requests").child(user.uid).remove();
+
+      // delete entry in 'trip-requests' if it exists
+      const tripRequestRef = db.ref("trip-requests").child(user.uid);
+      const tripRequest = await tripRequestRef.get();
+      if (tripRequest.val() != null) {
+        await tripRequestRef.remove();
+      }
+      // delete entry in users
       await db.ref("users").child(user.uid).remove();
 
-      // delete user's storage data
-      const storage = firebaseAdmin.storage();
-      await storage
+      // delete storage data if it exists
+      const getFilesResponse = await firebaseAdmin
+        .storage()
         .bucket()
-        .file("user-photos/" + user.uid + "/profile.jpg")
-        .delete();
-    }
-  );
-
-// create entry in database 'users' whenever a new user is added
-export const create_user_data = functions.auth
-  .user()
-  .onCreate(
-    (user: firebaseAdmin.auth.UserRecord, _: functions.EventContext) => {
-      firebaseAdmin
-        .database()
-        .ref("users")
-        .child(user.uid)
-        .set({ past_trips: [] });
+        .getFiles({
+          prefix: "user-photos/" + user.uid,
+        });
+      getFilesResponse[0].forEach(async (file) => {
+        await file.delete();
+      });
     }
   );
