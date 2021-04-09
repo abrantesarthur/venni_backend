@@ -1,8 +1,9 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
 import { LatLngLiteral, Status } from "@googlemaps/google-maps-services-js";
-import { PilotInterface } from "./trip";
+import { PilotInterface, TripInterface } from "./trip";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
+import { getZonesAdjacentTo, ZoneName } from "./zones";
 
 // initialize google maps API client
 const googleMaps = new Client({});
@@ -21,16 +22,17 @@ const pilotsFromObj = (obj: any): PilotInterface[] => {
 // assignPilotDistances returns an array of PilotInterface with position
 // property properly assigned
 const assignPilotDistances = async (
-  clientUID: string,
-  clientPlaceID: string,
+  originPlaceID: string,
   pilots: PilotInterface[]
 ): Promise<PilotInterface[]> => {
   if (pilots.length == 0) {
     return [];
   }
 
+  // so we limit the number of pilots to 25 due to Distance Matrix API's restrictions
+  pilots = pilots.slice(0, pilots.length > 25 ? 25 : pilots.length);
+
   // extract list of pilots coordinates from pilots array
-  // TODO: fix for when we have more than 25 pilots
   let pilotsCoordinates: Array<LatLngLiteral> = [];
   pilots.forEach((pilot) => {
     pilotsCoordinates.push({
@@ -40,14 +42,12 @@ const assignPilotDistances = async (
   });
 
   let distanceMatrixResponse;
-
   try {
-    console.log("requesting distanceMatrix");
     // request distances from google distance matrix API
     distanceMatrixResponse = await googleMaps.distancematrix({
       params: {
         key: functions.config().googleapi.key,
-        origins: ["place_id:" + clientPlaceID],
+        origins: ["place_id:" + originPlaceID],
         destinations: pilotsCoordinates,
         language: Language.pt_BR,
       },
@@ -67,13 +67,9 @@ const assignPilotDistances = async (
     );
   }
 
-  console.log("distanceMatrix success");
-
   // make sure we received correct number and status of pilot distances
   let distanceElements = distanceMatrixResponse.data.rows[0].elements;
   if (distanceElements.length != pilots.length) {
-    console.log("distanceElements.length != pilots.length");
-
     throw new functions.https.HttpsError(
       "internal",
       "failed to receive correct response from Google Distance Matrix API."
@@ -81,8 +77,6 @@ const assignPilotDistances = async (
   } else {
     distanceElements.forEach((de) => {
       if (de.status != Status.OK) {
-        console.log("de.status != Status.OK");
-
         throw new functions.https.HttpsError(
           "internal",
           "failed to receive correct response from Google Distance Matrix API."
@@ -91,20 +85,15 @@ const assignPilotDistances = async (
     });
   }
 
-  console.log("about to build array of pilot distances");
-
   // build array of pilot distances
   distanceElements.forEach((elt, index) => {
     pilots[index].position = {
-      client_uid: clientUID,
       distance_text: elt.distance.text,
       distance_value: elt.distance.value,
       duration_text: elt.duration.text,
       duration_value: elt.duration.value,
     };
   });
-
-  console.log("built array of pilot distances");
 
   return pilots;
 };
@@ -124,7 +113,8 @@ const distanceScore = (distanceMeters: number) => {
 
 // IdleTimeScore linearly and indefinitely increments pilot score
 // such that pilots idle for 0 seconds receive 0 points and pilots idle for
-// 5 minutes receive 40 points
+// 5 minutes receive 40 points. Time idle can potentially give unlimited points.
+// This way, no matter a pilot's distance and score, at some point they will receive a ride.
 const idleTimeScore = (timeSeconds: number) => {
   return (timeSeconds * 4) / 30;
 };
@@ -146,7 +136,7 @@ const ratingScore = (rating: number) => {
 const rankPilots = (pilots: PilotInterface[]): PilotInterface[] => {
   // calculate each pilot's score
   const now = Date.now();
-  pilots.forEach((p, index) => {
+  pilots.forEach((p) => {
     let pilotIdleSeconds = (now - p.idle_since) / 1000;
     p.score =
       distanceScore(p.position.distance_value) +
@@ -163,8 +153,7 @@ const rankPilots = (pilots: PilotInterface[]): PilotInterface[] => {
 };
 
 export const findPilots = async (
-  clientUID: string,
-  clientPlaceID: string
+  tripRequest: TripInterface
 ): Promise<PilotInterface[]> => {
   // retrieve all available pilots
   const snapshot = await firebaseAdmin
@@ -183,35 +172,56 @@ export const findPilots = async (
   }
 
   // filter pilots nearby the client
+  pilots = filterPilotsByZone(tripRequest.origin_zone, pilots);
 
   // assing positions to the pilots
-  pilots = await assignPilotDistances(clientUID, clientPlaceID, pilots);
+  pilots = await assignPilotDistances(tripRequest.origin_place_id, pilots);
 
   // rank pilots according to their position and other criteria
   let rankedPilots: PilotInterface[] = rankPilots(pilots);
 
-  console.log("ranked pilots");
-
-  console.log("created mock pilots");
-
-  return rankedPilots;
+  // return three best ranked pilots
+  return rankedPilots.slice(
+    0,
+    rankedPilots.length < 3 ? rankedPilots.length : 3
+  );
 };
 
-// const filterPilotsByPosition = (pilots: PilotInterface[]): PilotInterface[] => {
-//   // try finding pilots in areas immediately adjacent to client
+// filterPilotsByZone returns pilots who are near the origin of the trip.
+// it first tries to find pilots in the very zone where the origin is.
+// If it finds no pilots there, it filters pilots in adjacent zones.
+// If it still finds no pilots there, it returns pilots unchanged.
+const filterPilotsByZone = (
+  originZone: ZoneName,
+  pilots: PilotInterface[]
+): PilotInterface[] => {
+  let nearbyPilots: PilotInterface[] = [];
 
-//   return [];
-// };
+  // filter pilots in the origin zone
+  pilots.forEach((pilot) => {
+    if (pilot.current_zone == originZone) {
+      nearbyPilots.push(pilot);
+    }
+  });
 
-/**
-3) S - Pilot score (10%)
-less than 3 gives 0 points
-from 3 to 5 it varies according to to 5S - 15
-Distance gives at most 50 points, score at most 10points, and time idle is unlimited. This way, no matter a pilot's distance and score, at some point they will receive a ride.
-The city is divided into squares that are stored in the database. As pilots drive around, they send their new latitude and longitude to the system every time they move 100 meters. The system places them in the square to which they belong.
-The matching algorithm receives the client position as an argument and uses it to determine the client's square.
-Select all available pilots in the client's square and squares adjacent to the pilot's square.
-If there is no pilot, it picks pilots in squares adjacent to the adjacent squares, and so on until it finds up to 3 riders.
-If it doesn't find any pilots, throw failure and notify the client.
-If it finds pilots, rank them according to the above criteria and return the top three pilots.
-*/
+  // if found less than 3 pilots in client's zone
+  if (nearbyPilots.length < 3) {
+    // try to find pilots in adjacent zones
+    let adjacentZones: ZoneName[] = getZonesAdjacentTo(originZone);
+    adjacentZones.forEach((adjacentZone) => {
+      pilots.forEach((pilot) => {
+        if (pilot.current_zone == adjacentZone) {
+          nearbyPilots.push(pilot);
+        }
+      });
+    });
+  }
+
+  // if found less than three pilots in client's zone and adjacent zones
+  if (nearbyPilots.length < 3) {
+    // return pilots unfiltered
+    return pilots;
+  }
+
+  return nearbyPilots;
+};

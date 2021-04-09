@@ -5,7 +5,7 @@ import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 import { HttpsError } from "firebase-functions/lib/providers/https";
-import { ZoneName, Zone } from "./zones";
+import { getZoneNameFromCoordinate, ZoneName } from "./zones";
 
 enum TripStatus {
   waitingConfirmation = "waiting-confirmation",
@@ -36,7 +36,7 @@ interface RequestTripInterface {
  * TODO: add payment_method
  * TODO: add used_card_number
  */
-interface TripInterface {
+export interface TripInterface {
   uid?: string;
   trip_status: TripStatus;
   origin_place_id: string;
@@ -75,7 +75,6 @@ export interface PilotInterface {
 }
 
 export interface PilotPosition {
-  client_uid: string;
   distance_text: string;
   distance_value: number;
   duration_text: string;
@@ -154,19 +153,16 @@ const requestTrip = async (
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
-  // calculate trip's origin Zone
+  // create a trip request entry in the database
   const route = directionsResponse.data.routes[0];
   const leg = route.legs[0]; // we don't support multiple stops in same route
-  const originZone = new Zone({
-    lat: leg.start_location.lat,
-    lng: leg.start_location.lng,
-  });
-
-  // create a trip request entry in the database
   const result: TripInterface = {
     trip_status: TripStatus.waitingConfirmation,
     origin_place_id: body.origin_place_id,
-    origin_zone: originZone.name,
+    origin_zone: getZoneNameFromCoordinate(
+      leg.start_location.lat,
+      leg.start_location.lng
+    ),
     destination_place_id: body.destination_place_id,
     fare_price: calculateFare(leg.distance.value),
     distance_meters: leg.distance.value.toString(),
@@ -274,10 +270,7 @@ const confirmTrip = async (
   // search available drivers according to the matching algorithm
   let availablePilots: PilotInterface[];
   try {
-    availablePilots = await findPilots(
-      context.auth.uid,
-      tripRequest.origin_place_id
-    );
+    availablePilots = await findPilots(tripRequest);
   } catch (e) {
     let error: HttpsError = e as HttpsError;
     // if failed to find pilots, update trip-request status to no-drivers-available

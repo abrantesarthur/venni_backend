@@ -1,4 +1,9 @@
-import { LatLngLiteral } from "@googlemaps/google-maps-services-js";
+/**
+The city is divided into squares that are stored in the database.
+As pilots drive around, they send their new latitude and longitude
+to the system every time they move 100 meters.
+The system places them in the square to which they belong.
+*/
 
 export enum LatLimit {
   highest = -17.200874,
@@ -21,34 +26,6 @@ export enum LngLimit {
   sixthHighest = -46.89287,
   seventhHighest = -46.908288,
 }
-
-// enum AdjacencyLevel {
-//   zero = 0,
-//   one = 1,
-//   two = 2,
-//   three = 3,
-// }
-
-// class ZoneCoordinate {
-//   lat: number;
-//   lng: number;
-
-//   constructor(lat: number, lng: number) {
-//     this.lat = lat;
-//     this.lng = lng;
-//   }
-// }
-
-// class ZoneLimit {
-//   nothEast: ZoneCoordinate;
-//   southWest: ZoneCoordinate;
-
-//   constructor(northEast: ZoneCoordinate, southWest: ZoneCoordinate) {
-//     this.nothEast = northEast;
-//     this.southWest = southWest;
-//   }
-// }
-
 export enum ZoneName {
   AA = "AA",
   AB = "AB",
@@ -168,619 +145,297 @@ const zoneNameFromString = (name: string): ZoneName => {
   }
 };
 
-export class Zone {
-  private _name: ZoneName;
-  public get name() {
-    return this._name;
-  }
-
-  public get isValid(): boolean {
-    return this._name != null && this._name.length > 0;
-  }
-
-  // get a position and return the name of zone to which it belongs
-  constructor(position: LatLngLiteral) {
+export const getZoneNameFromCoordinate = (
+  lat: number,
+  lng: number
+): ZoneName => {
+  {
     let name = "UNDEFINED";
     // calculate 'row' part of name
-    if (
-      position.lat <= LatLimit.highest &&
-      position.lat > LatLimit.secondHighest
-    ) {
+    if (lat <= LatLimit.highest && lat > LatLimit.secondHighest) {
       name = "A";
-    } else if (
-      position.lat <= LatLimit.secondHighest &&
-      position.lat > LatLimit.thirdHighest
-    ) {
+    } else if (lat <= LatLimit.secondHighest && lat > LatLimit.thirdHighest) {
       name = "B";
-    } else if (
-      position.lat <= LatLimit.thirdHighest &&
-      position.lat > LatLimit.fourthHighest
-    ) {
+    } else if (lat <= LatLimit.thirdHighest && lat > LatLimit.fourthHighest) {
       name = "C";
-    } else if (
-      position.lat <= LatLimit.fourthHighest &&
-      position.lat > LatLimit.fifthHighest
-    ) {
+    } else if (lat <= LatLimit.fourthHighest && lat > LatLimit.fifthHighest) {
       name = "D";
-    } else if (
-      position.lat <= LatLimit.fifthHighest &&
-      position.lat > LatLimit.sixthHighest
-    ) {
+    } else if (lat <= LatLimit.fifthHighest && lat > LatLimit.sixthHighest) {
       name = "E";
-    } else if (
-      position.lat <= LatLimit.sixthHighest &&
-      position.lat > LatLimit.seventhHighest
-    ) {
+    } else if (lat <= LatLimit.sixthHighest && lat > LatLimit.seventhHighest) {
       name = "F";
-    } else if (
-      position.lat <= LatLimit.seventhHighest &&
-      position.lat > LatLimit.eighthHighest
-    ) {
+    } else if (lat <= LatLimit.seventhHighest && lat > LatLimit.eighthHighest) {
       name = "G";
-    } else if (
-      position.lat <= LatLimit.eighthHighest &&
-      position.lat > LatLimit.ninthHighest
-    ) {
+    } else if (lat <= LatLimit.eighthHighest && lat > LatLimit.ninthHighest) {
       name = "H";
     }
 
     // calculate 'column' part of name
-    if (
-      position.lng <= LngLimit.highest &&
-      position.lng > LngLimit.secondHighest
-    ) {
-      if (
-        position.lat <= LatLimit.highest &&
-        position.lat > LatLimit.fifthHighest
-      ) {
+    if (lng <= LngLimit.highest && lng > LngLimit.secondHighest) {
+      if (lat <= LatLimit.highest && lat > LatLimit.fifthHighest) {
         name = "NE"; // no
-      } else if (
-        position.lat <= LatLimit.fifthHighest &&
-        position.lat > LatLimit.ninthHighest
-      ) {
+      } else if (lat <= LatLimit.fifthHighest && lat > LatLimit.ninthHighest) {
         name = "SE";
       } else {
         name = "UNDEFINED";
       }
-    } else if (
-      position.lng <= LngLimit.secondHighest &&
-      position.lng > LngLimit.thirdHighest
-    ) {
+    } else if (lng <= LngLimit.secondHighest && lng > LngLimit.thirdHighest) {
       name += "D";
-    } else if (
-      position.lng <= LngLimit.thirdHighest &&
-      position.lng > LngLimit.fourthHighest
-    ) {
+    } else if (lng <= LngLimit.thirdHighest && lng > LngLimit.fourthHighest) {
       name += "C";
-    } else if (
-      position.lng <= LngLimit.fourthHighest &&
-      position.lng > LngLimit.fifthHighest
-    ) {
+    } else if (lng <= LngLimit.fourthHighest && lng > LngLimit.fifthHighest) {
       name += "B";
-    } else if (
-      position.lng <= LngLimit.fifthHighest &&
-      position.lng > LngLimit.sixthHighest
-    ) {
+    } else if (lng <= LngLimit.fifthHighest && lng > LngLimit.sixthHighest) {
       name += "A";
-    } else if (
-      position.lng <= LngLimit.sixthHighest &&
-      position.lng > LngLimit.seventhHighest
-    ) {
-      if (
-        position.lat <= LatLimit.highest &&
-        position.lat > LatLimit.fifthHighest
-      ) {
+    } else if (lng <= LngLimit.sixthHighest && lng > LngLimit.seventhHighest) {
+      if (lat <= LatLimit.highest && lat > LatLimit.fifthHighest) {
         name = "NW";
-      } else if (
-        position.lat <= LatLimit.fifthHighest &&
-        position.lat > LatLimit.ninthHighest
-      ) {
+      } else if (lat <= LatLimit.fifthHighest && lat > LatLimit.ninthHighest) {
         name = "SW";
       } else {
         name = "UNDEFINED";
       }
     }
-
-    this._name = zoneNameFromString(name);
+    return zoneNameFromString(name);
   }
+};
 
-  // // getLimits returns the northeast and southwest coordinates of the zone
-  // // depending on adjacentLevel. If adjacentLevel is 'zero', return the limits
-  // // of the zone itself. If 'one', return the limits of the group comprising the zone
-  // // and immediately adjacent zoens. If 'two', returs the limits of the group
-  // // comprising the  zone, immediately adjacent zones, and secondarily adjacent zones.
-  // // If 'four', return the limits of all zones
-  // getLimits(zoneName: ZoneName, adjacentLevel: AdjacencyLevel): ZoneLimit {
-  //   let firstLevelNorthEast: ZoneCoordinate; // north east border fo zone
-  //   let secondLevelNorthEast: ZoneCoordinate; // north east border of adjacent zones
-  //   let thirdLevelNorthEast: ZoneCoordinate; // north east border of second level adjacent zones
-  //   let firstLevelSouthWest: ZoneCoordinate; // south west border of zone
-  //   let secondLevelSouthWest: ZoneCoordinate; // south west border of adjacent zones
-  //   let thirdLevelSouthWest: ZoneCoordinate; // south west border of second level zoens
-
-  //   switch (zoneName) {
-  //     case ZoneName.AA:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.AB:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.AC:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.AD:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       break;
-  //     case ZoneName.BA:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.BB:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.BC:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.BD:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       break;
-  //     case ZoneName.CA:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.CB:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.CC:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.CD:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.highest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       break;
-  //     case ZoneName.DA:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.seventhHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.DB:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.seventhHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.DC:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.seventhHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.DD:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.secondHighest,
-  //         LngLimit.secondHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.seventhHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       break;
-  //     case ZoneName.EA:
-  //       firstLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.fifthHighest,
-  //         LngLimit.fifthHighest
-  //       );
-  //       secondLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.fourthHighest,
-  //         LngLimit.fourthHighest
-  //       );
-  //       thirdLevelNorthEast = new ZoneCoordinate(
-  //         LatLimit.thirdHighest,
-  //         LngLimit.thirdHighest
-  //       );
-  //       firstLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.sixthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       secondLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.seventhHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       thirdLevelSouthWest = new ZoneCoordinate(
-  //         LatLimit.eighthHighest,
-  //         LngLimit.sixthHighest
-  //       );
-  //       break;
-  //     case ZoneName.EB:
-  //       break;
-  //     case ZoneName.EC:
-  //       break;
-  //     case ZoneName.ED:
-  //       break;
-  //     case ZoneName.FA:
-  //       break;
-  //     case ZoneName.FB:
-  //       break;
-  //     case ZoneName.FC:
-  //       break;
-  //     case ZoneName.FD:
-  //       break;
-  //     case ZoneName.GA:
-  //       break;
-  //     case ZoneName.GB:
-  //       break;
-  //     case ZoneName.GC:
-  //       break;
-  //     case ZoneName.GD:
-  //       break;
-  //     case ZoneName.HA:
-  //       break;
-  //     case ZoneName.HB:
-  //       break;
-  //     case ZoneName.HC:
-  //       break;
-  //     case ZoneName.HD:
-  //       break;
-  //     case ZoneName.NE:
-  //       break;
-  //     case ZoneName.NW:
-  //       break;
-  //     case ZoneName.SE:
-  //       break;
-  //     case ZoneName.SW:
-  //       break;
-  //     default:
-  //       return ZoneName.UNDEFINED;
-  //   }
-  // }
-}
+// getLimits returns the northeast and southwest coordinates of the zone
+// depending on adjacentLevel. If adjacentLevel is 'zero', return the limits
+// of the zone itself. If 'one', return the limits of the group comprising the zone
+// and immediately adjacent zoens. If 'two', returs the limits of the group
+// comprising the  zone, immediately adjacent zones, and secondarily adjacent zones.
+// If 'four', return the limits of all zones
+export const getZonesAdjacentTo = (zoneName: ZoneName): ZoneName[] => {
+  switch (zoneName) {
+    case ZoneName.AA:
+      return [ZoneName.BA, ZoneName.BB, ZoneName.AB];
+    case ZoneName.AB:
+      return [ZoneName.AA, ZoneName.BA, ZoneName.BB, ZoneName.BC, ZoneName.AC];
+    case ZoneName.AC:
+      return [ZoneName.AB, ZoneName.BB, ZoneName.BC, ZoneName.BD, ZoneName.AD];
+    case ZoneName.AD:
+      return [ZoneName.AC, ZoneName.BC, ZoneName.BD];
+    case ZoneName.BA:
+      return [ZoneName.AA, ZoneName.AB, ZoneName.BB, ZoneName.CB, ZoneName.CA];
+    case ZoneName.BB:
+      return [ZoneName.AA, ZoneName.AB, ZoneName.BB, ZoneName.CB, ZoneName.CA];
+    case ZoneName.BC:
+      return [
+        ZoneName.AB,
+        ZoneName.AC,
+        ZoneName.AD,
+        ZoneName.BB,
+        ZoneName.BD,
+        ZoneName.CB,
+        ZoneName.CC,
+        ZoneName.CD,
+      ];
+    case ZoneName.BD:
+      return [
+        ZoneName.AC,
+        ZoneName.AD,
+        ZoneName.BC,
+        ZoneName.NE,
+        ZoneName.CC,
+        ZoneName.CD,
+      ];
+    case ZoneName.CA:
+      return [
+        ZoneName.BA,
+        ZoneName.BB,
+        ZoneName.CB,
+        ZoneName.NE,
+        ZoneName.DA,
+        ZoneName.DD,
+      ];
+    case ZoneName.CB:
+      return [
+        ZoneName.BA,
+        ZoneName.BB,
+        ZoneName.BC,
+        ZoneName.CA,
+        ZoneName.CC,
+        ZoneName.DA,
+        ZoneName.DB,
+        ZoneName.DC,
+      ];
+    case ZoneName.CC:
+      return [
+        ZoneName.BB,
+        ZoneName.BC,
+        ZoneName.BD,
+        ZoneName.CB,
+        ZoneName.CD,
+        ZoneName.DB,
+        ZoneName.DC,
+        ZoneName.DD,
+      ];
+    case ZoneName.CD:
+      return [
+        ZoneName.BC,
+        ZoneName.BD,
+        ZoneName.NE,
+        ZoneName.CC,
+        ZoneName.DC,
+        ZoneName.DD,
+      ];
+    case ZoneName.DA:
+      return [ZoneName.CA, ZoneName.CB, ZoneName.DB, ZoneName.EA, ZoneName.EB];
+    case ZoneName.DB:
+      return [
+        ZoneName.CA,
+        ZoneName.CB,
+        ZoneName.CC,
+        ZoneName.DA,
+        ZoneName.DC,
+        ZoneName.EA,
+        ZoneName.EB,
+        ZoneName.EC,
+      ];
+    case ZoneName.DC:
+      return [
+        ZoneName.CB,
+        ZoneName.CC,
+        ZoneName.CD,
+        ZoneName.DB,
+        ZoneName.DD,
+        ZoneName.EB,
+        ZoneName.EC,
+        ZoneName.ED,
+      ];
+    case ZoneName.DD:
+      return [
+        ZoneName.CC,
+        ZoneName.CD,
+        ZoneName.NE,
+        ZoneName.DC,
+        ZoneName.EC,
+        ZoneName.ED,
+      ];
+    case ZoneName.EA:
+      return [
+        ZoneName.DA,
+        ZoneName.DB,
+        ZoneName.EB,
+        ZoneName.FA,
+        ZoneName.FB,
+        ZoneName.SW,
+      ];
+    case ZoneName.EB:
+      return [
+        ZoneName.DA,
+        ZoneName.DB,
+        ZoneName.DC,
+        ZoneName.EA,
+        ZoneName.EC,
+        ZoneName.FA,
+        ZoneName.FB,
+        ZoneName.FC,
+      ];
+    case ZoneName.EC:
+      return [
+        ZoneName.DB,
+        ZoneName.DC,
+        ZoneName.DD,
+        ZoneName.EB,
+        ZoneName.ED,
+        ZoneName.FB,
+        ZoneName.FC,
+        ZoneName.FD,
+      ];
+    case ZoneName.ED:
+      return [ZoneName.DC, ZoneName.DD, ZoneName.EC, ZoneName.FC, ZoneName.FD];
+    case ZoneName.FA:
+      return [
+        ZoneName.EA,
+        ZoneName.EB,
+        ZoneName.FB,
+        ZoneName.GA,
+        ZoneName.GB,
+        ZoneName.SW,
+      ];
+    case ZoneName.FB:
+      return [
+        ZoneName.EA,
+        ZoneName.EB,
+        ZoneName.EC,
+        ZoneName.FA,
+        ZoneName.FC,
+        ZoneName.GA,
+        ZoneName.GB,
+        ZoneName.GC,
+      ];
+    case ZoneName.FC:
+      return [
+        ZoneName.EB,
+        ZoneName.EC,
+        ZoneName.ED,
+        ZoneName.FB,
+        ZoneName.FD,
+        ZoneName.GB,
+        ZoneName.GC,
+        ZoneName.GD,
+      ];
+    case ZoneName.FD:
+      return [ZoneName.EC, ZoneName.ED, ZoneName.FC, ZoneName.GC, ZoneName.GD];
+    case ZoneName.GA:
+      return [
+        ZoneName.FA,
+        ZoneName.FB,
+        ZoneName.SW,
+        ZoneName.GB,
+        ZoneName.HA,
+        ZoneName.HB,
+      ];
+    case ZoneName.GB:
+      return [
+        ZoneName.FA,
+        ZoneName.FB,
+        ZoneName.FC,
+        ZoneName.GA,
+        ZoneName.GC,
+        ZoneName.HA,
+        ZoneName.HB,
+        ZoneName.HC,
+      ];
+    case ZoneName.GC:
+      return [
+        ZoneName.FB,
+        ZoneName.FC,
+        ZoneName.FD,
+        ZoneName.GB,
+        ZoneName.GD,
+        ZoneName.HB,
+        ZoneName.HC,
+        ZoneName.HD,
+      ];
+    case ZoneName.GD:
+      return [
+        ZoneName.FC,
+        ZoneName.FD,
+        ZoneName.GC,
+        ZoneName.HC,
+        ZoneName.HD,
+        ZoneName.SE,
+      ];
+    case ZoneName.HA:
+      return [ZoneName.GA, ZoneName.GB, ZoneName.HB];
+    case ZoneName.HB:
+      return [ZoneName.GA, ZoneName.GB, ZoneName.HA, ZoneName.HC];
+    case ZoneName.HC:
+      return [ZoneName.GB, ZoneName.GC, ZoneName.GD, ZoneName.HB, ZoneName.HD];
+    case ZoneName.HD:
+      return [ZoneName.GC, ZoneName.GD, ZoneName.HC];
+    case ZoneName.NE:
+      return [ZoneName.AD, ZoneName.BD, ZoneName.CD, ZoneName.DD];
+    case ZoneName.NW:
+      return [ZoneName.AA, ZoneName.BA, ZoneName.CA, ZoneName.DA];
+    case ZoneName.SE:
+      return [ZoneName.ED, ZoneName.FD, ZoneName.GD, ZoneName.HD];
+    case ZoneName.SW:
+      return [ZoneName.EA, ZoneName.FA, ZoneName.GA, ZoneName.HA];
+    default:
+      return [];
+  }
+};
