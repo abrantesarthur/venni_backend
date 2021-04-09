@@ -4,6 +4,7 @@ import { findPilots } from "./matchingAlgorithm";
 import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
+import { HttpsError } from "firebase-functions/lib/providers/https";
 
 enum TripStatus {
   waitingConfirmation = "waiting-confirmation",
@@ -260,28 +261,38 @@ const confirmTrip = async (
   tripRequest.trip_status = TripStatus.lookingForDriver;
   tripRequestRef.set(tripRequest);
 
-  // TODO: start looking for drivers according to the matching algorithm
-  // let availableDrivers = [];
+  // search available drivers according to the matching algorithm
+  let availablePilots: PilotInterface[];
   try {
-    findPilots(context.auth.uid, tripRequest.origin_place_id);
+    availablePilots = await findPilots(
+      context.auth.uid,
+      tripRequest.origin_place_id
+    );
   } catch (e) {
-    console.log(e);
-    // TODO: update trip-request status
-    throw e;
+    let error: HttpsError = e as HttpsError;
+    // if failed to find pilots, update trip-request status to no-drivers-available
+    tripRequest.trip_status = TripStatus.noDriversAvailable;
+    tripRequestRef.set(tripRequest);
+    return new functions.https.HttpsError(error.code, error.message);
   }
 
-  // check if response was empty
+  // if didn't find pilots, update trip-reqeust status to noDriversAvailable and throw exception
+  if (availablePilots.length == 0) {
+    tripRequest.trip_status = TripStatus.noDriversAvailable;
+    tripRequestRef.set(tripRequest);
+    return new functions.https.HttpsError(
+      "not-found",
+      "there are no available pilots. Try again later."
+    );
+  }
+
+  // start listening for changes in user's driver_id in database
+  //
 
   return;
 };
 
 /**
-change trip-request status to looking-for-drivers
-start looking for drivers according to Matching Algorithm, which looks for available drivers.
-Matching Algorithm returns list of drivers or error
-if receive error
-set trip-request status to no-drivers-available
-return NO_DRIVERS_AVAILABLE
 if receive list of drivers
 listen for changes in user's driver_id in the database with a generous timeout of 30 seconds.
 then, use transaction to set picked drivers' status to requested and current_client_id to the user's uuid as long as it status is not already requested. Iterate over a list of picked drivers and set status with a delay of 5 seconds between each. Each client has 20 seconds to respond according to their accept-trip implementation.

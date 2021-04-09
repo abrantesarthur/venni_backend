@@ -8,8 +8,8 @@ import { Client, Language } from "@googlemaps/google-maps-services-js";
 const googleMaps = new Client({});
 
 // transform an object of pilots in an array of pilots
-const pilotsFromObj = (obj: any): Array<PilotInterface> => {
-  let pilots: Array<PilotInterface> = [];
+const pilotsFromObj = (obj: any): PilotInterface[] => {
+  let pilots: PilotInterface[] = [];
   Object.keys(obj).forEach((pilotUID) => {
     let pilot = obj[pilotUID] as PilotInterface;
     pilot.uid = pilotUID;
@@ -23,7 +23,7 @@ const pilotsFromObj = (obj: any): Array<PilotInterface> => {
 const assignPilotPositions = async (
   clientUID: string,
   clientPlaceID: string,
-  pilots: Array<PilotInterface>
+  pilots: PilotInterface[]
 ): Promise<PilotInterface[]> => {
   if (pilots.length == 0) {
     return [];
@@ -31,16 +31,19 @@ const assignPilotPositions = async (
 
   // extract list of pilots coordinates from pilots array
   let pilotsCoordinates: Array<LatLngLiteral> = [];
-  pilots.forEach((pilot) => {
-    pilotsCoordinates.push({
-      lat: pilot.current_latitude,
-      lng: pilot.current_longitude,
+  for (var i = 0; i < 9; i++) {
+    pilots.forEach((pilot) => {
+      pilotsCoordinates.push({
+        lat: pilot.current_latitude,
+        lng: pilot.current_longitude,
+      });
     });
-  });
+  }
 
   let distanceMatrixResponse;
 
   try {
+    console.log("requesting distanceMatrix");
     // request distances from google distance matrix API
     distanceMatrixResponse = await googleMaps.distancematrix({
       params: {
@@ -51,6 +54,7 @@ const assignPilotPositions = async (
       },
     });
   } catch (e) {
+    console.log(e);
     throw new functions.https.HttpsError(
       "internal",
       "failed to communicate with Google Distance Matrix API."
@@ -59,11 +63,15 @@ const assignPilotPositions = async (
 
   // make sure request was successfull
   if (distanceMatrixResponse.status != 200) {
+    console.log("failed with status");
+    console.log(distanceMatrixResponse.status);
     throw new functions.https.HttpsError(
       "internal",
       "failed to communicate with Google Distance Matrix API."
     );
   }
+
+  console.log("distanceMatrix success");
 
   // make sure we received correct number and status of pilot distances
   let distanceElements = distanceMatrixResponse.data.rows[0].elements;
@@ -153,8 +161,8 @@ const rankPilots = (pilots: PilotInterface[]): PilotInterface[] => {
 export const findPilots = async (
   clientUID: string,
   clientPlaceID: string
-): Promise<Array<PilotInterface>> => {
-  // TODO: Perhaps separate pilots by zones in database and retrieve only nearby pilots here
+): Promise<PilotInterface[]> => {
+  // TODO: separate pilots by zones in the database and retrieve only nearby pilots here
   // retrieve all available pilots
   const snapshot = await firebaseAdmin
     .database()
