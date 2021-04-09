@@ -49,7 +49,7 @@ export enum LngLimit {
 //   }
 // }
 
-enum ZoneName {
+export enum ZoneName {
   AA = "AA",
   AB = "AB",
   AC = "AC",

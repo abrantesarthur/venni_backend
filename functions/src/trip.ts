@@ -1,10 +1,11 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
-import { findPilots } from "./matchingAlgorithm";
+import { findPilots } from "./pilots";
 import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 import { HttpsError } from "firebase-functions/lib/providers/https";
+import { ZoneName, Zone } from "./zones";
 
 enum TripStatus {
   waitingConfirmation = "waiting-confirmation",
@@ -29,8 +30,6 @@ enum PilotStatus {
 interface RequestTripInterface {
   origin_place_id: string;
   destination_place_id: string;
-  origin_latitude: string;
-  origin_longitude: string;
 }
 
 /**
@@ -42,6 +41,7 @@ interface TripInterface {
   trip_status: TripStatus;
   origin_place_id: string;
   destination_place_id: string;
+  origin_zone: ZoneName;
   fare_price: string;
   distance_meters: string;
   distance_text: string;
@@ -60,12 +60,12 @@ export interface VehicleInterface {
 }
 
 // TODO: verify vehicles if it's an array
-// TODO: add current_zone
 export interface PilotInterface {
   uid: string;
   current_client_uid?: string;
   current_latitude: number;
   current_longitude: number;
+  current_zone: ZoneName;
   status: PilotStatus;
   vehicles: Array<VehicleInterface>;
   idle_since: number;
@@ -154,17 +154,25 @@ const requestTrip = async (
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
-  // create a trip request entry in the database
+  // calculate trip's origin Zone
   const route = directionsResponse.data.routes[0];
+  const leg = route.legs[0]; // we don't support multiple stops in same route
+  const originZone = new Zone({
+    lat: leg.start_location.lat,
+    lng: leg.start_location.lng,
+  });
+
+  // create a trip request entry in the database
   const result: TripInterface = {
     trip_status: TripStatus.waitingConfirmation,
     origin_place_id: body.origin_place_id,
+    origin_zone: originZone.name,
     destination_place_id: body.destination_place_id,
-    fare_price: calculateFare(route.legs[0].distance.value),
-    distance_meters: route.legs[0].distance.value.toString(),
-    distance_text: route.legs[0].distance.text,
-    duration_seconds: route.legs[0].duration.value.toString(),
-    duration_text: route.legs[0].duration.text,
+    fare_price: calculateFare(leg.distance.value),
+    distance_meters: leg.distance.value.toString(),
+    distance_text: leg.distance.text,
+    duration_seconds: leg.duration.value.toString(),
+    duration_text: leg.duration.text,
     encoded_points: route.overview_polyline.points,
     request_time: Date.now(),
   };
@@ -259,7 +267,7 @@ const confirmTrip = async (
     );
   }
 
-  // change trip-request status to looking-for-drivers
+  // change trip-request status to lookingForDriver
   tripRequest.trip_status = TripStatus.lookingForDriver;
   tripRequestRef.set(tripRequest);
 

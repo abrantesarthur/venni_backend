@@ -3,7 +3,6 @@ import * as firebaseAdmin from "firebase-admin";
 import { LatLngLiteral, Status } from "@googlemaps/google-maps-services-js";
 import { PilotInterface } from "./trip";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
-import { createMockPilots } from "./mock";
 
 // initialize google maps API client
 const googleMaps = new Client({});
@@ -19,9 +18,9 @@ const pilotsFromObj = (obj: any): PilotInterface[] => {
   return pilots;
 };
 
-// assignPilotPositions returns an array of PilotInterface with position
+// assignPilotDistances returns an array of PilotInterface with position
 // property properly assigned
-const assignPilotPositions = async (
+const assignPilotDistances = async (
   clientUID: string,
   clientPlaceID: string,
   pilots: PilotInterface[]
@@ -167,7 +166,6 @@ export const findPilots = async (
   clientUID: string,
   clientPlaceID: string
 ): Promise<PilotInterface[]> => {
-  // TODO: separate pilots by zones in the database and retrieve only nearby pilots here
   // retrieve all available pilots
   const snapshot = await firebaseAdmin
     .database()
@@ -176,9 +174,6 @@ export const findPilots = async (
     .equalTo("available")
     .once("value");
   if (snapshot.val() == null) {
-    // TODO: REMOVE THIS LINE
-    console.log("creatignPIlots");
-    await createMockPilots(100);
     // if none is available, return empty list
     return [];
   }
@@ -187,8 +182,10 @@ export const findPilots = async (
     return [];
   }
 
+  // filter pilots nearby the client
+
   // assing positions to the pilots
-  pilots = await assignPilotPositions(clientUID, clientPlaceID, pilots);
+  pilots = await assignPilotDistances(clientUID, clientPlaceID, pilots);
 
   // rank pilots according to their position and other criteria
   let rankedPilots: PilotInterface[] = rankPilots(pilots);
@@ -199,6 +196,12 @@ export const findPilots = async (
 
   return rankedPilots;
 };
+
+// const filterPilotsByPosition = (pilots: PilotInterface[]): PilotInterface[] => {
+//   // try finding pilots in areas immediately adjacent to client
+
+//   return [];
+// };
 
 /**
 3) S - Pilot score (10%)
