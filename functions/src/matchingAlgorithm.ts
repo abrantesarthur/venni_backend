@@ -3,6 +3,7 @@ import * as firebaseAdmin from "firebase-admin";
 import { LatLngLiteral, Status } from "@googlemaps/google-maps-services-js";
 import { PilotInterface } from "./trip";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
+import { createMockPilots } from "./mock";
 
 // initialize google maps API client
 const googleMaps = new Client({});
@@ -30,15 +31,14 @@ const assignPilotPositions = async (
   }
 
   // extract list of pilots coordinates from pilots array
+  // TODO: fix for when we have more than 25 pilots
   let pilotsCoordinates: Array<LatLngLiteral> = [];
-  for (var i = 0; i < 9; i++) {
-    pilots.forEach((pilot) => {
-      pilotsCoordinates.push({
-        lat: pilot.current_latitude,
-        lng: pilot.current_longitude,
-      });
+  pilots.forEach((pilot) => {
+    pilotsCoordinates.push({
+      lat: pilot.current_latitude,
+      lng: pilot.current_longitude,
     });
-  }
+  });
 
   let distanceMatrixResponse;
 
@@ -54,7 +54,6 @@ const assignPilotPositions = async (
       },
     });
   } catch (e) {
-    console.log(e);
     throw new functions.https.HttpsError(
       "internal",
       "failed to communicate with Google Distance Matrix API."
@@ -63,8 +62,6 @@ const assignPilotPositions = async (
 
   // make sure request was successfull
   if (distanceMatrixResponse.status != 200) {
-    console.log("failed with status");
-    console.log(distanceMatrixResponse.status);
     throw new functions.https.HttpsError(
       "internal",
       "failed to communicate with Google Distance Matrix API."
@@ -76,6 +73,8 @@ const assignPilotPositions = async (
   // make sure we received correct number and status of pilot distances
   let distanceElements = distanceMatrixResponse.data.rows[0].elements;
   if (distanceElements.length != pilots.length) {
+    console.log("distanceElements.length != pilots.length");
+
     throw new functions.https.HttpsError(
       "internal",
       "failed to receive correct response from Google Distance Matrix API."
@@ -83,6 +82,8 @@ const assignPilotPositions = async (
   } else {
     distanceElements.forEach((de) => {
       if (de.status != Status.OK) {
+        console.log("de.status != Status.OK");
+
         throw new functions.https.HttpsError(
           "internal",
           "failed to receive correct response from Google Distance Matrix API."
@@ -90,6 +91,8 @@ const assignPilotPositions = async (
       }
     });
   }
+
+  console.log("about to build array of pilot distances");
 
   // build array of pilot distances
   distanceElements.forEach((elt, index) => {
@@ -101,6 +104,8 @@ const assignPilotPositions = async (
       duration_value: elt.duration.value,
     };
   });
+
+  console.log("built array of pilot distances");
 
   return pilots;
 };
@@ -171,6 +176,9 @@ export const findPilots = async (
     .equalTo("available")
     .once("value");
   if (snapshot.val() == null) {
+    // TODO: REMOVE THIS LINE
+    console.log("creatignPIlots");
+    await createMockPilots(100);
     // if none is available, return empty list
     return [];
   }
@@ -184,6 +192,10 @@ export const findPilots = async (
 
   // rank pilots according to their position and other criteria
   let rankedPilots: PilotInterface[] = rankPilots(pilots);
+
+  console.log("ranked pilots");
+
+  console.log("created mock pilots");
 
   return rankedPilots;
 };

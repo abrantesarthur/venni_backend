@@ -52,13 +52,15 @@ interface TripInterface {
   driver_id?: string;
 }
 
-interface VehicleInterface {
+export interface VehicleInterface {
   brand: string;
   model: string;
   year: number;
   plate: string;
 }
 
+// TODO: verify vehicles if it's an array
+// TODO: add current_zone
 export interface PilotInterface {
   uid: string;
   current_client_uid?: string;
