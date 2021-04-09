@@ -281,6 +281,23 @@ const confirmTrip = async (
     return;
   };
 
+  // cancelRequest is a callback that is triggered if pilots fail
+  // to accept a trip in 30 seconds. It stops listening for their responses
+  // and unrequests them, setting their statuses back to available.
+  const cancelRequest = () => {
+    // when timeout expires, stop listening for changes in driver_id
+    tripRequestRef.off("value");
+
+    const j = requestedPilotsUIDs.length;
+    for (var i = 0; i < j; i++) {
+      // set status of pilots who failed to pick trip back to available
+      pilotsRef.child(requestedPilotsUIDs[0]).transaction(unrequestPilot);
+
+      // remove pilot from list of requested pilots.
+      requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
+    }
+  };
+
   // start listening for changes in trip request's driver_id with a
   // 30 seconds timeout to account for delay when sending requests to pilots.
   // pilots are listening for changes in their 'status'. When they see its value
@@ -288,11 +305,7 @@ const confirmTrip = async (
   // which will update the trip-request's driver_id field with the uid of the pilot.
   // we detect that change here.
   let cancelFurtherPilotRequests = false;
-
-  setTimeout(() => {
-    tripRequestRef.off("value");
-  }, 30000);
-
+  setTimeout(cancelRequest, 30000);
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen. If it does, something is very broken!
@@ -315,9 +328,13 @@ const confirmTrip = async (
       // and clear current_client_id as long as its status equals requested and current_client_id
       // equals the client's uuid. This means it received our request, didn't respond in time,
       // and didn't reset the pilot's status.
-      requestedPilotsUIDs.forEach((pilotUID) => {
-        pilotsRef.child(pilotUID).transaction(unrequestPilot);
-      });
+      const j = requestedPilotsUIDs.length;
+      for (var i = 0; i < j; i++) {
+        pilotsRef.child(requestedPilotsUIDs[0]).transaction(unrequestPilot);
+
+        // remove pilot from list of requested pilots.
+        requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
+      }
 
       // set status of pilot who successfully picked the ride to busy.
       // set trip_status to waiting-driver
@@ -341,9 +358,6 @@ const confirmTrip = async (
       await sleep(10000);
     }
   }
-
-  // if timeout expires
-  // set status of pilots who failed to pick a ride back to available and current_client_id to null as long as it status equals requested and current_client_id equals the user's uuid, meaning it received our request, didn't respond in time, and didn't reset the pilot's status.
 
   return;
 };
