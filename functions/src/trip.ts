@@ -227,7 +227,7 @@ const confirmTrip = async (
   // reference to pilots
   const pilotsRef = firebaseAdmin.database().ref("pilots");
 
-  // requestPilot is the callback used to update pilots' statuses
+  // requestPilot is the callback used to update pilots' statuses to requested.
   // it tires to set availablePilot's status to 'requested' and current_client_id to client's uid
   const requestPilot = (pilot: PilotInterface) => {
     if (pilot == null) {
@@ -262,6 +262,7 @@ const confirmTrip = async (
     }
   };
 
+  // unrequestPilot undoes what requestPilot does.
   const unrequestPilot = (pilot: PilotInterface) => {
     if (pilot == null) {
       // we always check for null. Read comments above for explanation.
@@ -288,7 +289,10 @@ const confirmTrip = async (
   // we detect that change here.
   let cancelFurtherPilotRequests = false;
 
-  // TODO: add timeout
+  setTimeout(() => {
+    tripRequestRef.off("value");
+  }, 30000);
+
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen. If it does, something is very broken!
@@ -299,11 +303,13 @@ const confirmTrip = async (
     }
     let trip = snapshot.val() as TripInterface;
     // if one of the pilots accepts the trip, they will call accept-trip which
-    // will update the trip's driver_id with the id of the pilot who accepted
-    // the trip
+    // will update the trip's driver_id with the id of the accepting pilot
     if (trip.driver_id != undefined && trip.driver_id.length > 0) {
-      // stop sendin requests to more pilots;
+      // stop sending requests to more pilots;
       cancelFurtherPilotRequests = true;
+
+      // stop listening for changes in driver_id
+      tripRequestRef.off("value");
 
       // for pilots who were requested but failed to respond in time, set status to available
       // and clear current_client_id as long as its status equals requested and current_client_id
