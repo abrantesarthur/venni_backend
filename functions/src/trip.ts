@@ -37,7 +37,7 @@ interface RequestTripInterface {
  * TODO: add used_card_number
  */
 export interface TripInterface {
-  uid?: string;
+  uid: string;
   trip_status: TripStatus;
   origin_place_id: string;
   destination_place_id: string;
@@ -157,6 +157,7 @@ const requestTrip = async (
   const route = directionsResponse.data.routes[0];
   const leg = route.legs[0]; // we don't support multiple stops in same route
   const result: TripInterface = {
+    uid: context.auth?.uid,
     trip_status: TripStatus.waitingConfirmation,
     origin_place_id: body.origin_place_id,
     origin_zone: getZoneNameFromCoordinate(
@@ -174,8 +175,6 @@ const requestTrip = async (
   };
   await tripRequestRef.set(result);
 
-  // enrich result with uid and return it.
-  result.uid = context.auth?.uid;
   return result;
 };
 
@@ -248,7 +247,7 @@ const confirmTrip = async (
 
   // start processing payment
   // TODO: substitute this for actual payment processing
-  await sleep(1500);
+  // await sleep(1500);
   let paymentSucceeded = true;
 
   // if payment failed
@@ -289,8 +288,49 @@ const confirmTrip = async (
     );
   }
 
+  // transactionUpdate is the callback used to update pilots' statuses
+  // it tires to set availablePilot's status to 'requested' and current_client_id to client's uid
+  const transactionUpdate = (pilot: PilotInterface) => {
+    if (pilot == null) {
+      // we should always check for null even if there is data at this reference in the server.
+      // If there is no cached data for this node, the SDK will 'guess' its value as 'null'.
+      // The server lets the SDK know the actual value it stores. If it is not null, the transaction
+      // is retried with the correct value. If data on server is actually null
+      // this transaction will be completed and not retried.
+      // In our case, we return {} for this case. After all, if the data is indeed null, we don't want
+      // to replace it with something else.
+      return {};
+    }
+    if (
+      pilot.status == PilotStatus.available &&
+      (pilot.current_client_uid == undefined || pilot.current_client_uid == "")
+    ) {
+      // if pilot is still available, change its status to 'requested'
+      // and current_client_uid to uid of client making requests
+      pilot.status = PilotStatus.requested;
+      pilot.current_client_uid = context.auth?.uid;
+      return pilot;
+    } else {
+      // abort transaction if pilot is no longer available
+      return;
+    }
+  };
+
   // start listening for changes in user's driver_id in database
-  //
+
+  // run transaction for each pilot
+  const pilotsRef = firebaseAdmin.database().ref("pilots");
+  for (var i = 0; i < availablePilots.length; i++) {
+    await pilotsRef
+      .child(availablePilots[i].uid)
+      .transaction(transactionUpdate);
+    // wait 5 seconds before tring to turn next pilot into 'requested'
+    // this is so that first pilot to receive request has 5 seconds of
+    // advantage to respond. Don't wait after runnign transactoin for last pilot, though.
+    if (i != availablePilots.length - 1) {
+      await sleep(5000);
+    }
+  }
 
   return;
 };
@@ -298,7 +338,7 @@ const confirmTrip = async (
 /**
 if receive list of drivers
 listen for changes in user's driver_id in the database with a generous timeout of 30 seconds.
-then, use transaction to set picked drivers' status to requested and current_client_id to the user's uuid as long as it status is not already requested. Iterate over a list of picked drivers and set status with a delay of 5 seconds between each. Each client has 20 seconds to respond according to their accept-trip implementation.
+then, use transaction to set picked drivers' status to requested and current_client_id to the user's uuid as long as it status is not already requested. Iterate over a list of picked drivers and set status with a delay of 5 seconds between each. Each pilot has 20 seconds to respond according to their accept-trip implementation.
 when hears change in driver_id
 cancel sending of requests to pilots who were not yet requested.
 for those who were requested but failed to respond in time, set status to available and current_client_id to null as long as it status equals requested and current_client_id equals the user's uuid, meaning it received our request, didn't respond in time, and didn't reset the pilot's status.

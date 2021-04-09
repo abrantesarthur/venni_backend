@@ -38,7 +38,7 @@ export const createMockPilots = async (amount: number) => {
   for (var i = 0; i < amount; i++) {
     let pilot = {
       uid: uuid.v4(),
-      current_client_id: "",
+      current_client_uid: "",
       current_latitude: getRandomLatitude(),
       current_longitude: getRandomLongitude(),
       status: "available",

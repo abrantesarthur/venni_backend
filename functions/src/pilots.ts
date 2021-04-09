@@ -13,7 +13,6 @@ const pilotsFromObj = (obj: any): PilotInterface[] => {
   let pilots: PilotInterface[] = [];
   Object.keys(obj).forEach((pilotUID) => {
     let pilot = obj[pilotUID] as PilotInterface;
-    pilot.uid = pilotUID;
     pilots.push(pilot);
   });
   return pilots;
@@ -136,12 +135,12 @@ const ratingScore = (rating: number) => {
 const rankPilots = (pilots: PilotInterface[]): PilotInterface[] => {
   // calculate each pilot's score
   const now = Date.now();
-  pilots.forEach((p) => {
-    let pilotIdleSeconds = (now - p.idle_since) / 1000;
-    p.score =
-      distanceScore(p.position.distance_value) +
+  pilots.forEach((pilot) => {
+    let pilotIdleSeconds = (now - pilot.idle_since) / 1000;
+    pilot.score =
+      distanceScore(pilot.position.distance_value) +
       idleTimeScore(pilotIdleSeconds) +
-      ratingScore(p.rating);
+      ratingScore(pilot.rating);
   });
 
   // sort pilots by score
@@ -178,7 +177,7 @@ export const findPilots = async (
   pilots = await assignPilotDistances(tripRequest.origin_place_id, pilots);
 
   // rank pilots according to their position and other criteria
-  let rankedPilots: PilotInterface[] = rankPilots(pilots);
+  let rankedPilots = rankPilots(pilots);
 
   // return three best ranked pilots
   return rankedPilots.slice(
