@@ -241,6 +241,8 @@ const confirmTrip = async (
       // if pilot is still available, change its status to 'requested'
       // and current_client_uid to uid of client making requests.
       // each pilot has 20 seconds to reply on their end.
+      // they will use the current_client_uid to find the trip-request entry for the
+      // client and try updating its driver_id field.
       pilot.status = PilotStatus.requested;
       pilot.current_client_uid = context.auth?.uid;
       return pilot;
@@ -250,17 +252,37 @@ const confirmTrip = async (
     }
   };
 
-  // start listening for changes in client's driver_id in database with
+  // start listening for changes in trip request's driver_id with a
   // 30 seconds timeout to account for delay when sending requests to pilots.
-  // pilots will set this driver_id
-  // const clientRef = firebaseAdmin
-  //   .database()
-  //   .ref("users")
-  //   .child(context.auth.uid);
+  // pilots are listening for changes in their 'status'. When they see its value
+  // change to 'requested' they can accept the trip by sending an accept-trip request
+  // which will update the trip-request's driver_id field with the uid of the pilot.
+  // we detect that change here.
+  let cancelFurtherPilotRequests = false;
+  tripRequestRef.on("value", (snapshot) => {
+    if (snapshot.val() == null) {
+      // this should never happen. If it does, something is very broken!
+      throw new functions.https.HttpsError(
+        "internal",
+        "Something wrong happend. Try again later."
+      );
+    }
+    let trip = snapshot.val() as TripInterface;
+    // if one of the pilots accepts the trip, they will call accept-trip which
+    // will update the trip's driver_id with the id of the pilot who accepted
+    // the trip
+    if (trip.driver_id != undefined && trip.driver_id.length > 0) {
+      // stop sendin requests to more pilots;
+      cancelFurtherPilotRequests = true;
+    }
+  });
 
   // run transaction for each pilot
   const pilotsRef = firebaseAdmin.database().ref("pilots");
   for (var i = 0; i < availablePilots.length; i++) {
+    if (cancelFurtherPilotRequests) {
+      break;
+    }
     await pilotsRef
       .child(availablePilots[i].uid)
       .transaction(transactionUpdate);
@@ -268,7 +290,8 @@ const confirmTrip = async (
     // this is so that first pilot to receive request has 5 seconds of
     // advantage to respond. Don't wait after runnign transactoin for last pilot, though.
     if (i != availablePilots.length - 1) {
-      await sleep(4000);
+      // TODO: decrease to 4 seconds
+      await sleep(10000);
     }
   }
 
