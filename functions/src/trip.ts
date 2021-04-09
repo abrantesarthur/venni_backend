@@ -5,81 +5,14 @@ import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 import { HttpsError } from "firebase-functions/lib/providers/https";
-import { getZoneNameFromCoordinate, ZoneName } from "./zones";
-
-enum TripStatus {
-  waitingConfirmation = "waiting-confirmation",
-  waitingPayment = "waiting-payment",
-  waitingDriver = "waiting-driver",
-  lookingForDriver = "looking-for-driver",
-  noDriversAvailable = "no-drivers-available",
-  inProgress = "in-progress",
-  completed = "completed",
-  canceled = "canceled",
-  paymentFailed = "payment-failed",
-}
-
-enum PilotStatus {
-  available = "available",
-  offline = "offline", // logged out or without internet
-  unavailable = "unavailable",
-  busy = "busy",
-  requested = "requested",
-}
-
-interface RequestTripInterface {
-  origin_place_id: string;
-  destination_place_id: string;
-}
-
-/**
- * TODO: add payment_method
- * TODO: add used_card_number
- */
-export interface TripInterface {
-  uid: string;
-  trip_status: TripStatus;
-  origin_place_id: string;
-  destination_place_id: string;
-  origin_zone: ZoneName;
-  fare_price: string;
-  distance_meters: string;
-  distance_text: string;
-  duration_seconds: string;
-  duration_text: string;
-  encoded_points: string;
-  request_time: number; // number of milliseconds since 01/01/1970
-  driver_id?: string;
-}
-
-export interface VehicleInterface {
-  brand: string;
-  model: string;
-  year: number;
-  plate: string;
-}
-
-// TODO: verify vehicles if it's an array
-export interface PilotInterface {
-  uid: string;
-  current_client_uid?: string;
-  current_latitude: number;
-  current_longitude: number;
-  current_zone: ZoneName;
-  status: PilotStatus;
-  vehicles: Array<VehicleInterface>;
-  idle_since: number;
-  rating: number;
-  score: number;
-  position: PilotPosition;
-}
-
-export interface PilotPosition {
-  distance_text: string;
-  distance_value: number;
-  duration_text: string;
-  duration_value: number;
-}
+import { getZoneNameFromCoordinate } from "./zones";
+import {
+  RequestTripInterface,
+  TripInterface,
+  TripStatus,
+  PilotInterface,
+  PilotStatus,
+} from "./interfaces";
 
 // initialize google maps API client
 const googleMaps = new Client({});
@@ -306,7 +239,8 @@ const confirmTrip = async (
       (pilot.current_client_uid == undefined || pilot.current_client_uid == "")
     ) {
       // if pilot is still available, change its status to 'requested'
-      // and current_client_uid to uid of client making requests
+      // and current_client_uid to uid of client making requests.
+      // each pilot has 20 seconds to reply on their end.
       pilot.status = PilotStatus.requested;
       pilot.current_client_uid = context.auth?.uid;
       return pilot;
@@ -316,7 +250,13 @@ const confirmTrip = async (
     }
   };
 
-  // start listening for changes in user's driver_id in database
+  // start listening for changes in client's driver_id in database with
+  // 30 seconds timeout to account for delay when sending requests to pilots.
+  // pilots will set this driver_id
+  // const clientRef = firebaseAdmin
+  //   .database()
+  //   .ref("users")
+  //   .child(context.auth.uid);
 
   // run transaction for each pilot
   const pilotsRef = firebaseAdmin.database().ref("pilots");
@@ -324,11 +264,11 @@ const confirmTrip = async (
     await pilotsRef
       .child(availablePilots[i].uid)
       .transaction(transactionUpdate);
-    // wait 5 seconds before tring to turn next pilot into 'requested'
+    // wait 4 seconds before tring to turn next pilot into 'requested'
     // this is so that first pilot to receive request has 5 seconds of
     // advantage to respond. Don't wait after runnign transactoin for last pilot, though.
     if (i != availablePilots.length - 1) {
-      await sleep(5000);
+      await sleep(4000);
     }
   }
 
@@ -336,9 +276,6 @@ const confirmTrip = async (
 };
 
 /**
-if receive list of drivers
-listen for changes in user's driver_id in the database with a generous timeout of 30 seconds.
-then, use transaction to set picked drivers' status to requested and current_client_id to the user's uuid as long as it status is not already requested. Iterate over a list of picked drivers and set status with a delay of 5 seconds between each. Each pilot has 20 seconds to respond according to their accept-trip implementation.
 when hears change in driver_id
 cancel sending of requests to pilots who were not yet requested.
 for those who were requested but failed to respond in time, set status to available and current_client_id to null as long as it status equals requested and current_client_id equals the user's uuid, meaning it received our request, didn't respond in time, and didn't reset the pilot's status.

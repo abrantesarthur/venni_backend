@@ -19,3 +19,16 @@ export const clean_user_data = functions.auth
         .delete();
     }
   );
+
+// create entry in database 'users' whenever a new user is added
+export const create_user_data = functions.auth
+  .user()
+  .onCreate(
+    (user: firebaseAdmin.auth.UserRecord, _: functions.EventContext) => {
+      firebaseAdmin
+        .database()
+        .ref("users")
+        .child(user.uid)
+        .set({ past_trips: [] });
+    }
+  );

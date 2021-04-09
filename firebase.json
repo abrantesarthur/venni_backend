@@ -1,6 +1,6 @@
 {
-  "googleapi": {
-    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+  "functions": {
+    "predeploy": "npm --prefix \"functions\" run build"
   },
   "emulators": {
     "functions": {
@@ -11,7 +11,7 @@
       "enabled": "true"
     }
   },
-  "functions": {
-    "predeploy": "npm --prefix \"functions\" run build"
+  "googleapi": {
+    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
   }
 }

@@ -1,6 +1,6 @@
 import * as firebaseAdmin from "firebase-admin";
 import * as uuid from "uuid";
-import { VehicleInterface } from "./trip";
+import { VehicleInterface } from "./interfaces";
 import { getZoneNameFromCoordinate, LatLimit, LngLimit } from "./zones";
 
 // returns a random latitude between LatLimit.highest and LatLimit.ninthHighest
@@ -42,7 +42,7 @@ export const createMockPilots = async (amount: number) => {
       current_latitude: getRandomLatitude(),
       current_longitude: getRandomLongitude(),
       status: "available",
-      vehicles: [defaultVehicle],
+      vehicles: [defaultVehicle, defaultVehicle],
       idle_since: now,
       rating: 4.9,
       current_zone: "",

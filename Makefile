@@ -90,6 +90,17 @@ test-config: check-test-env
 
 
 ################################################################################
+## BUILDING
+################################################################################
+
+# typescript is transpiled into javascript by executing npm run build
+build: functions/devAdminCredentials.json
+# exporting the credentials is not necessary for deploying but it doesn't hurt either
+# so we keep it for other build targets that depend on it.
+	export GOOGLE_APPLICATION_CREDENTIALS=$(shell pwd)/functions/devAdminCredentials.json && \
+	$(NPMRUN) build
+
+################################################################################
 ## TESTING
 ################################################################################
 .PHONY: test-dependencies emulator test
@@ -100,22 +111,17 @@ test-dependencies:
 	$(NPMLIST) firebase-functions-test &> /dev/null || $(NPM) install --save-dev firebase-functions-test
 
 # start the Firebase Local Emulator Suite with non-emulated services pointing to venni-rider-test project
-emulator: use-dev-project ./functions/devAdminCredentials.json emulator-config
+emulator: use-dev-project emulator-config build
 # install firebase-tools if it's not already installed
-# typescript is transpiled into javascript by executing npm run build
 # start the emulator
 	@$(NPMLIST) -g firebase-tools &> /dev/null || $(NPM) install -g firebase-tools && \
-	export GOOGLE_APPLICATION_CREDENTIALS=$(shell pwd)/functions/devAdminCredentials.json && \
-	$(NPMRUN) build && \
 	firebase emulators:start
 	
 
 # start online testing with services pointing to test project
 # should we want to update files to be tested, don't forget to set the
 # GOOGLE_APPLICATION_CREDENTIALS and run $(NPMRUN) buid
-test: functions/devAdminCredentials.json use-dev-project test-dependencies test-config
-	export GOOGLE_APPLICATION_CREDENTIALS=$(shell pwd)/functions/devAdminCredentials.json && \
-	$(NPMRUN) build && \
+test: use-dev-project test-dependencies test-config build
 	$(NPMTEST)
 
 ################################################################################
@@ -134,11 +140,11 @@ else
 endif
 endif
 
-deploy-dev: use-dev-project deploy-config deploy
+deploy-dev: use-dev-project deploy-config build deploy
 
-deploy-stag: use-stag-project deploy-config deploy
+deploy-stag: use-stag-project deploy-config build deploy
 
-deploy-prod: use-prod-project deploy-config deploy
+deploy-prod: use-prod-project deploy-config build deploy
 
 
 

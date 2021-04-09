@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
 import { LatLngLiteral, Status } from "@googlemaps/google-maps-services-js";
-import { PilotInterface, TripInterface } from "./trip";
+import { PilotInterface, TripInterface } from "./interfaces";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { getZonesAdjacentTo, ZoneName } from "./zones";
 
