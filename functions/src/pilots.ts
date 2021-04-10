@@ -13,6 +13,7 @@ const googleMaps = new Client({});
 export const pilotsFromObj = (obj: any): PilotInterface[] => {
   let pilots: PilotInterface[] = [];
   Object.keys(obj).forEach((pilotUID) => {
+    // don't add obj to list if it doesn't conform to TripInterface
     if (isTripInterface(obj[pilotUID])) {
       // create pilot obj, ignoring eventual extra irrelevant fields
       const pilot = {
@@ -36,15 +37,16 @@ export const pilotsFromObj = (obj: any): PilotInterface[] => {
 
 // assignPilotDistances returns an array of PilotInterface with position
 // property properly assigned
-const assignPilotDistances = async (
+export const assignPilotDistances = async (
   originPlaceID: string,
-  pilots: PilotInterface[]
+  pilots: PilotInterface[],
+  googleApiKey: string
 ): Promise<PilotInterface[]> => {
   if (pilots.length == 0) {
     return [];
   }
 
-  // so we limit the number of pilots to 25 due to Distance Matrix API's restrictions
+  // limit the number of pilots to 25 due to Distance Matrix API's restrictions
   pilots = pilots.slice(0, pilots.length > 25 ? 25 : pilots.length);
 
   // extract list of pilots coordinates from pilots array
@@ -61,7 +63,7 @@ const assignPilotDistances = async (
     // request distances from google distance matrix API
     distanceMatrixResponse = await googleMaps.distancematrix({
       params: {
-        key: functions.config().googleapi.key,
+        key: googleApiKey,
         origins: ["place_id:" + originPlaceID],
         destinations: pilotsCoordinates,
         language: Language.pt_BR,
@@ -197,7 +199,11 @@ export const findPilots = async (
   pilots = filterPilotsByZone(tripRequest.origin_zone, pilots);
 
   // assing positions to the pilots
-  pilots = await assignPilotDistances(tripRequest.origin_place_id, pilots);
+  pilots = await assignPilotDistances(
+    tripRequest.origin_place_id,
+    pilots,
+    functions.config().googleapi.key
+  );
 
   // rank pilots according to their position and other criteria
   let rankedPilots = rankPilots(pilots);

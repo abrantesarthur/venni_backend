@@ -119,3 +119,37 @@ describe("pilosFromObj", () => {
     assert.equal(pilots[0].position, undefined);
   });
 });
+
+describe("assignPilotDistances", () => {
+  let defaultOriginPlaceID;
+  let defaultPilots;
+  let p;
+
+  before(() => {
+    p = require("../lib/pilots");
+    defaultOriginPlaceID = "ChIJzY-urWVKqJQRGA8-aIMZJ4I";
+    defaultPilots = [
+      {
+        uid: "uid",
+        current_latitude: -17.217587,
+        current_longitude: -46.881064,
+        current_zone: "AA",
+        status: "status",
+        vehicles: [],
+        idle_since: "idle_since",
+        rating: "rating",
+      },
+    ];
+  });
+
+  it("works", async () => {
+    console.log(process.env);
+    const pilotsWithDistances = await p.assignPilotDistances(
+      defaultOriginPlaceID,
+      defaultPilots,
+      "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+    );
+
+    assert.isTrue(pilotsWithDistances[0].position != undefined);
+  });
+});

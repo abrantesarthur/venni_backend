@@ -2,7 +2,7 @@
   "name": "functions",
   "scripts": {
     "build": "tsc --strict -noEmitOnError",
-    "test": "mocha --reporter spec --exit --timeout 5000",
+    "test": "mocha --reporter spec --exit --timeout 5000 --require test/mocha.env.js",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
