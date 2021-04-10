@@ -5,6 +5,7 @@ import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 import { HttpsError } from "firebase-functions/lib/providers/https";
+import { AsyncTimeout, sleep } from "./utils";
 import { getZoneNameFromCoordinate } from "./zones";
 import {
   RequestTripInterface,
@@ -139,11 +140,6 @@ const cancelTrip = async (_: any, context: functions.https.CallableContext) => {
   });
 };
 
-// returns a promise which resolves after ms milliseconds
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 const confirmTrip = async (
   _: any,
   context: functions.https.CallableContext
@@ -173,6 +169,18 @@ const confirmTrip = async (
 
   // save original trip-request value
   const tripRequest = snapshot.val() as TripInterface;
+
+  // throw error if trip request is not waiting confirmation
+  if (tripRequest.trip_status != "waiting-confirmation") {
+    console.log("trip status is not valid " + tripRequest.trip_status);
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Trip request of user with uid " +
+        context.auth.uid +
+        " has invalid status " +
+        tripRequest.trip_status
+    );
+  }
 
   // change trip-request status to waiting-payment
   tripRequest.trip_status = TripStatus.waitingPayment;
@@ -220,6 +228,8 @@ const confirmTrip = async (
       "there are no available pilots. Try again later."
     );
   }
+
+  console.log(nearbyPilots);
 
   // variable that will hold list of pilots who received trip request
   let requestedPilotsUIDs: string[] = [];
@@ -320,9 +330,12 @@ const confirmTrip = async (
   // pilots are listening for changes in their 'status'. When they see its value
   // change to 'requested' they can accept the trip by sending an accept-trip request
   // which will update the trip-request's driver_id field with the uid of the pilot.
-  // we detect that change to driver_id here.
+  // we detect that change to driver_id here. It's important to note that we continue
+  // listening even if confirmTrip returns. The only way to stop listening is by calling
+  // tripRequestRef.off
   let cancelFurtherPilotRequests = false;
-  let timer = setTimeout(cancelRequest, 30000);
+  let asyncTimeout = new AsyncTimeout();
+  let timer = asyncTimeout.set(cancelRequest, 30000);
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
@@ -348,7 +361,7 @@ const confirmTrip = async (
       }
 
       // if driver_id does belong to a nearby pilot, clear timeout
-      clearTimeout(timer);
+      asyncTimeout.clear();
 
       // stop sending requests to more pilots;
       cancelFurtherPilotRequests = true;
@@ -407,6 +420,9 @@ const confirmTrip = async (
       await sleep(4000);
     }
   }
+
+  // wait for timeout to finish or be cancelled before returning
+  await timer;
 
   // although the function finishes its execution here, the client
   // must pay attention to the trip's status to know whether the call was
