@@ -172,7 +172,6 @@ const confirmTrip = async (
 
   // throw error if trip request is not waiting confirmation
   if (tripRequest.trip_status != "waiting-confirmation") {
-    console.log("trip status is not valid " + tripRequest.trip_status);
     throw new functions.https.HttpsError(
       "not-found",
       "Trip request of user with uid " +
@@ -323,7 +322,7 @@ const confirmTrip = async (
   // tripRequestRef.off
   let cancelFurtherPilotRequests = false;
   let asyncTimeout = new AsyncTimeout();
-  let timer = asyncTimeout.set(cancelRequest, 10000);
+  let timer = asyncTimeout.set(cancelRequest, 30000);
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
@@ -410,6 +409,7 @@ const confirmTrip = async (
   }
 
   // wait for timeout to end or for rider to accept trip, thus clearing timeout
+  // and resolving timer
   await timer;
 
   // although the function finishes its execution here, the client
