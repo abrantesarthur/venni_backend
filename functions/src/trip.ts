@@ -180,7 +180,7 @@ const confirmTrip = async (
 
   // start processing payment
   // TODO: substitute this for actual payment processing
-  // await sleep(1500);
+  await sleep(500);
   let paymentSucceeded = true;
 
   // if payment failed
@@ -199,10 +199,10 @@ const confirmTrip = async (
   tripRequest.trip_status = TripStatus.lookingForDriver;
   tripRequestRef.set(tripRequest);
 
-  // search available drivers according to the matching algorithm
-  let availablePilots: PilotInterface[];
+  // search available drivers nearby client
+  let nearbyPilots: PilotInterface[];
   try {
-    availablePilots = await findPilots(tripRequest);
+    nearbyPilots = await findPilots(tripRequest);
   } catch (e) {
     let error: HttpsError = e as HttpsError;
     // if failed to find pilots, update trip-request status to no-drivers-available
@@ -212,7 +212,7 @@ const confirmTrip = async (
   }
 
   // if didn't find pilots, update trip-reqeust status to noDriversAvailable and throw exception
-  if (availablePilots.length == 0) {
+  if (nearbyPilots.length == 0) {
     tripRequest.trip_status = TripStatus.noDriversAvailable;
     tripRequestRef.set(tripRequest);
     throw new functions.https.HttpsError(
@@ -314,17 +314,18 @@ const confirmTrip = async (
     );
   };
 
-  // start listening for changes in trip request's driver_id with a
-  // 30 seconds timeout to account for delay when sending requests to pilots.
+  // start listening for changes in trip request's driver_id before actually
+  // sending requests to pilots. Have  with 30 seconds timeout to account for
+  // time to send all requests and for pilots to accept them.
   // pilots are listening for changes in their 'status'. When they see its value
   // change to 'requested' they can accept the trip by sending an accept-trip request
   // which will update the trip-request's driver_id field with the uid of the pilot.
-  // we detect that change here.
+  // we detect that change to driver_id here.
   let cancelFurtherPilotRequests = false;
-  let timer = setTimeout(cancelRequest, 9000);
+  let timer = setTimeout(cancelRequest, 30000);
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
-      // this should never happen. If it does, something is very broken!
+      // this should never happen! If it does, something is very broken!
       throw new functions.https.HttpsError(
         "internal",
         "Something wrong happend. Try again later."
@@ -334,7 +335,19 @@ const confirmTrip = async (
     // if one of the pilots accepts the trip, they will call accept-trip which
     // will update the trip's driver_id with the id of the accepting pilot
     if (trip.driver_id != undefined && trip.driver_id.length > 0) {
-      // clear timeout
+      // make sure the driver_id belongs to one for the nearby pilots
+      let isValidDriverID = false;
+      nearbyPilots.forEach((nearbyPilot) => {
+        if (nearbyPilot.uid == trip.driver_id) {
+          isValidDriverID = true;
+        }
+      });
+      if (!isValidDriverID) {
+        // abort and continue listening for valid driver_id
+        return;
+      }
+
+      // if driver_id does belong to a nearby pilot, clear timeout
       clearTimeout(timer);
 
       // stop sending requests to more pilots;
@@ -377,21 +390,21 @@ const confirmTrip = async (
     }
   });
 
-  // send request to each pilot
-  for (var i = 0; i < availablePilots.length; i++) {
+  // send request to each pilot after we start listening for driver_id changes
+  for (var i = 0; i < nearbyPilots.length; i++) {
     if (cancelFurtherPilotRequests) {
+      // in case we hear a valid driver_id, the listener callback will cancel
+      // further requests by setting this variable, so we abort loop.
       break;
     }
 
-    await pilotsRef.child(availablePilots[i].uid).transaction(requestPilot);
+    await pilotsRef.child(nearbyPilots[i].uid).transaction(requestPilot);
 
     // wait 4 seconds before tring to turn next pilot into 'requested'
     // this is so that first pilot to receive request has 5 seconds of
     // advantage to respond. Don't wait after runnign transactoin for last pilot, though.
-    if (i != availablePilots.length - 1) {
-      // TODO: decrease to 4 seconds
-      console.log("sleep 1000 seconds");
-      await sleep(1000);
+    if (i != nearbyPilots.length - 1) {
+      await sleep(4000);
     }
   }
 
@@ -401,7 +414,7 @@ const confirmTrip = async (
   // although the function may be returning here, it may still be waiting
   // for drivers to respond. In case no driver responds, the trip state becomes
   // timedOutWaitingDriverAcceptance, in which case the client can also
-  // consider the reqeust done.
+  // consider the request done.
   return;
 };
 
