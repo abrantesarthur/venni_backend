@@ -146,10 +146,10 @@ describe("pilots", () => {
           current_latitude: -17.217587,
           current_longitude: -46.881064,
           current_zone: "AA",
-          status: "status",
+          status: "available",
           vehicles: [],
-          idle_since: "idle_since",
-          rating: "rating",
+          idle_since: Date.now(),
+          rating: 5.0,
         },
       ];
     });
@@ -241,6 +241,82 @@ describe("pilots", () => {
       for (var i = 310; i < 3000; i = i + 10) {
         assert.isAbove(p.idleTimeScore(i), 40);
       }
+    });
+  });
+
+  describe("rankPilots", () => {
+    let defaultPilot1;
+    let defaultPilot2;
+    let now;
+    before(() => {
+      now = Date.now();
+      // just finished a trip, is right next to client, and has maximum rating
+      defaultPilot1 = {
+        uid: "pilot1",
+        current_latitude: -17.217587,
+        current_longitude: -46.881064,
+        current_zone: "AA",
+        status: "status",
+        vehicles: [],
+        idle_since: now,
+        rating: 5.0,
+        position: {
+          distance_value: 0,
+        },
+      };
+      // just finished a trip, is right next to client, and has maximum rating
+      defaultPilot2 = {
+        uid: "pilot2",
+        current_latitude: -17.217587,
+        current_longitude: -46.881064,
+        current_zone: "AA",
+        status: "status",
+        vehicles: [],
+        idle_since: now,
+        rating: 5.0,
+        position: {
+          distance_value: 0,
+        },
+      };
+    });
+
+    it("pilot with more idle time is ranked higher", () => {
+      // pilot 1 has more idle time
+      defaultPilot1.idle_since = now - 300;
+
+      // pilot 2 comes first initially
+      let pilots = [defaultPilot2, defaultPilot1];
+
+      const rankedPilots = p.rankPilots(pilots);
+
+      // now, pilot 1 comes first
+      assert.equal(rankedPilots[0].uid, "pilot1");
+    });
+
+    it("pilot with more higher rating is ranked higher", () => {
+      // pilot 2 has lower rating
+      defaultPilot2.rating = 4;
+
+      // pilot 2 comes first initially
+      let pilots = [defaultPilot2, defaultPilot1];
+
+      const rankedPilots = p.rankPilots(pilots);
+
+      // now, pilot 1 comes first
+      assert.equal(rankedPilots[0].uid, "pilot1");
+    });
+
+    it("pilot closer to the client is ranked higher", () => {
+      // pilot 2 is farther away from client
+      defaultPilot2.position.distance_value = 1000;
+
+      // pilot 2 comes first initially
+      let pilots = [defaultPilot2, defaultPilot1];
+
+      const rankedPilots = p.rankPilots(pilots);
+
+      // now, pilot 1 comes first
+      assert.equal(rankedPilots[0].uid, "pilot1");
     });
   });
 });

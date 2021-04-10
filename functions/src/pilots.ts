@@ -153,7 +153,7 @@ export const ratingScore = (rating: number) => {
 };
 
 // rank pilots according to distance from client, time spent idle, and rating
-const rankPilots = (pilots: PilotInterface[]): PilotInterface[] => {
+export const rankPilots = (pilots: PilotInterface[]): PilotInterface[] => {
   // calculate each pilot's score
   const now = Date.now();
   pilots.forEach((pilot) => {
