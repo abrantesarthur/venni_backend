@@ -319,4 +319,37 @@ describe("pilots", () => {
       assert.equal(rankedPilots[0].uid, "pilot1");
     });
   });
+
+  describe("filterPilotsByZone", () => {
+    let pilotBB;
+    let pilotCC;
+    let pilotHD;
+    before(() => {
+      pilotBB = {
+        uid: "pilotBB",
+        current_zone: "BB",
+      };
+      pilotCC = {
+        uid: "pilotCC",
+        current_zone: "CC",
+      };
+      pilotHD = {
+        uid: "pilotHD",
+        current_zone: "HD",
+      };
+    });
+
+    it("returns only pilots in current zone if found at least three pilots in zone", () => {
+      let twoPilotsInBB = [pilotBB, pilotBB, pilotCC];
+      let filteredPilots = p.filterPilotsByZone("BB", twoPilotsInBB);
+      console.log(twoPilotsInBB);
+      console.log(filteredPilots);
+
+      // function returns pilot in zone CC since zone BB has only two pilots
+      assert.equal(filteredPilots.length, 3);
+      assert.equal(filteredPilots[0].uid, "pilotBB");
+      assert.equal(filteredPilots[1].uid, "pilotBB");
+      assert.equal(filteredPilots[2].uid, "pilotCC");
+    });
+  });
 });

@@ -219,7 +219,7 @@ export const findPilots = async (
 // it first tries to find pilots in the very zone where the origin is.
 // If it finds no pilots there, it filters pilots in adjacent zones.
 // If it still finds no pilots there, it returns pilots unchanged.
-const filterPilotsByZone = (
+export const filterPilotsByZone = (
   originZone: ZoneName,
   pilots: PilotInterface[]
 ): PilotInterface[] => {
@@ -227,7 +227,8 @@ const filterPilotsByZone = (
 
   // filter pilots in the origin zone
   pilots.forEach((pilot) => {
-    if (pilot.current_zone == originZone) {
+    if (pilot.current_zone === originZone) {
+      console.log("pushing pilot in zone");
       nearbyPilots.push(pilot);
     }
   });
@@ -238,7 +239,10 @@ const filterPilotsByZone = (
     let adjacentZones: ZoneName[] = getZonesAdjacentTo(originZone);
     adjacentZones.forEach((adjacentZone) => {
       pilots.forEach((pilot) => {
-        if (pilot.current_zone == adjacentZone) {
+        if (pilot.current_zone === adjacentZone) {
+          console.log(
+            "pilot zone: " + pilot.current_zone + " adjacent: " + adjacentZone
+          );
           nearbyPilots.push(pilot);
         }
       });

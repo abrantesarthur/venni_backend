@@ -209,17 +209,26 @@ export const getZoneNameFromCoordinate = (
 export const getZonesAdjacentTo = (zoneName: ZoneName): ZoneName[] => {
   switch (zoneName) {
     case ZoneName.AA:
-      return [ZoneName.BA, ZoneName.BB, ZoneName.AB];
+      return [ZoneName.AB, ZoneName.BA, ZoneName.BB];
     case ZoneName.AB:
-      return [ZoneName.AA, ZoneName.BA, ZoneName.BB, ZoneName.BC, ZoneName.AC];
+      return [ZoneName.AA, ZoneName.AC, ZoneName.BA, ZoneName.BB, ZoneName.BC];
     case ZoneName.AC:
-      return [ZoneName.AB, ZoneName.BB, ZoneName.BC, ZoneName.BD, ZoneName.AD];
+      return [ZoneName.AB, ZoneName.AD, ZoneName.BB, ZoneName.BC, ZoneName.BD];
     case ZoneName.AD:
       return [ZoneName.AC, ZoneName.BC, ZoneName.BD];
     case ZoneName.BA:
-      return [ZoneName.AA, ZoneName.AB, ZoneName.BB, ZoneName.CB, ZoneName.CA];
+      return [ZoneName.AA, ZoneName.AB, ZoneName.BB, ZoneName.CA, ZoneName.CB];
     case ZoneName.BB:
-      return [ZoneName.AA, ZoneName.AB, ZoneName.BB, ZoneName.CB, ZoneName.CA];
+      return [
+        ZoneName.AA,
+        ZoneName.AB,
+        ZoneName.AC,
+        ZoneName.BA,
+        ZoneName.BC,
+        ZoneName.CA,
+        ZoneName.CB,
+        ZoneName.CC,
+      ];
     case ZoneName.BC:
       return [
         ZoneName.AB,
@@ -244,8 +253,8 @@ export const getZonesAdjacentTo = (zoneName: ZoneName): ZoneName[] => {
       return [
         ZoneName.BA,
         ZoneName.BB,
-        ZoneName.CB,
         ZoneName.NE,
+        ZoneName.CB,
         ZoneName.DA,
         ZoneName.DD,
       ];
@@ -275,8 +284,8 @@ export const getZonesAdjacentTo = (zoneName: ZoneName): ZoneName[] => {
       return [
         ZoneName.BC,
         ZoneName.BD,
-        ZoneName.NE,
         ZoneName.CC,
+        ZoneName.NE,
         ZoneName.DC,
         ZoneName.DD,
       ];
@@ -308,8 +317,8 @@ export const getZonesAdjacentTo = (zoneName: ZoneName): ZoneName[] => {
       return [
         ZoneName.CC,
         ZoneName.CD,
-        ZoneName.NE,
         ZoneName.DC,
+        ZoneName.NE,
         ZoneName.EC,
         ZoneName.ED,
       ];
@@ -415,26 +424,26 @@ export const getZonesAdjacentTo = (zoneName: ZoneName): ZoneName[] => {
         ZoneName.FC,
         ZoneName.FD,
         ZoneName.GC,
+        ZoneName.SE,
         ZoneName.HC,
         ZoneName.HD,
-        ZoneName.SE,
       ];
     case ZoneName.HA:
       return [ZoneName.GA, ZoneName.GB, ZoneName.HB];
     case ZoneName.HB:
-      return [ZoneName.GA, ZoneName.GB, ZoneName.HA, ZoneName.HC];
+      return [ZoneName.GA, ZoneName.GB, ZoneName.GC, ZoneName.HA, ZoneName.HC];
     case ZoneName.HC:
       return [ZoneName.GB, ZoneName.GC, ZoneName.GD, ZoneName.HB, ZoneName.HD];
     case ZoneName.HD:
       return [ZoneName.GC, ZoneName.GD, ZoneName.HC];
-    case ZoneName.NE:
-      return [ZoneName.AD, ZoneName.BD, ZoneName.CD, ZoneName.DD];
     case ZoneName.NW:
       return [ZoneName.AA, ZoneName.BA, ZoneName.CA, ZoneName.DA];
-    case ZoneName.SE:
-      return [ZoneName.ED, ZoneName.FD, ZoneName.GD, ZoneName.HD];
+    case ZoneName.NE:
+      return [ZoneName.AD, ZoneName.BD, ZoneName.CD, ZoneName.DD];
     case ZoneName.SW:
       return [ZoneName.EA, ZoneName.FA, ZoneName.GA, ZoneName.HA];
+    case ZoneName.SE:
+      return [ZoneName.ED, ZoneName.FD, ZoneName.GD, ZoneName.HD];
     default:
       return [];
   }
