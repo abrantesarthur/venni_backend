@@ -73,4 +73,5 @@ node_modules/
 
 # environment variables files
 .env
+test/mocha.env.js
 
