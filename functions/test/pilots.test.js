@@ -1,5 +1,6 @@
 const chai = require("chai");
 const assert = chai.assert;
+const expect = chai.expect;
 
 describe("pilosFromObj", () => {
   let p;
@@ -120,6 +121,18 @@ describe("pilosFromObj", () => {
   });
 });
 
+const expectThrowsAsync = async (method, errorCode, errorMessage) => {
+  let error = null;
+  try {
+    await method();
+  } catch (err) {
+    error = err;
+  }
+  expect(error).to.be.an("Error");
+  expect(error.message).to.equal(errorMessage);
+  expect(error.code).to.equal(errorCode);
+};
+
 describe("assignPilotDistances", () => {
   let defaultOriginPlaceID;
   let defaultPilots;
@@ -143,13 +156,29 @@ describe("assignPilotDistances", () => {
   });
 
   it("works", async () => {
-    console.log(process.env);
+    assert.isTrue(defaultPilots[0].position == undefined);
+
     const pilotsWithDistances = await p.assignPilotDistances(
       defaultOriginPlaceID,
       defaultPilots,
-      "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+      process.env.GOOGLE_MAPS_API_KEY
     );
 
     assert.isTrue(pilotsWithDistances[0].position != undefined);
+    assert.equal(pilotsWithDistances[0].position.distance_text, "0,9 km");
+    assert.equal(pilotsWithDistances[0].position.distance_value, "927");
+  });
+
+  it("throws error on wrong api key", async () => {
+    await expectThrowsAsync(
+      () =>
+        p.assignPilotDistances(
+          defaultOriginPlaceID,
+          defaultPilots,
+          "WRONGAPIKEY"
+        ),
+      "internal",
+      "failed to communicate with Google Distance Matrix API."
+    );
   });
 });
