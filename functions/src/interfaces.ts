@@ -13,7 +13,6 @@ export enum TripStatus {
   completed = "completed",
   canceled = "canceled",
   paymentFailed = "payment-failed",
-  timedOutWaitingDriverAcceptance = "timed-out-waiting-driver-acceptance",
 }
 
 export interface RequestTripInterface {

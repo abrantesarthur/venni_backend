@@ -24,7 +24,7 @@ describe("AsyncTimeout.set", () => {
     assert.isTrue(Date.now() - executingBeginTime >= 100);
   });
 
-  it("set's callback can return void", async () => {
+  it("set works with callbacks that return void", async () => {
     // instantiate AsyncTimeout
     let asyncTimeout = new at.AsyncTimeout();
 
@@ -43,6 +43,30 @@ describe("AsyncTimeout.set", () => {
     assert.equal(await result, undefined);
     // assert that at least 100 ms have passed
     assert.isTrue(Date.now() - executingBeginTime >= 100);
+  });
+
+  it("set works with async callbacks", async () => {
+    // instantiate AsyncTimeout
+    let asyncTimeout = new at.AsyncTimeout();
+
+    // define function to be called
+    let f = async () => {
+      return new Promise(async (resolve) => {
+        await sleep(50);
+        resolve("f result");
+      });
+    };
+
+    // save time
+    let executingBeginTime = Date.now();
+
+    // call f after 100 milliseconds
+    const promise = asyncTimeout.set(f, 100);
+
+    // assert that result is correct
+    assert.equal(await promise, undefined);
+    // assert that at least 150 ms have passed
+    assert.isTrue(Date.now() - executingBeginTime >= 150);
   });
 
   it("cancels timeout if we clear is called", async () => {
@@ -72,9 +96,6 @@ describe("AsyncTimeout.set", () => {
     // as that await result didn't take long to complet (we indeed canceled timeout)
     assert.isTrue(Date.now() - cancelTime < 10);
     // assert that 100 ms have not passed since execution start
-    assert.isTrue(
-      Date.now() - executingBeginTime < 100 &&
-        Date.now() - executingBeginTime > 50
-    );
+    assert.isTrue(Date.now() - executingBeginTime < 100);
   });
 });

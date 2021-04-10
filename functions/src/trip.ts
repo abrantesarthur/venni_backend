@@ -229,8 +229,6 @@ const confirmTrip = async (
     );
   }
 
-  console.log(nearbyPilots);
-
   // variable that will hold list of pilots who received trip request
   let requestedPilotsUIDs: string[] = [];
 
@@ -307,16 +305,6 @@ const confirmTrip = async (
       requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
     }
 
-    // set trip's status to 'timed-out-waiting-driver-acceptance'.
-    // this signals failure to the client
-    tripRequestRef.transaction((tripRequest: TripInterface) => {
-      if (tripRequest == null) {
-        return {};
-      }
-      tripRequest.trip_status = TripStatus.timedOutWaitingDriverAcceptance;
-      return tripRequest;
-    });
-
     // send failure response back
     throw new functions.https.HttpsError(
       "deadline-exceeded",
@@ -335,7 +323,7 @@ const confirmTrip = async (
   // tripRequestRef.off
   let cancelFurtherPilotRequests = false;
   let asyncTimeout = new AsyncTimeout();
-  let timer = asyncTimeout.set(cancelRequest, 30000);
+  let timer = asyncTimeout.set(cancelRequest, 10000);
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
@@ -421,7 +409,7 @@ const confirmTrip = async (
     }
   }
 
-  // wait for timeout to finish or be cancelled before returning
+  // wait for timeout to end or for rider to accept trip, thus clearing timeout
   await timer;
 
   // although the function finishes its execution here, the client
