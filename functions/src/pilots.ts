@@ -194,7 +194,6 @@ export const findPilots = async (
   if (pilots.length == 0) {
     return [];
   }
-
   // filter pilots nearby the client
   pilots = filterPilotsByZone(tripRequest.origin_zone, pilots);
 
@@ -228,7 +227,6 @@ export const filterPilotsByZone = (
   // filter pilots in the origin zone
   pilots.forEach((pilot) => {
     if (pilot.current_zone === originZone) {
-      console.log("pushing pilot in zone");
       nearbyPilots.push(pilot);
     }
   });
@@ -240,9 +238,6 @@ export const filterPilotsByZone = (
     adjacentZones.forEach((adjacentZone) => {
       pilots.forEach((pilot) => {
         if (pilot.current_zone === adjacentZone) {
-          console.log(
-            "pilot zone: " + pilot.current_zone + " adjacent: " + adjacentZone
-          );
           nearbyPilots.push(pilot);
         }
       });

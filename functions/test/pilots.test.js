@@ -1,11 +1,15 @@
 const chai = require("chai");
 const assert = chai.assert;
 const expect = chai.expect;
+const admin = require("firebase-admin");
 
 describe("pilots", () => {
   let p;
   before(() => {
     p = require("../lib/pilots");
+    if (admin.apps.length == 0) {
+      admin.initializeApp();
+    }
   });
 
   describe("pilosFromObj", () => {
@@ -342,14 +346,158 @@ describe("pilots", () => {
     it("returns only pilots in current zone if found at least three pilots in zone", () => {
       let twoPilotsInBB = [pilotBB, pilotBB, pilotCC];
       let filteredPilots = p.filterPilotsByZone("BB", twoPilotsInBB);
-      console.log(twoPilotsInBB);
-      console.log(filteredPilots);
 
       // function returns pilot in zone CC since zone BB has only two pilots
       assert.equal(filteredPilots.length, 3);
       assert.equal(filteredPilots[0].uid, "pilotBB");
       assert.equal(filteredPilots[1].uid, "pilotBB");
       assert.equal(filteredPilots[2].uid, "pilotCC");
+
+      let threePilotsInBB = [pilotBB, pilotBB, pilotBB, pilotCC];
+      filteredPilots = p.filterPilotsByZone("BB", threePilotsInBB);
+
+      // function doesn't return pilot in zone CC since zone BB three pilots
+      assert.equal(filteredPilots.length, 3);
+      assert.equal(filteredPilots[0].uid, "pilotBB");
+      assert.equal(filteredPilots[1].uid, "pilotBB");
+      assert.equal(filteredPilots[2].uid, "pilotBB");
+
+      let fourPilotsInBB = [pilotBB, pilotBB, pilotBB, pilotBB];
+      filteredPilots = p.filterPilotsByZone("BB", fourPilotsInBB);
+
+      // function returns all pilots in zone BB
+      assert.equal(filteredPilots.length, 4);
+      assert.equal(filteredPilots[0].uid, "pilotBB");
+      assert.equal(filteredPilots[1].uid, "pilotBB");
+      assert.equal(filteredPilots[2].uid, "pilotBB");
+      assert.equal(filteredPilots[3].uid, "pilotBB");
+    });
+
+    it("returns only pilots in current + adjacent zones if found at least three pilots there", () => {
+      let onePilotInBBOneInCC = [pilotBB, pilotCC, pilotHD];
+      let filteredPilots = p.filterPilotsByZone("BB", onePilotInBBOneInCC);
+
+      // function returns pilot in zone HD since zone + adjacent have only two pilots
+      assert.equal(filteredPilots.length, 3);
+      assert.equal(filteredPilots[0].uid, "pilotBB");
+      assert.equal(filteredPilots[1].uid, "pilotCC");
+      assert.equal(filteredPilots[2].uid, "pilotHD");
+
+      let threePilotsInBBAndCC = [pilotBB, pilotBB, pilotCC, pilotHD];
+      filteredPilots = p.filterPilotsByZone("BB", threePilotsInBBAndCC);
+
+      // function doesn't return pilot in zone HD since zone + adjacent have three pilots
+      assert.equal(filteredPilots.length, 3);
+      assert.equal(filteredPilots[0].uid, "pilotBB");
+      assert.equal(filteredPilots[1].uid, "pilotBB");
+      assert.equal(filteredPilots[2].uid, "pilotCC");
+
+      let fourPilotsInBBAndCC = [pilotBB, pilotBB, pilotCC, pilotCC];
+      filteredPilots = p.filterPilotsByZone("BB", fourPilotsInBBAndCC);
+
+      // function returns all pilots in zone + adjacent
+      assert.equal(filteredPilots.length, 4);
+      assert.equal(filteredPilots[0].uid, "pilotBB");
+      assert.equal(filteredPilots[1].uid, "pilotBB");
+      assert.equal(filteredPilots[2].uid, "pilotCC");
+      assert.equal(filteredPilots[3].uid, "pilotCC");
+    });
+  });
+
+  describe("findPilots", () => {
+    beforeEach(async () => {
+      // clear pilots from database
+      admin.database().ref("pilots").remove();
+    });
+
+    it("works", async () => {
+      let availableOneInDB = {
+        uid: "availableOneInDB",
+        current_latitude: -17.221879,
+        current_longitude: -46.875143,
+        current_zone: "DB",
+        status: "available",
+        vehicles: [
+          {
+            brand: "honda",
+            year: 2015,
+            model: "cg-150",
+            plate: "aaa-0000",
+          },
+        ],
+        idle_since: Date.now(),
+        rating: 5.0,
+      };
+      let availableTwoInDC = {
+        uid: "availableTwoInDC",
+        current_latitude: -17.221035,
+        current_longitude: -46.863207,
+        current_zone: "DC",
+        status: "available",
+        vehicles: [
+          {
+            brand: "honda",
+            year: 2015,
+            model: "cg-150",
+            plate: "aaa-0000",
+          },
+        ],
+        idle_since: Date.now(),
+        rating: 5.0,
+      };
+      let availableThreeInDC = {
+        uid: "availableThreeInDC",
+        current_latitude: -17.221471,
+        current_longitude: -46.86266,
+        current_zone: "DC",
+        status: "available",
+        vehicles: [
+          {
+            brand: "honda",
+            year: 2015,
+            model: "cg-150",
+            plate: "aaa-0000",
+          },
+        ],
+        idle_since: Date.now(),
+        rating: 5.0,
+      };
+      let busyInDC = {
+        uid: "busyInDC",
+        current_latitude: -17.222722,
+        current_longitude: -46.861959,
+        current_zone: "DC",
+        status: "busy",
+        vehicles: [
+          {
+            brand: "honda",
+            year: 2015,
+            model: "cg-150",
+            plate: "aaa-0000",
+          },
+        ],
+        idle_since: Date.now(),
+        rating: 5.0,
+      };
+
+      // add pilots to database
+      await admin.database().ref("pilots").set({
+        availableOneInDB: availableOneInDB,
+        availableTwoInDC: availableTwoInDC,
+        availableThreeInDC: availableThreeInDC,
+        busyInDC: busyInDC,
+      });
+
+      // find available pilots near zone DC
+      const pilots = await p.findPilots({
+        origin_zone: "DC",
+        origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
+      });
+
+      assert.equal(pilots.length, 3);
+      assert.equal(pilots[0].uid, "availableThreeInDC");
+      assert.equal(pilots[1].uid, "availableTwoInDC");
+      assert.equal(pilots[2].uid, "availableOneInDB");
     });
   });
 });
