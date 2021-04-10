@@ -165,7 +165,7 @@ const confirmTrip = async (
   // throw error if user has no active trip request
   const snapshot = await tripRequestRef.once("value");
   if (snapshot.val() == null) {
-    return new functions.https.HttpsError(
+    throw new functions.https.HttpsError(
       "not-found",
       "User with uid " + context.auth.uid + " has no active trip request."
     );
@@ -189,7 +189,7 @@ const confirmTrip = async (
     tripRequest.trip_status = TripStatus.paymentFailed;
     tripRequestRef.set(tripRequest);
     // TODO: give more context in the message.
-    return new functions.https.HttpsError(
+    throw new functions.https.HttpsError(
       "cancelled",
       "Failed to process payment."
     );
@@ -208,14 +208,14 @@ const confirmTrip = async (
     // if failed to find pilots, update trip-request status to no-drivers-available
     tripRequest.trip_status = TripStatus.noDriversAvailable;
     tripRequestRef.set(tripRequest);
-    return new functions.https.HttpsError(error.code, error.message);
+    throw new functions.https.HttpsError(error.code, error.message);
   }
 
   // if didn't find pilots, update trip-reqeust status to noDriversAvailable and throw exception
   if (availablePilots.length == 0) {
     tripRequest.trip_status = TripStatus.noDriversAvailable;
     tripRequestRef.set(tripRequest);
-    return new functions.https.HttpsError(
+    throw new functions.https.HttpsError(
       "not-found",
       "there are no available pilots. Try again later."
     );
@@ -296,6 +296,22 @@ const confirmTrip = async (
       // remove pilot from list of requested pilots.
       requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
     }
+
+    // set trip's status to 'timed-out-waiting-driver-acceptance'.
+    // this signals failure to the client
+    tripRequestRef.transaction((tripRequest: TripInterface) => {
+      if (tripRequest == null) {
+        return {};
+      }
+      tripRequest.trip_status = TripStatus.timedOutWaitingDriverAcceptance;
+      return tripRequest;
+    });
+
+    // send failure response back
+    throw new functions.https.HttpsError(
+      "deadline-exceeded",
+      "No pilot accepted trip request."
+    );
   };
 
   // start listening for changes in trip request's driver_id with a
@@ -305,7 +321,7 @@ const confirmTrip = async (
   // which will update the trip-request's driver_id field with the uid of the pilot.
   // we detect that change here.
   let cancelFurtherPilotRequests = false;
-  setTimeout(cancelRequest, 30000);
+  let timer = setTimeout(cancelRequest, 9000);
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen. If it does, something is very broken!
@@ -318,6 +334,9 @@ const confirmTrip = async (
     // if one of the pilots accepts the trip, they will call accept-trip which
     // will update the trip's driver_id with the id of the accepting pilot
     if (trip.driver_id != undefined && trip.driver_id.length > 0) {
+      // clear timeout
+      clearTimeout(timer);
+
       // stop sending requests to more pilots;
       cancelFurtherPilotRequests = true;
 
@@ -337,17 +356,33 @@ const confirmTrip = async (
       }
 
       // set status of pilot who successfully picked the ride to busy.
-      // set trip_status to waiting-driver
+      pilotsRef.child(trip.driver_id).transaction((pilot: PilotInterface) => {
+        if (pilot == null) {
+          // always check for null on transactoins
+          return {};
+        }
+        pilot.status = PilotStatus.busy;
+        return pilot;
+      });
+
+      // set trip_status to waiting-driver. this is how the client knows that
+      // confirm-trip was successful
+      tripRequestRef.transaction((tripRequest: TripInterface) => {
+        if (tripRequest == null) {
+          return {};
+        }
+        tripRequest.trip_status = TripStatus.waitingDriver;
+        return tripRequest;
+      });
     }
   });
 
-  // run transaction for each pilot
+  // send request to each pilot
   for (var i = 0; i < availablePilots.length; i++) {
     if (cancelFurtherPilotRequests) {
-      console.log("broke at iteration " + i);
       break;
     }
-    console.log("running iteration " + i);
+
     await pilotsRef.child(availablePilots[i].uid).transaction(requestPilot);
 
     // wait 4 seconds before tring to turn next pilot into 'requested'
@@ -355,10 +390,18 @@ const confirmTrip = async (
     // advantage to respond. Don't wait after runnign transactoin for last pilot, though.
     if (i != availablePilots.length - 1) {
       // TODO: decrease to 4 seconds
-      await sleep(10000);
+      console.log("sleep 1000 seconds");
+      await sleep(1000);
     }
   }
 
+  // although the function finishes its execution here, the client
+  // must pay attention to the trip's status to know whether the call was
+  // succesfull (i.e., when it has waitingDriver value). This is because,
+  // although the function may be returning here, it may still be waiting
+  // for drivers to respond. In case no driver responds, the trip state becomes
+  // timedOutWaitingDriverAcceptance, in which case the client can also
+  // consider the reqeust done.
   return;
 };
 
