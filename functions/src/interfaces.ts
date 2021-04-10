@@ -60,6 +60,10 @@ export interface VehicleInterface {
   plate: string;
 }
 
+export const isVehicleInterface = (obj: any): obj is VehicleInterface => {
+  return "brand" in obj && "model" in obj && "year" in obj && "plate" in obj;
+};
+
 // TODO: verify vehicles if it's an array
 export interface PilotInterface {
   uid: string;
@@ -71,9 +75,32 @@ export interface PilotInterface {
   vehicles: Array<VehicleInterface>;
   idle_since: number;
   rating: number;
-  score: number;
-  position: PilotPosition;
+  score?: number;
+  position?: PilotPosition;
 }
+
+export const isTripInterface = (obj: any): obj is TripInterface => {
+  if ("vehicles" in obj && Array.isArray(obj.vehicles)) {
+    for (var i = 0; i < obj.vehicles.length; i++) {
+      if (!isVehicleInterface(obj.vehicles[i])) {
+        return false;
+      }
+    }
+  } else {
+    return false;
+  }
+
+  return (
+    "uid" in obj &&
+    "current_latitude" in obj &&
+    "current_longitude" in obj &&
+    "current_zone" in obj &&
+    "status" in obj &&
+    "vehicles" in obj &&
+    "idle_since" in obj &&
+    "rating" in obj
+  );
+};
 
 export interface PilotPosition {
   distance_text: string;

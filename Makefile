@@ -124,7 +124,7 @@ emulator: use-dev-project emulator-config build
 # test: use-dev-project test-dependencies test-config
 # 	$(NPMTEST)
 
-test: build
+test:
 	$(NPMTEST)
 
 ################################################################################

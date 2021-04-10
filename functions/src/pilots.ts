@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
 import { LatLngLiteral, Status } from "@googlemaps/google-maps-services-js";
-import { PilotInterface, TripInterface } from "./interfaces";
+import { PilotInterface, TripInterface, isTripInterface } from "./interfaces";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { getZonesAdjacentTo, ZoneName } from "./zones";
 import { createMockPilots } from "./mock";
@@ -13,8 +13,23 @@ const googleMaps = new Client({});
 export const pilotsFromObj = (obj: any): PilotInterface[] => {
   let pilots: PilotInterface[] = [];
   Object.keys(obj).forEach((pilotUID) => {
-    let pilot = obj[pilotUID] as PilotInterface;
-    pilots.push(pilot);
+    if (isTripInterface(obj[pilotUID])) {
+      // create pilot obj, ignoring eventual extra irrelevant fields
+      const pilot = {
+        uid: obj[pilotUID].uid,
+        current_client_uid: obj[pilotUID].current_client_uid,
+        current_latitude: obj[pilotUID].current_latitude,
+        current_longitude: obj[pilotUID].current_longitude,
+        current_zone: obj[pilotUID].current_zone,
+        status: obj[pilotUID].status,
+        vehicles: obj[pilotUID].vehicles,
+        idle_since: obj[pilotUID].idle_since,
+        rating: obj[pilotUID].rating,
+        score: obj[pilotUID].score,
+        position: obj[pilotUID].position,
+      };
+      pilots.push(pilot);
+    }
   });
   return pilots;
 };
@@ -101,7 +116,10 @@ const assignPilotDistances = async (
 // calculateDistanceScores returns 50 points for pilots no farther
 // than 100 meters, 0 points for pilots farther than 4999 meters,
 // and lineraly decrements points for pilots in between.
-const distanceScore = (distanceMeters: number) => {
+const distanceScore = (distanceMeters?: number) => {
+  if (distanceMeters == undefined) {
+    return 0;
+  }
   if (distanceMeters < 100) {
     return 50;
   }
@@ -139,15 +157,18 @@ const rankPilots = (pilots: PilotInterface[]): PilotInterface[] => {
   pilots.forEach((pilot) => {
     let pilotIdleSeconds = (now - pilot.idle_since) / 1000;
     pilot.score =
-      distanceScore(pilot.position.distance_value) +
+      distanceScore(pilot.position?.distance_value) +
       idleTimeScore(pilotIdleSeconds) +
       ratingScore(pilot.rating);
   });
 
   // sort pilots by score
-  let rankedPilots = pilots.sort(
-    (pilotOne, pilotTwo) => pilotTwo.score - pilotOne.score
-  );
+  let rankedPilots = pilots.sort((pilotOne, pilotTwo) => {
+    if (pilotOne.score != undefined && pilotTwo.score != undefined) {
+      return pilotTwo.score - pilotOne.score;
+    }
+    return 0;
+  });
 
   return rankedPilots;
 };
