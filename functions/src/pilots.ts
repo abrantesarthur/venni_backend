@@ -10,7 +10,7 @@ import { createMockPilots } from "./mock";
 const googleMaps = new Client({});
 
 // transform an object of pilots in an array of pilots
-const pilotsFromObj = (obj: any): PilotInterface[] => {
+export const pilotsFromObj = (obj: any): PilotInterface[] => {
   let pilots: PilotInterface[] = [];
   Object.keys(obj).forEach((pilotUID) => {
     let pilot = obj[pilotUID] as PilotInterface;

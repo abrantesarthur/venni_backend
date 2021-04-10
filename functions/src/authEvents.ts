@@ -9,12 +9,8 @@ export const clean_user_data = functions.auth
       // delete user's realtime database data
       const db = firebaseAdmin.database();
 
-      // delete entry in 'trip-requests' if it exists
-      const tripRequestRef = db.ref("trip-requests").child(user.uid);
-      const tripRequest = await tripRequestRef.get();
-      if (tripRequest.val() != null) {
-        await tripRequestRef.remove();
-      }
+      // delete entry in 'trip-requests'
+      await db.ref("trip-requests").child(user.uid).remove();
       // delete entry in users
       await db.ref("users").child(user.uid).remove();
 
