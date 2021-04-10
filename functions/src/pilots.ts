@@ -118,11 +118,11 @@ export const assignPilotDistances = async (
 // calculateDistanceScores returns 50 points for pilots no farther
 // than 100 meters, 0 points for pilots farther than 4999 meters,
 // and lineraly decrements points for pilots in between.
-const distanceScore = (distanceMeters?: number) => {
+export const distanceScore = (distanceMeters?: number) => {
   if (distanceMeters == undefined) {
     return 0;
   }
-  if (distanceMeters < 100) {
+  if (distanceMeters <= 100) {
     return 50;
   }
   if (distanceMeters > 4999) {
@@ -135,14 +135,14 @@ const distanceScore = (distanceMeters?: number) => {
 // such that pilots idle for 0 seconds receive 0 points and pilots idle for
 // 5 minutes receive 40 points. Time idle can potentially give unlimited points.
 // This way, no matter a pilot's distance and score, at some point they will receive a ride.
-const idleTimeScore = (timeSeconds: number) => {
+export const idleTimeScore = (timeSeconds: number) => {
   return (timeSeconds * 4) / 30;
 };
 
 // RatingScore such that pilots with less than 3 starts receive 0
 // points and those with 5 starts receive 10 points, and those in between
 // receive incrementally more points the higher their ratings.
-const ratingScore = (rating: number) => {
+export const ratingScore = (rating: number) => {
   if (rating < 3) {
     return 0;
   }
