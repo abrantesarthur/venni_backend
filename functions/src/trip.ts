@@ -390,8 +390,7 @@ const confirmTrip = async (
       });
 
       // set trip_status to waiting-driver. this is how the client knows that
-      // confirm-trip was successful. we await because, by the time the client
-      // recieves a response, status must be already updated
+      // confirm-trip was successful.
       tripRequestRef.transaction((tripRequest: TripInterface) => {
         if (tripRequest == null) {
           return {};
