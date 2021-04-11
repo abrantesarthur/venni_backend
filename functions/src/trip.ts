@@ -187,7 +187,7 @@ const confirmTrip = async (
 
   // start processing payment
   // TODO: substitute this for actual payment processing
-  await sleep(500);
+  await sleep(900);
   let paymentSucceeded = true;
 
   // if payment failed
@@ -322,7 +322,7 @@ const confirmTrip = async (
   // tripRequestRef.off
   let cancelFurtherPilotRequests = false;
   let asyncTimeout = new AsyncTimeout();
-  let timer = asyncTimeout.set(cancelRequest, 30000);
+  let timer = asyncTimeout.set(cancelRequest, 7000);
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!

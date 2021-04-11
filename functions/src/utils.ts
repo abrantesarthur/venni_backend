@@ -32,7 +32,7 @@ export class AsyncTimeout {
     }
   }
 
-  // setTimeout is similar to setTimeout. The difference is that, instead
+  // set is similar to setTimeout. The difference is that, instead
   // of returning a timer that can be used to cancel calling the function,
   // it returns a promise which resolves with the function's result after ms
   // have passed or clear is called.
@@ -48,14 +48,13 @@ export class AsyncTimeout {
 
       // schedule 'f' to be called after ms interval and set _timer
       // so so client can cancel calling f
-      this._wasCleared = false;
       this._timer = setTimeout(() => {
         result = f();
-        // mark function as executed
+        // mark function as executed so we abort waiting ms
         this._functionWasExecuted = true;
       }, ms);
 
-      // sleep as long as result is undefined and timeout is not cleared
+      // sleep as long as 'f' is not executed and timeout is not cleared
       do {
         await sleep(1);
       } while (!this._functionWasExecuted && this._wasCleared == false);

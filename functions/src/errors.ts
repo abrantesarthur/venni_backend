@@ -6,6 +6,12 @@ export interface StandardError {
 }
 
 export const treatDirectionsError = function (error: any): StandardError {
+  if(error == undefined || error.response == undefined) {
+    return {
+      code: "unknown",
+      message: "request to Google directions API failed.",
+    };
+  }
   let errorCode: FunctionsErrorCode;
   let errorMessage = error.response.data.error_message;
   switch (error.response.data.status) {

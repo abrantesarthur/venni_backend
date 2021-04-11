@@ -11,7 +11,8 @@ export enum TripStatus {
   noDriversAvailable = "no-drivers-available",
   inProgress = "in-progress",
   completed = "completed",
-  canceled = "canceled",
+  canceledByDriver = "canceled-by-driver",
+  canceledByClient = "canceled-by-client",
   paymentFailed = "payment-failed",
 }
 
