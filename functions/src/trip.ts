@@ -234,6 +234,11 @@ const confirmTrip = async (
     );
   }
 
+  nearbyPilots.forEach((pilot) => {
+    console.log(pilot.uid);
+  })
+
+
   // variable that will hold list of pilots who received trip request
   let requestedPilotsUIDs: string[] = [];
 
@@ -329,7 +334,7 @@ const confirmTrip = async (
   let cancelFurtherPilotRequests = false;
   let asyncTimeout = new AsyncTimeout();
   let timer = asyncTimeout.set(cancelRequest, 30000);
-  tripRequestRef.on("value", (snapshot) => {
+  tripRequestRef.on("value", async (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
       throw new functions.https.HttpsError(
@@ -385,8 +390,9 @@ const confirmTrip = async (
       });
 
       // set trip_status to waiting-driver. this is how the client knows that
-      // confirm-trip was successful
-      tripRequestRef.transaction((tripRequest: TripInterface) => {
+      // confirm-trip was successful. we await because, by the time the client
+      // recieves a response, status must be already updated
+      await tripRequestRef.transaction((tripRequest: TripInterface) => {
         if (tripRequest == null) {
           return {};
         }

@@ -187,6 +187,7 @@ export const findPilots = async (
     .once("value");
   if (snapshot.val() == null) {
     // if none is available, return empty list
+    // TODO: remove before deploying
     createMockPilots(200);
     return [];
   }
