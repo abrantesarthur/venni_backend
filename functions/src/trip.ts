@@ -171,7 +171,11 @@ const confirmTrip = async (
   const tripRequest = snapshot.val() as TripInterface;
 
   // throw error if trip request is not waiting confirmation
-  if (tripRequest.trip_status != "waiting-confirmation") {
+  // or payment-failed (user is trying again)
+  if (
+    tripRequest.trip_status != "waiting-confirmation" &&
+    tripRequest.trip_status != "payment-failed"
+  ) {
     throw new functions.https.HttpsError(
       "not-found",
       "Trip request of user with uid " +
@@ -191,7 +195,7 @@ const confirmTrip = async (
   let paymentSucceeded = true;
 
   // if payment failed
-  if (!paymentSucceeded) {
+  if (paymentSucceeded) {
     // set trip-request status to payment-failed
     tripRequest.trip_status = TripStatus.paymentFailed;
     tripRequestRef.set(tripRequest);
