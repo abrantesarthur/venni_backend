@@ -334,7 +334,7 @@ const confirmTrip = async (
   let cancelFurtherPilotRequests = false;
   let asyncTimeout = new AsyncTimeout();
   let timer = asyncTimeout.set(cancelRequest, 30000);
-  tripRequestRef.on("value", async (snapshot) => {
+  tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
       throw new functions.https.HttpsError(
@@ -392,7 +392,7 @@ const confirmTrip = async (
       // set trip_status to waiting-driver. this is how the client knows that
       // confirm-trip was successful. we await because, by the time the client
       // recieves a response, status must be already updated
-      await tripRequestRef.transaction((tripRequest: TripInterface) => {
+      tripRequestRef.transaction((tripRequest: TripInterface) => {
         if (tripRequest == null) {
           return {};
         }
