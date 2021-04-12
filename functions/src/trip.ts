@@ -152,11 +152,12 @@ const confirmTrip = async (
     );
   }
 
-  // get a reference to the user's trip request
+  // get a reference to the user's trip request and driver_id
   const tripRequestRef = firebaseAdmin
     .database()
     .ref("trip-requests")
     .child(context.auth.uid);
+
 
   // throw error if user has no active trip request
   const snapshot = await tripRequestRef.once("value");
@@ -171,7 +172,7 @@ const confirmTrip = async (
   const tripRequest = snapshot.val() as TripInterface;
 
   // throw error if trip request is not waiting confirmation
-  // or any status that the user is trying again
+  // or any status that mean the user is trying again
   if (
     tripRequest.trip_status != "waiting-confirmation" &&
     tripRequest.trip_status != "payment-failed" && 
@@ -354,11 +355,14 @@ const confirmTrip = async (
         }
       });
       if (!isValidDriverID) {
-        // abort and continue listening for valid driver_id
+        // clear driver_id so other pilots have the chance of claiming thr trip
+        tripRequestRef.child("driver_id").set("");
+        // abort and continue listening for changes
         return;
       }
 
       // if driver_id does belong to a nearby pilot, clear timeout
+      // so we no longer execute cancelRequests
       asyncTimeout.clear();
 
       // stop sending requests to more pilots;
