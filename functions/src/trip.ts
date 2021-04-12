@@ -384,12 +384,14 @@ const confirmTrip = async (
       }
 
       // set status of pilot who successfully picked the ride to busy.
+      // and current_client_id to the id of requesting client
       pilotsRef.child(trip.driver_id).transaction((pilot: PilotInterface) => {
         if (pilot == null) {
           // always check for null on transactoins
           return {};
         }
         pilot.status = PilotStatus.busy;
+        pilot.current_client_uid = context.auth?.uid;
         return pilot;
       });
 
