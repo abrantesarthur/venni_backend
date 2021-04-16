@@ -18,7 +18,7 @@ import {
 // initialize google maps API client
 const googleMaps = new Client({});
 
-function validateRequest(obj: any) {
+function validateRequestTripArguments(obj: any) {
   if (
     !(typeof obj.origin_place_id === "string") ||
     obj.origin_place_id.length === 0
@@ -48,6 +48,15 @@ function validateRequest(obj: any) {
   }
 }
 
+function validateAcceptTripArguments(obj: any) {
+  if (!(typeof obj.client_id === "string") || obj.client_id.length === 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument client_id must be a string with length greater than 0."
+    );
+  }
+}
+
 // TODO: only accept requests departing from Paracatu
 const requestTrip = async (
   data: any,
@@ -60,7 +69,7 @@ const requestTrip = async (
       "Missing authentication credentials."
     );
   }
-  validateRequest(data);
+  validateRequestTripArguments(data);
 
   // define the db
   const db = firebaseAdmin.database();
@@ -70,6 +79,26 @@ const requestTrip = async (
 
   // get a reference to user's trip request
   const tripRequestRef = db.ref("trip-requests").child(context.auth?.uid);
+
+  // fail if there exists an ongoing trip
+  const snapshot = await tripRequestRef.once("value");
+  const tripRequest = snapshot.val() as TripInterface;
+  if (
+    tripRequest != null &&
+    (tripRequest.trip_status == TripStatus.inProgress ||
+      tripRequest.trip_status == TripStatus.lookingForDriver ||
+      tripRequest.trip_status == TripStatus.waitingDriver ||
+      tripRequest.trip_status == TripStatus.waitingPayment ||
+      tripRequest.trip_status == TripStatus.waitingConfirmation)
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Can't request a trip if client has an ongoing trip in status '" +
+        tripRequest.trip_status +
+        "'"
+    );
+  }
+
 
   // request directions API for further route information
   let directionsResponse;
@@ -119,7 +148,8 @@ const editTrip = async (
   return requestTrip(data, context);
 };
 
-const cancelTrip = async (_: any, context: functions.https.CallableContext) => {
+
+const clientCancelTrip = async (_: any, context: functions.https.CallableContext) => {
   // validate authentication
   if (context.auth == null) {
     throw new functions.https.HttpsError(
@@ -134,10 +164,50 @@ const cancelTrip = async (_: any, context: functions.https.CallableContext) => {
     .ref("trip-requests")
     .child(context.auth?.uid);
 
-  // delete trip request
-  return tripRequestRef.remove().then(() => {
-    return {};
+  // trip must be in a valid status to be cancelled
+  const tripRequestSnapshot = await tripRequestRef.once("value");
+  const tripRequest = tripRequestSnapshot.val() as TripInterface;
+  if (
+    tripRequest == null ||
+    (tripRequest.trip_status != TripStatus.waitingConfirmation &&
+      tripRequest.trip_status != TripStatus.waitingDriver &&
+      tripRequest.trip_status != TripStatus.inProgress)
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Trip request can't be cancelled when in status '" +
+        tripRequest.trip_status +
+        "'"
+    );
+  }
+
+  // get id of possible pilot handling the trip
+  const pilotID = tripRequest.driver_id;
+
+  // set trip status to cancelled-by-client
+  await tripRequestRef.transaction((tripRequest: TripInterface) => {
+    if (tripRequest == null) {
+      return {};
+    }
+    tripRequest.trip_status = TripStatus.cancelledByClient;
+    return tripRequest;
   });
+
+  // if a pilot is handling the trip, set him available and update idle_since
+  if (pilotID != null) {
+    const pilotRef = firebaseAdmin.database().ref("pilots").child(pilotID);
+    await pilotRef.transaction((pilot: PilotInterface) => {
+      if (pilot == null) {
+        return {};
+      }
+      // TODO: export this to another function in pilots.ts
+      pilot.status = PilotStatus.available;
+      pilot.current_client_uid = "";
+      pilot.idle_since = Date.now();
+      pilot.total_trips = pilot.total_trips + 1;
+      return pilot;
+    });
+  }
 };
 
 const confirmTrip = async (
@@ -158,7 +228,6 @@ const confirmTrip = async (
     .ref("trip-requests")
     .child(context.auth.uid);
 
-
   // throw error if user has no active trip request
   const snapshot = await tripRequestRef.once("value");
   if (snapshot.val() == null) {
@@ -169,32 +238,37 @@ const confirmTrip = async (
   }
 
   // save original trip-request value
-  const tripRequest = snapshot.val() as TripInterface;
+  let tripRequest = snapshot.val() as TripInterface;
 
   // throw error if trip request is not waiting confirmation
   // or any status that mean the user is trying again
   if (
     tripRequest.trip_status != "waiting-confirmation" &&
-    tripRequest.trip_status != "payment-failed" && 
-    tripRequest.trip_status != "no-drivers-available" && 
+    tripRequest.trip_status != "payment-failed" &&
+    tripRequest.trip_status != "no-drivers-available" &&
     tripRequest.trip_status != "looking-for-driver"
   ) {
     throw new functions.https.HttpsError(
-      "not-found",
+      "failed-precondition",
       "Trip request of user with uid " +
         context.auth.uid +
-        " has invalid status " +
-        tripRequest.trip_status
+        " has invalid status '" +
+        tripRequest.trip_status +
+        "'"
     );
   }
 
   // change trip-request status to waiting-payment
+  // important: only use set to modify trip request values befores sending
+  // requests to pilots. Use only transactions after that, because pilots
+  // use transactions to modify trip request, and us using set would
+  // cancel their transactions.
   tripRequest.trip_status = TripStatus.waitingPayment;
   tripRequestRef.set(tripRequest);
 
   // start processing payment
   // TODO: substitute this for actual payment processing
-  await sleep(900);
+  await sleep(1);
   let paymentSucceeded = true;
 
   // if payment failed
@@ -230,15 +304,14 @@ const confirmTrip = async (
     tripRequest.trip_status = TripStatus.noDriversAvailable;
     tripRequestRef.set(tripRequest);
     throw new functions.https.HttpsError(
-      "not-found",
-      "there are no available pilots. Try again later."
+      "failed-precondition",
+      "There are no available pilots. Try again later."
     );
   }
 
+  // TODO: remove
   nearbyPilots.forEach((pilot) => {
-    console.log(pilot.uid);
-  })
-
+  });
 
   // variable that will hold list of pilots who received trip request
   let requestedPilotsUIDs: string[] = [];
@@ -334,7 +407,8 @@ const confirmTrip = async (
   // tripRequestRef.off
   let cancelFurtherPilotRequests = false;
   let asyncTimeout = new AsyncTimeout();
-  let timer = asyncTimeout.set(cancelRequest, 30000);
+  let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
+  let isWaitingDriver: boolean = false;
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
@@ -402,6 +476,7 @@ const confirmTrip = async (
           return {};
         }
         tripRequest.trip_status = TripStatus.waitingDriver;
+        isWaitingDriver = true;
         return tripRequest;
       });
     }
@@ -426,8 +501,23 @@ const confirmTrip = async (
   }
 
   // wait for timeout to end or for rider to accept trip, thus clearing timeout
-  // and resolving timer
-  await timer;
+  // and resolving timeoutPromise
+  await timeoutPromise;
+
+  // stop listenign for changes
+  tripRequestRef.off("value");
+
+  // we want to return from confirmTrip only after trip_status has reached its final
+  // state. If timeoutPromse was cleared, this may not be the case yet. If clear()
+  // is called late enough but before timeout goes off, the code will already be waiting for
+  // timeoutPromise. This way, as soon as clear() is called, confirmTrip returns
+  // before the listener has time to update status to waitingDriver. Thats why we
+  // wait here until waitingDriver state is reached.
+  if (asyncTimeout.wasCleared) {
+    do {
+      await sleep(1);
+    } while (!isWaitingDriver);
+  }
 
   // although the function finishes its execution here, the client
   // must pay attention to the trip's status to know whether the call was
@@ -439,13 +529,125 @@ const confirmTrip = async (
   return;
 };
 
+const acceptTrip = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  // validate data
+  validateAcceptTripArguments(data);
+
+  const pilotID = context.auth.uid;
+  const clientID = data.client_id;
+
+  // get a reference to pilot data
+  const pilotRef = firebaseAdmin.database().ref("pilots").child(pilotID);
+
+  // make sure the pilot's status is requested and trip's current_client_id is set
+  let pilotSnapshot = await pilotRef.once("value");
+  let pilot = pilotSnapshot.val() as PilotInterface;
+  if (
+    pilot == null ||
+    pilot.status != PilotStatus.requested ||
+    pilot.current_client_uid != clientID
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "pilot has not been requested for trip or trip has already been picked."
+    );
+  }
+
+  // get a reference to user's trip request
+  const tripRequestRef = firebaseAdmin
+    .database()
+    .ref("trip-requests")
+    .child(clientID);
+
+  // set trip's driver_id in a transaction only if it is null or empty. Otherwise,
+  // it means another pilot already picked the trip ahead of us. Throw error in that case.
+  tripRequestRef.transaction(
+    (tripRequest: TripInterface) => {
+      if (tripRequest == null) {
+        // we always check for null in transactions.
+        return {};
+      }
+
+      // if trip has not been picked up by another pilot
+      if (tripRequest.driver_id == null || tripRequest.driver_id == "") {
+        // set trip's driver_id in a transaction only if it is null or empty.
+        tripRequest.driver_id = pilotID;
+        return tripRequest;
+      }
+
+      // otherwise, abort
+      return;
+    },
+    (error, completed, _) => {
+      // if transaction failed abnormally
+      if (error) {
+        throw new functions.https.HttpsError(
+          "internal",
+          "Something went wrong."
+        );
+      }
+
+      // if transaction was aborted
+      if (completed == false) {
+        // another pilot has already requested the trip, so throw error.
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "another pilot has already picked up the trip"
+        );
+      }
+    }
+  );
+
+  // wait enough time for confirmTrip to run transaction on pilot status
+  await sleep(500);
+
+  // wait until pilot's status is set to busy or available by confirmTrip
+  pilotSnapshot = await pilotRef.once("value");
+  pilot = pilotSnapshot.val() as PilotInterface;
+  while (
+    pilot.status != PilotStatus.busy &&
+    pilot.status != PilotStatus.available
+  ) {
+    await sleep(1);
+    pilotSnapshot = await pilotRef.once("value");
+    pilot = pilotSnapshot.val() as PilotInterface;
+  }
+
+  // if it was set to available, confirmTrip denied trip to the pilot
+  if (pilot.status == PilotStatus.available) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "trip denied to the pilot"
+    );
+  }
+
+  // if it was set busy, confirmTrip indeed granted the trip to the pilot.
+  if (pilot.status == PilotStatus.busy) {
+    return;
+  }
+};
+
 export const request = functions.https.onCall(requestTrip);
 export const edit = functions.https.onCall(editTrip);
-export const cancel = functions.https.onCall(cancelTrip);
+export const client_cancel = functions.https.onCall(clientCancelTrip);
 export const confirm = functions.https.onCall(confirmTrip);
+export const accept = functions.https.onCall(acceptTrip);
 
 /**
  * TESTS
  *  1) if user already has an active trip request, return "REQUEST_DENIED"
  *  2) request wiht missing body fields receive "INVALID_REQUEST"
  */
+
+// TODO: request directions to get encoded points when pilot reports his position
