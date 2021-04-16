@@ -1,11 +1,11 @@
 {
   "emulators": {
-    "ui": {
-      "enabled": "true"
-    },
     "functions": {
       "port": "5001",
-      "host": "192.168.0.105"
+      "host": "192.168.0.104"
+    },
+    "ui": {
+      "enabled": "true"
     }
   },
   "googleapi": {

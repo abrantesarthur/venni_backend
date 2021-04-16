@@ -99,7 +99,6 @@ const requestTrip = async (
     );
   }
 
-
   // request directions API for further route information
   let directionsResponse;
   try {
@@ -148,8 +147,10 @@ const editTrip = async (
   return requestTrip(data, context);
 };
 
-
-const clientCancelTrip = async (_: any, context: functions.https.CallableContext) => {
+const clientCancelTrip = async (
+  _: any,
+  context: functions.https.CallableContext
+) => {
   // validate authentication
   if (context.auth == null) {
     throw new functions.https.HttpsError(
@@ -208,6 +209,9 @@ const clientCancelTrip = async (_: any, context: functions.https.CallableContext
       return pilot;
     });
   }
+
+  // return updated trip-request to client
+  return tripRequestRef.once("value").then((trip) => trip);
 };
 
 const confirmTrip = async (
@@ -310,8 +314,7 @@ const confirmTrip = async (
   }
 
   // TODO: remove
-  nearbyPilots.forEach((pilot) => {
-  });
+  nearbyPilots.forEach((pilot) => {});
 
   // variable that will hold list of pilots who received trip request
   let requestedPilotsUIDs: string[] = [];
