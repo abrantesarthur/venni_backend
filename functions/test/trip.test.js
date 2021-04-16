@@ -109,7 +109,10 @@ describe("trip", () => {
 
     const invalidTripStatusTest = async (status) => {
       // expect database not to be populated
-      let tripRequestRef = admin.database().ref("trip-requests").child(defaultUID);
+      let tripRequestRef = admin
+        .database()
+        .ref("trip-requests")
+        .child(defaultUID);
       let snapshot = await tripRequestRef.once("value");
       assert.isTrue(
         snapshot.val() == null,
@@ -133,7 +136,9 @@ describe("trip", () => {
           destination_place_id: valid_destination_place_id,
         },
         "failed-precondition",
-        "Can't request a trip if client has an ongoing trip in status '" + status + "'",
+        "Can't request a trip if client has an ongoing trip in status '" +
+          status +
+          "'",
         {
           auth: {
             uid: defaultUID,
@@ -144,8 +149,8 @@ describe("trip", () => {
 
       // reset the database
       admin.database().ref("trip-requests").remove();
-    }
- 
+    };
+
     it("destination_place_id argument must be present", async () => {
       await ivalidPlaceIDTest(
         {
@@ -327,7 +332,7 @@ describe("trip", () => {
     });
   });
 
-  describe("cancel", () => {
+  describe("clientCancel", () => {
     const genericTest = async (
       expectedCode,
       expectedMessage,
@@ -355,177 +360,47 @@ describe("trip", () => {
     after(async () => {
       await admin.database().ref("trip-requests").remove();
       await admin.database().ref("pilots").remove();
-    })
+    });
 
-    it("fails if trip has payment-failed status", async () => {
+    const failsWithStatus = async (status) => {
       // populate database with trip request for defaultUID user
-      await createTripRequest("payment-failed");
+      await createTripRequest(status);
 
       // delete trip-request fails
       await genericTest(
         "failed-precondition",
-        "Trip request can't be cancelled when in status 'payment-failed'",
+        "Trip request can't be cancelled when in status '" + status + "'",
         defaultCtx,
         false
       );
 
-      // expect database to still be populated
+      // expect trip-request to still have same status
       let db = admin.database().ref("trip-requests").child(defaultUID);
       snapshot = await db.once("value");
-      assert.isTrue(
-        snapshot.val() != null,
-        "trip request has not been deleted from database"
-      );
-    });
+      assert.isTrue(snapshot.val() != null);
+      assert.equal(snapshot.val().trip_status, status);
+    };
 
-    it("fails if trip has cancelled-by-client status", async () => {
+    const succeedsWithStatus = async (status) => {
       // populate database with trip request for defaultUID user
-      await createTripRequest("cancelled-by-client");
+      await createTripRequest(status);
 
-      // delete trip-request fails
-      await genericTest(
-        "failed-precondition",
-        "Trip request can't be cancelled when in status 'cancelled-by-client'",
-        defaultCtx,
-        false
-      );
+      const tripRequestRef = admin
+        .database()
+        .ref("trip-requests")
+        .child(defaultUID);
+      let snapshot = await tripRequestRef.once("value");
+      assert.isTrue(snapshot.val() != null);
+      assert.equal(snapshot.val().trip_status, status);
 
-      // expect database to still be populated
-      let db = admin.database().ref("trip-requests").child(defaultUID);
-      snapshot = await db.once("value");
-      assert.isTrue(
-        snapshot.val() != null,
-        "trip request has not been deleted from database"
-      );
-    });
+      // delete trip-request
+      await genericTest("", "", defaultCtx, true);
 
-    it("fails if trip has cancelled-by-driver status", async () => {
-      // populate database with trip request for defaultUID user
-      await createTripRequest("cancelled-by-driver");
-
-      // delete trip-request fails
-      await genericTest(
-        "failed-precondition",
-        "Trip request can't be cancelled when in status 'cancelled-by-driver'",
-        defaultCtx,
-        false
-      );
-
-      // expect database to still be populated
-      let db = admin.database().ref("trip-requests").child(defaultUID);
-      snapshot = await db.once("value");
-      assert.isTrue(
-        snapshot.val() != null,
-        "trip request has not been deleted from database"
-      );
-    });
-
-    it("fails if trip has completed status", async () => {
-      // populate database with trip request for defaultUID user
-      await createTripRequest("completed");
-
-      // delete trip-request fails
-      await genericTest(
-        "failed-precondition",
-        "Trip request can't be cancelled when in status 'completed'",
-        defaultCtx,
-        false
-      );
-
-      // expect database to still be populated
-      let db = admin.database().ref("trip-requests").child(defaultUID);
-      snapshot = await db.once("value");
-      assert.isTrue(
-        snapshot.val() != null,
-        "trip request has not been deleted from database"
-      );
-    });
-
-    it("fails if trip has no-drivers-available status", async () => {
-      // populate database with trip request for defaultUID user
-      await createTripRequest("no-drivers-available");
-
-      // delete trip-request fails
-      await genericTest(
-        "failed-precondition",
-        "Trip request can't be cancelled when in status 'no-drivers-available'",
-        defaultCtx,
-        false
-      );
-
-      // expect database to still be populated
-      let db = admin.database().ref("trip-requests").child(defaultUID);
-      snapshot = await db.once("value");
-      assert.isTrue(
-        snapshot.val() != null,
-        "trip request has not been deleted from database"
-      );
-    });
-
-    it("fails if trip has looking-for-driver status", async () => {
-      // populate database with trip request for defaultUID user
-      await createTripRequest("looking-for-driver");
-
-      // delete trip-request fails
-      await genericTest(
-        "failed-precondition",
-        "Trip request can't be cancelled when in status 'looking-for-driver'",
-        defaultCtx,
-        false
-      );
-
-      // expect database to still be populated
-      let db = admin.database().ref("trip-requests").child(defaultUID);
-      snapshot = await db.once("value");
-      assert.isTrue(
-        snapshot.val() != null,
-        "trip request has not been deleted from database"
-      );
-    });
-
-    it("fails if trip has waiting-payment status", async () => {
-      // populate database with trip request for defaultUID user
-      await createTripRequest("waiting-payment");
-
-      // delete trip-request fails
-      await genericTest(
-        "failed-precondition",
-        "Trip request can't be cancelled when in status 'waiting-payment'",
-        defaultCtx,
-        false
-      );
-
-      // expect database to still be populated
-      let db = admin.database().ref("trip-requests").child(defaultUID);
-      snapshot = await db.once("value");
-      assert.isTrue(
-        snapshot.val() != null,
-        "trip request has not been deleted from database"
-      );
-    });
-
-    // it("works", async () => {
-    //   // populate database with trip request for defaultUID user
-    //   createTripRequest();
-
-    //   // expect database to be populated
-    //   let db = admin.database().ref("trip-requests").child(defaultUID);
-    //   let snapshot = await db.once("value");
-    //   assert.isTrue(
-    //     snapshot.val() != null,
-    //     "trip request has been created on database"
-    //   );
-
-    //   // delete trip-request
-    //   genericTest("", "", defaultCtx, true);
-
-    //   // expect database not to be populated
-    //   snapshot = await db.once("value");
-    //   assert.isTrue(
-    //     snapshot.val() == null,
-    //     "trip request has been deleted from database"
-    //   );
-    // });
+      // expect trip-request to have cancelled-by-client state
+      snapshot = await tripRequestRef.once("value");
+      assert.isTrue(snapshot.val() != null);
+      assert.equal(snapshot.val().trip_status, "cancelled-by-client");
+    };
 
     it("user must be authenticated", async () => {
       // run generic test without context with client id
@@ -534,6 +409,46 @@ describe("trip", () => {
         "Missing authentication credentials.",
         {}
       );
+    });
+
+    it("fails if trip has payment-failed status", async () => {
+      await failsWithStatus("payment-failed");
+    });
+
+    it("fails if trip has cancelled-by-client status", async () => {
+      await failsWithStatus("cancelled-by-client");
+    });
+
+    it("fails if trip has cancelled-by-driver status", async () => {
+      await failsWithStatus("cancelled-by-driver");
+    });
+
+    it("fails if trip has completed status", async () => {
+      await failsWithStatus("completed");
+    });
+
+    it("fails if trip has no-drivers-available status", async () => {
+      await failsWithStatus("no-drivers-available");
+    });
+
+    it("fails if trip has looking-for-driver status", async () => {
+      await failsWithStatus("looking-for-driver");
+    });
+
+    it("fails if trip has waiting-payment status", async () => {
+      await failsWithStatus("waiting-payment");
+    });
+
+    it("succeeds when trip has waiting-confirmation status", async () => {
+      await succeedsWithStatus("waiting-confirmation");
+    });
+
+    it("succeeds when trip has waiting-driver status", async () => {
+      await succeedsWithStatus("waiting-driver");
+    });
+
+    it("succeeds when trip has in-progress status", async () => {
+      await succeedsWithStatus("in-progress");
     });
   });
 

@@ -121,7 +121,9 @@ emulator: use-dev-project emulator-config build
 # start online testing with services pointing to test project
 # should we want to update files to be tested, don't forget to set the
 # GOOGLE_APPLICATION_CREDENTIALS and run $(NPMRUN) buid
-test: use-dev-project test-dependencies test-config build
+# test: use-dev-project test-dependencies test-config build
+# 	$(NPMTEST)
+test:
 	$(NPMTEST)
 
 
