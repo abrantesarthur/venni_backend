@@ -4,9 +4,11 @@ const expect = chai.expect;
 const admin = require("firebase-admin");
 
 describe("pilots", () => {
+  let interfaces;
   let p;
   before(() => {
     p = require("../lib/pilots");
+    interfaces = require("../lib/interfaces");
     if (admin.apps.length == 0) {
       admin.initializeApp();
     }
@@ -14,12 +16,12 @@ describe("pilots", () => {
 
   describe("pilosFromObj", () => {
     it("outputs empty list when obj is empty", () => {
-      const pilots = p.pilotsFromObj({});
+      const pilots = interfaces.pilotsFromObj({});
       assert.equal(pilots.length, 0);
     });
 
     it("outputs empty list when obj doesn't conform to PilotInterface", () => {
-      const pilots = p.pilotsFromObj({
+      const pilots = interfaces.pilotsFromObj({
         invalid_pilot: {
           invalid_uid: "invalid",
         },
@@ -28,23 +30,26 @@ describe("pilots", () => {
     });
 
     it("ignores irrelevant fields in obj that don't conform to PilotInterface", () => {
-      const pilots = p.pilotsFromObj({
+      const pilots = interfaces.pilotsFromObj({
         valid_pilot: {
           irrelevant_field: "irrelevant",
           uid: "first_pilot_uid",
+          name: "Fulano",
+          last_name: "de Tal",
+          total_trips: 123,
+          member_since: Date.now(),
+          phone_number: "(38) 99999-9999",
           current_client_uid: "",
           current_latitude: 10.123456,
           current_longitude: 11.123456,
           current_zone: "AA",
           status: "available",
-          vehicles: [
-            {
-              brand: "honda",
-              model: "cg-150",
-              year: 2015,
-              plate: "AAA-0000",
-            },
-          ],
+          vehicle: {
+            brand: "honda",
+            model: "cg-150",
+            year: 2015,
+            plate: "AAA-0000",
+          },
           idle_since: Date.now(),
           rating: 4.79,
         },
@@ -55,21 +60,24 @@ describe("pilots", () => {
     });
 
     it("doesn't failt when obj misses optional fields", () => {
-      const pilots = p.pilotsFromObj({
+      const pilots = interfaces.pilotsFromObj({
         valid_pilot: {
           uid: "first_pilot_uid",
+          name: "Fulano",
+          last_name: "de Tal",
+          total_trips: 123,
+        member_since: Date.now(),
+          phone_number: "(38) 99999-9999",
           current_latitude: 10.123456,
           current_longitude: 11.123456,
           current_zone: "AA",
           status: "available",
-          vehicles: [
-            {
-              brand: "honda",
-              model: "cg-150",
-              year: 2015,
-              plate: "AAA-0000",
-            },
-          ],
+          vehicle: {
+            brand: "honda",
+            model: "cg-150",
+            year: 2015,
+            plate: "AAA-0000",
+          },
           idle_since: Date.now(),
           rating: 4.79,
         },
@@ -86,26 +94,29 @@ describe("pilots", () => {
       const obj = {
         first_pilot_uid: {
           uid: "first_pilot_uid",
+          name: "Fulano",
+          last_name: "de Tal",
+          total_trips: 123,
+        member_since: Date.now(),
+          phone_number: "(38) 99999-9999",
           current_client_uid: "",
           current_latitude: 10.123456,
           current_longitude: 11.123456,
           current_zone: "AA",
           status: "available",
-          vehicles: [
-            {
-              brand: "honda",
-              model: "cg-150",
-              year: 2015,
-              plate: "AAA-0000",
-            },
-          ],
+          vehicle: {
+            brand: "honda",
+            model: "cg-150",
+            year: 2015,
+            plate: "AAA-0000",
+          },
           idle_since: idleSince,
           rating: rating,
         },
       };
 
       // convert pilots obj into PilotInterface list
-      const pilots = p.pilotsFromObj(obj);
+      const pilots = interfaces.pilotsFromObj(obj);
 
       assert.equal(pilots.length, 1);
       assert.equal(pilots[0].uid, "first_pilot_uid");
@@ -116,11 +127,10 @@ describe("pilots", () => {
       assert.equal(pilots[0].status, "available");
       assert.equal(pilots[0].idle_since, idleSince);
       assert.equal(pilots[0].rating, rating);
-      assert.equal(pilots[0].vehicles.length, 1);
-      assert.equal(pilots[0].vehicles[0].brand, "honda");
-      assert.equal(pilots[0].vehicles[0].model, "cg-150");
-      assert.equal(pilots[0].vehicles[0].year, 2015);
-      assert.equal(pilots[0].vehicles[0].plate, "AAA-0000");
+      assert.equal(pilots[0].vehicle.brand, "honda");
+      assert.equal(pilots[0].vehicle.model, "cg-150");
+      assert.equal(pilots[0].vehicle.year, 2015);
+      assert.equal(pilots[0].vehicle.plate, "AAA-0000");
       assert.equal(pilots[0].score, undefined);
       assert.equal(pilots[0].position, undefined);
     });
@@ -138,7 +148,7 @@ describe("pilots", () => {
     expect(error.code).to.equal(errorCode);
   };
 
-  describe("assignPilotDistances", () => {
+  describe("assignPilotsDistanceToClient", () => {
     let defaultOriginPlaceID;
     let defaultPilots;
 
@@ -147,11 +157,14 @@ describe("pilots", () => {
       defaultPilots = [
         {
           uid: "uid",
+          name: "Fulano",
+          last_name: "de Tal",
+          phone_number: "(38) 99999-9999",
           current_latitude: -17.217587,
           current_longitude: -46.881064,
           current_zone: "AA",
           status: "available",
-          vehicles: [],
+          vehicle: {},
           idle_since: Date.now(),
           rating: 5.0,
         },
@@ -159,23 +172,29 @@ describe("pilots", () => {
     });
 
     it("works", async () => {
-      assert.isTrue(defaultPilots[0].position == undefined);
+      assert.isTrue(defaultPilots[0].distance_to_client == undefined);
 
-      const pilotsWithDistances = await p.assignPilotDistances(
+      const pilotsWithDistances = await p.assignPilotsDistanceToClient(
         defaultOriginPlaceID,
         defaultPilots,
         process.env.GOOGLE_MAPS_API_KEY
       );
 
-      assert.isTrue(pilotsWithDistances[0].position != undefined);
-      assert.equal(pilotsWithDistances[0].position.distance_text, "0,9 km");
-      assert.equal(pilotsWithDistances[0].position.distance_value, "927");
+      assert.isTrue(pilotsWithDistances[0].distance_to_client != undefined);
+      assert.equal(
+        pilotsWithDistances[0].distance_to_client.distance_text,
+        "0,9 km"
+      );
+      assert.equal(
+        pilotsWithDistances[0].distance_to_client.distance_value,
+        "927"
+      );
     });
 
     it("throws error on wrong api key", async () => {
       await expectThrowsAsync(
         () =>
-          p.assignPilotDistances(
+          p.assignPilotsDistanceToClient(
             defaultOriginPlaceID,
             defaultPilots,
             "WRONGAPIKEY"
@@ -257,11 +276,16 @@ describe("pilots", () => {
       // just finished a trip, is right next to client, and has maximum rating
       defaultPilot1 = {
         uid: "pilot1",
+        name: "Fulano",
+        last_name: "de Tal",
+        total_trips: 123,
+        member_since: Date.now(),
+        phone_number: "(38) 99999-9999",
         current_latitude: -17.217587,
         current_longitude: -46.881064,
         current_zone: "AA",
         status: "status",
-        vehicles: [],
+        vehicle: {},
         idle_since: now,
         rating: 5.0,
         position: {
@@ -271,11 +295,16 @@ describe("pilots", () => {
       // just finished a trip, is right next to client, and has maximum rating
       defaultPilot2 = {
         uid: "pilot2",
+        name: "Beltrano",
+        last_name: "de Tal",
+        total_trips: 123,
+        member_since: Date.now(),
+        phone_number: "(38) 88888-8888",
         current_latitude: -17.217587,
         current_longitude: -46.881064,
         current_zone: "AA",
         status: "status",
-        vehicles: [],
+        vehicle: {},
         idle_since: now,
         rating: 5.0,
         position: {
@@ -413,69 +442,81 @@ describe("pilots", () => {
     it("works", async () => {
       let availableOneInDB = {
         uid: "availableOneInDB",
+        name: "Fulano",
+        last_name: "de Tal",
+        total_trips: 123,
+        member_since: Date.now(),
+        phone_number: "(38) 99999-9999",
         current_latitude: -17.221879,
         current_longitude: -46.875143,
         current_zone: "DB",
         status: "available",
-        vehicles: [
-          {
-            brand: "honda",
-            year: 2015,
-            model: "cg-150",
-            plate: "aaa-0000",
-          },
-        ],
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
         idle_since: Date.now(),
         rating: 5.0,
       };
       let availableTwoInDC = {
         uid: "availableTwoInDC",
+        name: "Ciclano",
+        last_name: "de Tal",
+        total_trips: 123,
+        member_since: Date.now(),
+        phone_number: "(38) 77777-8888",
         current_latitude: -17.221035,
         current_longitude: -46.863207,
         current_zone: "DC",
         status: "available",
-        vehicles: [
-          {
-            brand: "honda",
-            year: 2015,
-            model: "cg-150",
-            plate: "aaa-0000",
-          },
-        ],
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
         idle_since: Date.now(),
         rating: 5.0,
       };
       let availableThreeInDC = {
         uid: "availableThreeInDC",
+        name: "Ciclano",
+        last_name: "de Fulano",
+        total_trips: 123,
+        member_since: Date.now(),
+        phone_number: "(38) 77777-8888",
         current_latitude: -17.221471,
         current_longitude: -46.86266,
         current_zone: "DC",
         status: "available",
-        vehicles: [
-          {
-            brand: "honda",
-            year: 2015,
-            model: "cg-150",
-            plate: "aaa-0000",
-          },
-        ],
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
         idle_since: Date.now(),
         rating: 5.0,
       };
       let busyInDC = {
         uid: "busyInDC",
+        name: "Betrano",
+        last_name: "de Ciclano",
+        total_trips: 123,
+        member_since: Date.now(),
+        phone_number: "(38) 77777-8888",
         current_latitude: -17.222722,
         current_longitude: -46.861959,
         current_zone: "DC",
         status: "busy",
-        vehicles: [
-          {
-            brand: "honda",
-            year: 2015,
-            model: "cg-150",
-            plate: "aaa-0000",
-          },
-        ],
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
         idle_since: Date.now(),
         rating: 5.0,
       };

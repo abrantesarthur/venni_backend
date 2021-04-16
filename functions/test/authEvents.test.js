@@ -44,7 +44,7 @@ describe("authEvents", () => {
     });
 
     beforeEach(async () => {
-      // set up realtime database and storage
+      // set up realtime database
       await admin
         .database()
         .ref("trip-requests")

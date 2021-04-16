@@ -11,8 +11,8 @@ export enum TripStatus {
   noDriversAvailable = "no-drivers-available",
   inProgress = "in-progress",
   completed = "completed",
-  canceledByDriver = "canceled-by-driver",
-  canceledByClient = "canceled-by-client",
+  cancelledByDriver = "cancelled-by-driver",
+  cancelledByClient = "cancelled-by-client",
   paymentFailed = "payment-failed",
 }
 
@@ -64,27 +64,37 @@ export const isVehicleInterface = (obj: any): obj is VehicleInterface => {
   return "brand" in obj && "model" in obj && "year" in obj && "plate" in obj;
 };
 
-// TODO: verify vehicles if it's an array
 export interface PilotInterface {
   uid: string;
+  name: string;
+  last_name: string;
+  total_trips: number;
+  member_since: number;
+  phone_number: string;
   current_client_uid?: string;
   current_latitude: number;
   current_longitude: number;
   current_zone: ZoneName;
   status: PilotStatus;
-  vehicles: Array<VehicleInterface>;
+  vehicle: VehicleInterface;
   idle_since: number;
   rating: number;
-  score?: number;
-  position?: PilotPosition;
+  score?: number; // not stored in database
+  // TODO: change name to route or somethign
+  distance_to_client?: DistanceToClient; // not stored in database
 }
 
-export const isTripInterface = (obj: any): obj is TripInterface => {
-  if ("vehicles" in obj && Array.isArray(obj.vehicles)) {
-    for (var i = 0; i < obj.vehicles.length; i++) {
-      if (!isVehicleInterface(obj.vehicles[i])) {
-        return false;
-      }
+export interface DistanceToClient {
+  distance_text: string;
+  distance_value: number;
+  duration_text: string;
+  duration_value: number;
+}
+
+export const isPilotInterface = (obj: any): obj is PilotInterface => {
+  if ("vehicle" in obj) {
+    if (!isVehicleInterface(obj.vehicle)) {
+      return false;
     }
   } else {
     return false;
@@ -92,22 +102,50 @@ export const isTripInterface = (obj: any): obj is TripInterface => {
 
   return (
     "uid" in obj &&
+    "name" in obj &&
+    "last_name" in obj &&
+    "total_trips" in obj &&
+    "member_since" in obj &&
+    "phone_number" in obj &&
     "current_latitude" in obj &&
     "current_longitude" in obj &&
     "current_zone" in obj &&
     "status" in obj &&
-    "vehicles" in obj &&
+    "vehicle" in obj &&
     "idle_since" in obj &&
     "rating" in obj
   );
 };
 
-export interface PilotPosition {
-  distance_text: string;
-  distance_value: number;
-  duration_text: string;
-  duration_value: number;
-}
+// transform an object of pilots in an array of pilots
+export const pilotsFromObj = (obj: any): PilotInterface[] => {
+  let pilots: PilotInterface[] = [];
+  Object.keys(obj).forEach((pilotUID) => {
+    // don't add obj to list if it doesn't conform to PilotInterface
+    if (isPilotInterface(obj[pilotUID])) {
+      // create pilot obj, ignoring eventual extra irrelevant fields
+      const pilot = {
+        uid: obj[pilotUID].uid,
+        name: obj[pilotUID].name,
+        last_name: obj[pilotUID].last_name,
+        total_trips: obj[pilotUID].total_trips,
+        member_since: obj[pilotUID].member_since,
+        phone_number: obj[pilotUID].phone_number,
+        current_client_uid: obj[pilotUID].current_client_uid,
+        current_latitude: obj[pilotUID].current_latitude,
+        current_longitude: obj[pilotUID].current_longitude,
+        current_zone: obj[pilotUID].current_zone,
+        status: obj[pilotUID].status,
+        vehicle: obj[pilotUID].vehicle,
+        idle_since: obj[pilotUID].idle_since,
+        rating: obj[pilotUID].rating,
+        score: obj[pilotUID].score,
+      };
+      pilots.push(pilot);
+    }
+  });
+  return pilots;
+};
 
 /******************************************************
  * TRIP

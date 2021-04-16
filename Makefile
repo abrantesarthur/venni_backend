@@ -121,11 +121,9 @@ emulator: use-dev-project emulator-config build
 # start online testing with services pointing to test project
 # should we want to update files to be tested, don't forget to set the
 # GOOGLE_APPLICATION_CREDENTIALS and run $(NPMRUN) buid
-# test: use-dev-project test-dependencies test-config build
-# 	$(NPMTEST)
-
-test:
+test: build
 	$(NPMTEST)
+
 
 ################################################################################
 ## DEPLOYING
@@ -133,12 +131,12 @@ test:
 .PHONY: deploy-dev deploy-stag deploy-prod deploy
 
 deploy:
-ifdef DEPLOYGROUP
-	$(FIREBASEDEPLOY) --only functions:$(DEPLOYGROUP)
-else
 ifdef FUNCTIONNAME
 	$(FIREBASEDEPLOY) --only functions:$(FUNCTIONNAME)
 else 
+ifdef DEPLOYGROUP
+	$(FIREBASEDEPLOY) --only functions:$(DEPLOYGROUP)
+else
 	$(FIREBASEDEPLOY) --only functions
 endif
 endif

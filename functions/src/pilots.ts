@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
 import { LatLngLiteral, Status } from "@googlemaps/google-maps-services-js";
-import { PilotInterface, TripInterface, isTripInterface } from "./interfaces";
+import { PilotInterface, TripInterface, pilotsFromObj } from "./interfaces";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { getZonesAdjacentTo, ZoneName } from "./zones";
 import { createMockPilots } from "./mock";
@@ -9,35 +9,9 @@ import { createMockPilots } from "./mock";
 // initialize google maps API client
 const googleMaps = new Client({});
 
-// transform an object of pilots in an array of pilots
-export const pilotsFromObj = (obj: any): PilotInterface[] => {
-  let pilots: PilotInterface[] = [];
-  Object.keys(obj).forEach((pilotUID) => {
-    // don't add obj to list if it doesn't conform to TripInterface
-    if (isTripInterface(obj[pilotUID])) {
-      // create pilot obj, ignoring eventual extra irrelevant fields
-      const pilot = {
-        uid: obj[pilotUID].uid,
-        current_client_uid: obj[pilotUID].current_client_uid,
-        current_latitude: obj[pilotUID].current_latitude,
-        current_longitude: obj[pilotUID].current_longitude,
-        current_zone: obj[pilotUID].current_zone,
-        status: obj[pilotUID].status,
-        vehicles: obj[pilotUID].vehicles,
-        idle_since: obj[pilotUID].idle_since,
-        rating: obj[pilotUID].rating,
-        score: obj[pilotUID].score,
-        position: obj[pilotUID].position,
-      };
-      pilots.push(pilot);
-    }
-  });
-  return pilots;
-};
-
-// assignPilotDistances returns an array of PilotInterface with position
+// assignPilotsDistanceToClient returns an array of PilotInterface with position
 // property properly assigned
-export const assignPilotDistances = async (
+export const assignPilotsDistanceToClient = async (
   originPlaceID: string,
   pilots: PilotInterface[],
   googleApiKey: string
@@ -104,7 +78,7 @@ export const assignPilotDistances = async (
 
   // build array of pilot distances
   distanceElements.forEach((elt, index) => {
-    pilots[index].position = {
+    pilots[index].distance_to_client = {
       distance_text: elt.distance.text,
       distance_value: elt.distance.value,
       duration_text: elt.duration.text,
@@ -159,7 +133,7 @@ export const rankPilots = (pilots: PilotInterface[]): PilotInterface[] => {
   pilots.forEach((pilot) => {
     let pilotIdleSeconds = (now - pilot.idle_since) / 1000;
     pilot.score =
-      distanceScore(pilot.position?.distance_value) +
+      distanceScore(pilot.distance_to_client?.distance_value) +
       idleTimeScore(pilotIdleSeconds) +
       ratingScore(pilot.rating);
   });
@@ -188,7 +162,7 @@ export const findPilots = async (
   if (snapshot.val() == null) {
     // if none is available, return empty list
     // TODO: remove before deploying
-    createMockPilots(200);
+    createMockPilots(100);
     return [];
   }
   let pilots = pilotsFromObj(snapshot.val());
@@ -199,7 +173,7 @@ export const findPilots = async (
   pilots = filterPilotsByZone(tripRequest.origin_zone, pilots);
 
   // assing positions to the pilots
-  pilots = await assignPilotDistances(
+  pilots = await assignPilotsDistanceToClient(
     tripRequest.origin_place_id,
     pilots,
     functions.config().googleapi.key
