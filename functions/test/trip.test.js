@@ -450,6 +450,131 @@ describe("trip", () => {
     it("succeeds when trip has in-progress status", async () => {
       await succeedsWithStatus("in-progress");
     });
+
+    it("succeeds when integrated with confirmTrip and acceptTrip", async () => {
+      // add an available pilots to the database
+      const pilotID = "pilotID";
+      const clientID = "clientID";
+      // await admin.database().ref("pilots").remove();
+      let defaultPilot = {
+        uid: pilotID,
+        name: "Fulano",
+        last_name: "de Tal",
+        phone_number: "(38) 99999-9999",
+        total_trips: 123,
+        member_since: Date.now(),
+        current_latitude: -17.217587,
+        current_longitude: -46.881064,
+        current_zone: "AA",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now(),
+        rating: 5.0,
+      };
+      const pilotRef = admin.database().ref("pilots").child(pilotID);
+      await pilotRef.set(defaultPilot);
+
+      // add trip request to database with status waiting-confirmation
+      let tripRequest = {
+        uid: clientID,
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        trip_status: "waiting-confirmation",
+        origin_zone: "AA",
+      };
+      await admin
+        .database()
+        .ref("trip-requests")
+        .child(clientID)
+        .set(tripRequest);
+
+      // assert trip has been added
+      const tripRequestRef = admin
+        .database()
+        .ref("trip-requests")
+        .child(clientID);
+      let snapshot = await tripRequestRef.once("value");
+      assert.isTrue(snapshot.val() != null);
+      assert.equal(snapshot.val().trip_status, "waiting-confirmation");
+
+      // confirm trip
+      const wrappedConfirm = test.wrap(trip.confirm);
+      wrappedConfirm({}, { auth: { uid: clientID } });
+
+      // wait enough for confirm to send out request to pilot
+      await sleep(1500);
+
+      // assert trip request has looking-for-driver status
+      snapshot = await tripRequestRef.once("value");
+      assert.notEqual(snapshot.val(), null);
+      assert.equal(snapshot.val().trip_status, "looking-for-driver");
+
+      // assert pilot has been requested
+      let pilotSnapshot = await pilotRef.once("value");
+      assert.isNotNull(pilotSnapshot.val());
+      // this fails if there is a mockPilotBehavior listener that automatically accepts the trip
+      assert.equal(pilotSnapshot.val().status, "requested");
+
+      // assert trying to delete trip-request with looking-for-driver status fails
+      await genericTest(
+        "failed-precondition",
+        "Trip request can't be cancelled when in status 'looking-for-driver'",
+        {
+          auth: {
+            uid: clientID,
+          },
+        },
+        false
+      );
+
+      // pilot accepts trip
+      const wrappedAccept = test.wrap(trip.accept);
+      await wrappedAccept({ client_id: clientID }, { auth: { uid: pilotID } });
+
+      // wait enough time for confirmTrip to grant trip to the pilot
+      await sleep(100);
+
+      // assert pilot was granted the trip
+      pilotSnapshot = await pilotRef.once("value");
+      assert.equal(pilotSnapshot.val().status, "busy");
+      assert.equal(pilotSnapshot.val().current_client_uid, clientID);
+
+      // assert trip request has waiting-driver status
+      snapshot = await tripRequestRef.once("value");
+      assert.notEqual(snapshot.val(), null);
+      assert.equal(snapshot.val().trip_status, "waiting-driver");
+
+      // assert trying to delete trip-request succeeds
+      await genericTest(
+        "",
+        "",
+        {
+          auth: {
+            uid: clientID,
+          },
+        },
+        true
+      );
+
+      // assert trip-request has cancelled-by-client state
+      snapshot = await tripRequestRef.once("value");
+      assert.isTrue(snapshot.val() != null);
+      assert.equal(snapshot.val().trip_status, "cancelled-by-client");
+
+      // assert pilot has 'available' status and undefined 'current_client_uid'
+      pilotSnapshot = await pilotRef.once("value");
+      assert.equal(pilotSnapshot.val().status, "available");
+      assert.equal(pilotSnapshot.val().current_client_uid, "");
+
+      // delete resources
+      await admin.database().ref("trip-requests").child(clientID).remove();
+      await admin.database().ref("pilots").child(pilotID).remove();
+    });
   });
 
   // we have not tested success or pilots accepting the trip yet

@@ -313,8 +313,10 @@ const confirmTrip = async (
     );
   }
 
-  // TODO: remove
-  nearbyPilots.forEach((pilot) => {});
+  // // TODO: remove
+  // nearbyPilots.forEach((pilot) => {
+  //   console.log(pilot.uid);
+  // });
 
   // variable that will hold list of pilots who received trip request
   let requestedPilotsUIDs: string[] = [];
@@ -506,9 +508,6 @@ const confirmTrip = async (
   // wait for timeout to end or for rider to accept trip, thus clearing timeout
   // and resolving timeoutPromise
   await timeoutPromise;
-
-  // stop listenign for changes
-  tripRequestRef.off("value");
 
   // we want to return from confirmTrip only after trip_status has reached its final
   // state. If timeoutPromse was cleared, this may not be the case yet. If clear()
