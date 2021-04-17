@@ -195,7 +195,7 @@ const clientCancelTrip = async (
   });
 
   // if a pilot is handling the trip, set him available and update idle_since
-  if (pilotID != null) {
+  if (pilotID != null && pilotID.length > 0) {
     const pilotRef = firebaseAdmin.database().ref("pilots").child(pilotID);
     await pilotRef.transaction((pilot: PilotInterface) => {
       if (pilot == null) {
