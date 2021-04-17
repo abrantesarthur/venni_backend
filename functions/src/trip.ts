@@ -490,17 +490,26 @@ const confirmTrip = async (
 
     await pilotsRef.child(nearbyPilots[i].uid).transaction(requestPilot);
 
-    // wait 4 seconds before tring to turn next pilot into 'requested'
+    // wait at most 4 seconds before tring to turn next pilot into 'requested'
     // this is so that first pilot to receive request has 5 seconds of
     // advantage to respond. Don't wait after runnign transactoin for last pilot, though.
+    // in case cancelFurtherPilotRequests is set to true, we stop waiting.
     if (i != nearbyPilots.length - 1) {
-      await sleep(4000);
+      let msPassed = 0;
+      do{
+        await sleep(1);
+        if(cancelFurtherPilotRequests) {
+          break;
+        }
+        msPassed += 1;
+      } while(msPassed < 4000);
     }
   }
 
   // wait for timeout to end or for rider to accept trip, thus clearing timeout
   // and resolving timeoutPromise
   await timeoutPromise;
+
 
   // we want to return from confirmTrip only after trip_status has reached its final
   // state. If timeoutPromse was cleared, this may not be the case yet. If clear()
