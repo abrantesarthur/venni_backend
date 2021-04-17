@@ -209,9 +209,9 @@ const clientCancelTrip = async (
       return pilot;
     });
   }
-
   // return updated trip-request to client
-  return tripRequestRef.once("value").then((trip) => trip);
+  const snapshot = await tripRequestRef.once("value");
+  return snapshot.val();
 };
 
 const confirmTrip = async (
@@ -315,7 +315,6 @@ const confirmTrip = async (
 
   // // TODO: remove
   // nearbyPilots.forEach((pilot) => {
-  //   console.log(pilot.uid);
   // });
 
   // variable that will hold list of pilots who received trip request
