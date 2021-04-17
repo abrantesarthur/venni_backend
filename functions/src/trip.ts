@@ -251,7 +251,8 @@ const confirmTrip = async (
     tripRequest.trip_status != "waiting-confirmation" &&
     tripRequest.trip_status != "payment-failed" &&
     tripRequest.trip_status != "no-drivers-available" &&
-    tripRequest.trip_status != "looking-for-driver"
+    tripRequest.trip_status != "looking-for-driver" &&
+    tripRequest.trip_status != "cancelled-by-driver"
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -313,10 +314,6 @@ const confirmTrip = async (
       "There are no available pilots. Try again later."
     );
   }
-
-  // // TODO: remove
-  // nearbyPilots.forEach((pilot) => {
-  // });
 
   // variable that will hold list of pilots who received trip request
   let requestedPilotsUIDs: string[] = [];
@@ -434,8 +431,14 @@ const confirmTrip = async (
         }
       });
       if (!isValidDriverID) {
-        // clear driver_id so other pilots have the chance of claiming thr trip
-        tripRequestRef.child("driver_id").set("");
+        // clear driver_id so other pilots have the chance of claiming the trip
+        tripRequestRef.transaction((tripRequest: TripInterface) => {
+          if (tripRequest == null) {
+            return {};
+          }
+          tripRequest.driver_id = "";
+          return tripRequest;
+        });
         // abort and continue listening for changes
         return;
       }
@@ -449,18 +452,6 @@ const confirmTrip = async (
 
       // stop listening for changes in driver_id
       tripRequestRef.off("value");
-
-      // for pilots who were requested but failed to respond in time, set status to available
-      // and clear current_client_id as long as its status equals requested and current_client_id
-      // equals the client's uuid. This means it received our request, didn't respond in time,
-      // and didn't reset the pilot's status.
-      const j = requestedPilotsUIDs.length;
-      for (var i = 0; i < j; i++) {
-        pilotsRef.child(requestedPilotsUIDs[0]).transaction(unrequestPilot);
-
-        // remove pilot from list of requested pilots.
-        requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
-      }
 
       // set status of pilot who successfully picked the ride to busy.
       // and current_client_id to the id of requesting client
@@ -519,16 +510,28 @@ const confirmTrip = async (
     do {
       await sleep(1);
     } while (!isWaitingDriver);
+
+    // for pilots who were requested but failed to respond in time, set status to available
+    // and clear current_client_id as long as its status equals requested and current_client_id
+    // equals the client's uuid. This means it received our request, didn't respond in time,
+    // and didn't reset the pilot's status.
+    const j = requestedPilotsUIDs.length;
+    for (var i = 0; i < j; i++) {
+      pilotsRef.child(requestedPilotsUIDs[0]).transaction(unrequestPilot);
+
+      // remove pilot from list of requested pilots.
+      requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
+    }
+
+    // respond with pilot object if succesfully picked a pilot
+    const tripSnapshot = await tripRequestRef.once("value");
+    const pilotID = tripSnapshot.val().driver_id;
+    const pilotSnapshot = await pilotsRef.child(pilotID).once("value");
+    return pilotSnapshot.val();
   }
 
-  // although the function finishes its execution here, the client
-  // must pay attention to the trip's status to know whether the call was
-  // succesfull (i.e., when it has waitingDriver value). This is because,
-  // although the function may be returning here, it may still be waiting
-  // for drivers to respond. In case no driver responds, the trip state becomes
-  // timedOutWaitingDriverAcceptance, in which case the client can also
-  // consider the request done.
-  return;
+  // otherwise, return with empty value
+  return {};
 };
 
 const acceptTrip = async (
