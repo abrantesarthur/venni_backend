@@ -146,6 +146,8 @@ const editTrip = async (
   return requestTrip(data, context);
 };
 
+// TODO: charge the customer for cancelation if driver is already coming or trip
+// is already in progress
 const clientCancelTrip = async (
   _: any,
   context: functions.https.CallableContext
