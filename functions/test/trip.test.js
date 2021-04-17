@@ -766,7 +766,7 @@ describe("trip", () => {
       const confirmPromise = wrappedConfirm({}, { auth: { uid: clientID } });
 
       // wait enough time for confirm to send request to pilot1 and pilot 2
-      await sleep(6000);
+      await sleep(7000);
 
       // assert trip has looking-for-driver status
       let tripRequestSnapshot = await tripRequestRef.once("value");
@@ -777,7 +777,7 @@ describe("trip", () => {
       let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
       assert.isNotNull(pilot1Snapshot.val());
       assert.equal(pilot1Snapshot.val().status, "requested");
-      // assert pilot 2 has not been requested
+      // assert pilot 2 has been requested
       let pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
       assert.isNotNull(pilot2Snapshot.val());
       assert.equal(pilot2Snapshot.val().status, "requested");
