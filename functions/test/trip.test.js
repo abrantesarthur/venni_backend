@@ -289,9 +289,6 @@ describe("trip", () => {
     it("fails when the user already has a trip request with waitingPayment status", async () => {
       await invalidTripStatusTest("waiting-payment");
     });
-    it("fails when the user already has a trip request with waitingConfirmation status", async () => {
-      await invalidTripStatusTest("waiting-confirmation");
-    });
 
     it("succeed when all parameters are valid", async () => {
       const uid = "some_uid";

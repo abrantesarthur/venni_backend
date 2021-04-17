@@ -88,8 +88,7 @@ const requestTrip = async (
     (tripRequest.trip_status == TripStatus.inProgress ||
       tripRequest.trip_status == TripStatus.lookingForDriver ||
       tripRequest.trip_status == TripStatus.waitingDriver ||
-      tripRequest.trip_status == TripStatus.waitingPayment ||
-      tripRequest.trip_status == TripStatus.waitingConfirmation)
+      tripRequest.trip_status == TripStatus.waitingPayment)
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
