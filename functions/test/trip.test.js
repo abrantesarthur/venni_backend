@@ -795,6 +795,7 @@ describe("trip", () => {
       assert.equal(confirmResult.uid, pilotID1);
       assert.equal(confirmResult.status, "busy");
       assert.equal(confirmResult.current_client_uid, clientID);
+      assert.equal(confirmResult.trip_status, "waiting-driver");
 
       // assert trip has waiting-driver status
       tripRequestSnapshot = await tripRequestRef.once("value");

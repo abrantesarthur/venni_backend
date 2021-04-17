@@ -5,7 +5,7 @@ import { calculateFare } from "./fare";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 import { HttpsError } from "firebase-functions/lib/providers/https";
-import { AsyncTimeout, sleep } from "./utils";
+import { AsyncTimeout, sleep, LooseObject } from "./utils";
 import { getZoneNameFromCoordinate } from "./zones";
 import {
   RequestTripInterface,
@@ -411,7 +411,7 @@ const confirmTrip = async (
   let asyncTimeout = new AsyncTimeout();
   let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
   let isWaitingDriver: boolean = false;
-  let pilotResponse;
+  let confirmTripResponse : LooseObject = {};
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
@@ -455,7 +455,7 @@ const confirmTrip = async (
       tripRequestRef.off("value");
 
       // set status of pilot who successfully picked the ride to busy.
-      // and current_client_id to the id of requesting client. Also, set pilotResponse.
+      // and current_client_id to the id of requesting client. Also, set confirmTripResponse.
       pilotsRef.child(trip.driver_id).transaction((pilot: PilotInterface) => {
         if (pilot == null) {
           // always check for null on transactoins
@@ -463,7 +463,22 @@ const confirmTrip = async (
         }
         pilot.status = PilotStatus.busy;
         pilot.current_client_uid = context.auth?.uid;
-        pilotResponse = pilot;
+        // populate response with data from pilot
+        confirmTripResponse.uid = pilot.uid;
+        confirmTripResponse.name = pilot.name;
+        confirmTripResponse.last_name = pilot.last_name;
+        confirmTripResponse.total_trips = pilot.total_trips;
+        confirmTripResponse.member_since = pilot.member_since;
+        confirmTripResponse.phone_number = pilot.phone_number;
+        confirmTripResponse.current_client_uid = pilot.current_client_uid;
+        confirmTripResponse.current_latitude = pilot.current_latitude;
+        confirmTripResponse.current_longitude = pilot.current_longitude;
+        confirmTripResponse.current_zone = pilot.current_zone;
+        confirmTripResponse.status = pilot.status;
+        confirmTripResponse.vehicle = pilot.vehicle;
+        confirmTripResponse.idle_since = pilot.idle_since;
+        confirmTripResponse.rating = pilot.rating;
+        // update pilot in database
         return pilot;
       });
 
@@ -534,16 +549,19 @@ const confirmTrip = async (
       requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
     }
 
-    // respond with pilotResponse, which should be already set by this point, but we await
+    // respond with confirmTripResponse, which should be already set by this point, but we await
     // just to be sure.
     do{
       await sleep(1);
-    } while(pilotResponse == undefined);
-    return pilotResponse;
+    } while(confirmTripResponse == undefined);
+    // pupulate response with trip status
+    confirmTripResponse.trip_status = "waiting-driver";
+    return confirmTripResponse;
   }
 
-  // otherwise, return with empty value
-  return {};
+  // otherwise, return object with trip_status
+  let tripSnapshot = await tripRequestRef.once("value");
+  return {trip_status: tripSnapshot.val().trip_status};
 };
 
 const acceptTrip = async (

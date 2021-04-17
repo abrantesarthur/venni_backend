@@ -64,3 +64,7 @@ export class AsyncTimeout {
     });
   }
 }
+
+export interface LooseObject {
+  [key: string]: any
+}
