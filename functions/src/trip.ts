@@ -411,6 +411,7 @@ const confirmTrip = async (
   let asyncTimeout = new AsyncTimeout();
   let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
   let isWaitingDriver: boolean = false;
+  let pilotResponse;
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
@@ -454,7 +455,7 @@ const confirmTrip = async (
       tripRequestRef.off("value");
 
       // set status of pilot who successfully picked the ride to busy.
-      // and current_client_id to the id of requesting client
+      // and current_client_id to the id of requesting client. Also, set pilotResponse.
       pilotsRef.child(trip.driver_id).transaction((pilot: PilotInterface) => {
         if (pilot == null) {
           // always check for null on transactoins
@@ -462,6 +463,7 @@ const confirmTrip = async (
         }
         pilot.status = PilotStatus.busy;
         pilot.current_client_uid = context.auth?.uid;
+        pilotResponse = pilot;
         return pilot;
       });
 
@@ -523,11 +525,12 @@ const confirmTrip = async (
       requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
     }
 
-    // respond with pilot object if succesfully picked a pilot
-    const tripSnapshot = await tripRequestRef.once("value");
-    const pilotID = tripSnapshot.val().driver_id;
-    const pilotSnapshot = await pilotsRef.child(pilotID).once("value");
-    return pilotSnapshot.val();
+    // respond with pilotResponse, which should be already set by this point, but we await
+    // just to be sure.
+    do{
+      await sleep(1);
+    } while(pilotResponse == undefined);
+    return pilotResponse;
   }
 
   // otherwise, return with empty value
