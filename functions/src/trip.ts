@@ -410,7 +410,6 @@ const confirmTrip = async (
   let cancelFurtherPilotRequests = false;
   let asyncTimeout = new AsyncTimeout();
   let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
-  let isWaitingDriver: boolean = false;
   let confirmTripResponse : LooseObject = {};
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
@@ -463,7 +462,7 @@ const confirmTrip = async (
         }
         pilot.status = PilotStatus.busy;
         pilot.current_client_uid = context.auth?.uid;
-        // populate response with data from pilot
+        // populate final confirmTrip response with data from pilot
         confirmTripResponse.uid = pilot.uid;
         confirmTripResponse.name = pilot.name;
         confirmTripResponse.last_name = pilot.last_name;
@@ -489,7 +488,6 @@ const confirmTrip = async (
           return {};
         }
         tripRequest.trip_status = TripStatus.waitingDriver;
-        isWaitingDriver = true;
         return tripRequest;
       });
     }
@@ -533,9 +531,13 @@ const confirmTrip = async (
   // before the listener has time to update status to waitingDriver. Thats why we
   // wait here until waitingDriver state is reached.
   if (asyncTimeout.wasCleared) {
+    // listen for trip status and only continue when it has waiting-driver status
+    // we want to exit confirmTrip if trip having its inal status
+    let tripSnapshot = await tripRequestRef.once("value");
     do {
       await sleep(1);
-    } while (!isWaitingDriver);
+      tripSnapshot = await tripRequestRef.once("value");
+    } while (tripSnapshot.val().trip_status != "waiting-driver");
 
     // for pilots who were requested but failed to respond in time, set status to available
     // and clear current_client_id as long as its status equals requested and current_client_id
