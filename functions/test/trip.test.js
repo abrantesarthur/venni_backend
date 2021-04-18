@@ -547,16 +547,10 @@ describe("trip", () => {
       assert.equal(snapshot.val().trip_status, "waiting-driver");
 
       // assert trying to delete trip-request succeeds
-      await genericTest(
-        "",
-        "",
-        {
-          auth: {
-            uid: clientID,
-          },
-        },
-        true
-      );
+      const wrapped = test.wrap(trip.client_cancel);
+      const response = await wrapped({}, {auth: {uid: clientID}});
+      assert.isNotNull(response);
+      assert.equal(response.trip_status, "cancelled-by-client");
 
       // assert trip-request has cancelled-by-client state
       snapshot = await tripRequestRef.once("value");
