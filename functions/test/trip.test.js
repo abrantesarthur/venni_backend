@@ -519,18 +519,6 @@ describe("trip", () => {
       // this fails if there is a mockPilotBehavior listener that automatically accepts the trip
       assert.equal(pilotSnapshot.val().status, "requested");
 
-      // assert trying to delete trip-request with looking-for-driver status fails
-      await genericTest(
-        "failed-precondition",
-        "Trip request can't be cancelled when in status 'looking-for-driver'",
-        {
-          auth: {
-            uid: clientID,
-          },
-        },
-        false
-      );
-
       // pilot accepts trip
       const wrappedAccept = test.wrap(trip.accept);
       await wrappedAccept({ client_id: clientID }, { auth: { uid: pilotID } });
@@ -1117,6 +1105,181 @@ describe("trip", () => {
       pilot2Snapshot = await pilot2Ref.once("value");
       assert.isNotNull(pilot2Snapshot.val());
       assert.equal(pilot2Snapshot.val().status, "available");
+    });
+  });
+
+
+  describe("start", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(trip.start);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+
+    it("user must be authenticated", async () => {
+      // run generic test without context
+      await genericTest(
+        { client_id: "client_id" },
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("argument must contain client_id string", async () => {
+      await genericTest(
+        {},
+        "invalid-argument",
+        "argument client_id must be a string with length greater than 0.",
+        defaultCtx
+      );
+    });
+
+    it("works when integrated with confirmTrip and acceptTrip", async () => {
+      const pilotID1 = "pilotID1";
+      const pilotID2 = "pilotID2";
+      const clientID = "clientID";
+
+      // add two available pilots to the database
+      await admin.database().ref("pilots").remove();
+      await admin.database().ref("pilots").remove();
+      let defaultPilot = {
+        uid: "",
+        name: "Fulano",
+        last_name: "de Tal",
+        total_trips: 123,
+        member_since: Date.now(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: -17.217587,
+        current_longitude: -46.881064,
+        current_zone: "AA",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now(),
+        rating: 5.0,
+      };
+      defaultPilot.uid = pilotID1;
+      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      defaultPilot.uid = pilotID2;
+      await admin.database().ref("pilots").child(pilotID2).set(defaultPilot);
+
+      // add trip request to database
+      let tripRequest = {
+        uid: clientID,
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        trip_status: "waiting-confirmation",
+        origin_zone: "AA",
+      };
+      const tripRequestRef = admin
+      .database()
+      .ref("trip-requests")
+      .child(clientID);
+      await tripRequestRef.set(tripRequest);
+
+      // user confirms trip
+      const wrappedConfirm = test.wrap(trip.confirm);
+      wrappedConfirm({}, { auth: { uid: clientID } });
+
+      // wait enough for confirm to send out request to pilot 1 only
+      // TODO: may have to increase this once process payments is implemented
+      await sleep(1500);
+
+      // assert trip status has changed to looking-for-driver
+      let tripSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripSnapshot.val());
+      assert.equal(tripSnapshot.val().trip_status, "looking-for-driver");
+
+      // assert pilot1 has been requested
+      let pilot1Ref = admin.database().ref("pilots").child(pilotID1);
+      let pilot1Snapshot = await pilot1Ref.once("value");
+      assert.isNotNull(pilot1Snapshot.val());
+      assert.equal(pilot1Snapshot.val().status, "requested");
+      // assert pilot2 has not been requested
+      let pilot2Ref = admin.database().ref("pilots").child(pilotID2);
+      let pilot2Snapshot = await pilot2Ref.once("value");
+      assert.isNotNull(pilot2Snapshot.val());
+      assert.equal(pilot2Snapshot.val().status, "available");
+
+      // fail if pilot 2 tries starting the trip without being requested
+      const wrappedStart = test.wrap(trip.start);
+      try {
+        await wrappedStart(
+          { client_id: clientID },
+          { auth: { uid: pilotID2 } }
+        );
+        assert(false, "should have failed");
+      } catch (e) {
+        assert.strictEqual(e.code, "failed-precondition");
+        assert.strictEqual(
+          e.message,
+          "pilot has not been requested for the trip."
+        );
+      }
+
+      // fail if pilot 1 tries starting the trip without having accepted it first
+      try {
+        await wrappedStart(
+          { client_id: clientID },
+          { auth: { uid: pilotID1 } }
+        );
+        assert(false, "should have failed");
+      } catch (e) {
+        assert.strictEqual(e.code, "failed-precondition");
+        assert.strictEqual(
+          e.message,
+          "pilot has not been requested for the trip."
+        );
+      }
+
+      // pilot 1 accepts the trip
+      const wrappedAccept = test.wrap(trip.accept);
+      await wrappedAccept({ client_id: clientID }, { auth: { uid: pilotID1 } });
+
+      // assert pilot 1 is busy
+      pilot1Snapshot = await pilot1Ref.once("value");
+      assert.isNotNull(pilot1Snapshot.val());
+      assert.equal(pilot1Snapshot.val().status, "busy");
+
+      // assert trip status has changed to waiting-driver
+      tripSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripSnapshot.val());
+      assert.equal(tripSnapshot.val().trip_status, "waiting-driver");
+
+      // now pilot 1 is able to start the trip
+      await wrappedStart({ client_id: clientID }, { auth: { uid: pilotID1 } });
+
+      // await for trip status to be set
+      await sleep(200);
+
+      // assert trip status has changed to in-progress
+      tripSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripSnapshot.val());
+      assert.equal(tripSnapshot.val().trip_status, "in-progress");
     });
   });
 });
