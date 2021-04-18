@@ -57,6 +57,15 @@ function validateAcceptTripArguments(obj: any) {
   }
 }
 
+function validateStartTripArguments(obj: any) {
+  if (!(typeof obj.client_id === "string") || obj.client_id.length === 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument client_id must be a string with length greater than 0."
+    );
+  }
+}
+
 // TODO: only accept requests departing from Paracatu
 const requestTrip = async (
   data: any,
@@ -688,11 +697,93 @@ const acceptTrip = async (
   }
 };
 
+const startTrip = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  // validate data
+  validateStartTripArguments(data);
+
+  const pilotID = context.auth.uid;
+  const clientID = data.client_id;
+
+  // get a reference to pilot data
+  const pilotRef = firebaseAdmin.database().ref("pilots").child(pilotID);
+
+  // make sure the pilot's status is busy and trip's current_client_id is set correctly
+  let pilotSnapshot = await pilotRef.once("value");
+  let pilot = pilotSnapshot.val() as PilotInterface;
+  if (
+    pilot == null ||
+    pilot.status != PilotStatus.busy ||
+    pilot.current_client_uid != clientID
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "pilot has not been requested for the trip."
+    );
+  }
+
+  // get a reference to user's trip request
+  const tripRequestRef = firebaseAdmin
+    .database()
+    .ref("trip-requests")
+    .child(clientID);
+
+  // set trip's status to in-progress in a transaction only if it is waiting-driver.
+  tripRequestRef.transaction(
+    (tripRequest: TripInterface) => {
+      if (tripRequest == null) {
+        // we always check for null in transactions.
+        return {};
+      }
+
+      // if trip has not been picked up by another pilot
+      if (tripRequest.trip_status == "waiting-driver") {
+        // set trip's driver_id in a transaction only if it is null or empty.
+        tripRequest.trip_status = TripStatus.inProgress;
+        return tripRequest;
+      }
+
+      // otherwise, abort
+      return;
+    },
+    (error, completed, snapshot) => {
+      // if transaction failed abnormally
+      if (error) {
+        throw new functions.https.HttpsError(
+          "internal",
+          "Something went wrong."
+        );
+      }
+
+      // if transaction was aborted
+      if (completed == false) {
+        // trip is not in valid status, so throw error.
+        throw new functions.https.HttpsError(
+          "failed-precondition",
+          "cannot accept trip in status " + snapshot?.val().trip_status
+        );
+      }
+    }
+  );
+  return;
+};
+
 export const request = functions.https.onCall(requestTrip);
 export const edit = functions.https.onCall(editTrip);
 export const client_cancel = functions.https.onCall(clientCancelTrip);
 export const confirm = functions.https.onCall(confirmTrip);
 export const accept = functions.https.onCall(acceptTrip);
+export const start = functions.https.onCall(startTrip);
 
 /**
  * TESTS
