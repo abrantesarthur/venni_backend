@@ -541,7 +541,7 @@ const confirmTrip = async (
       tripSnapshot.val().trip_status != "waiting-driver"
     );
     // important: sleep a bit to guarantee that waiting-driver status is persisted
-    await sleep(200);
+    await sleep(300);
 
     // for pilots who were requested but failed to respond in time, set status to available
     // and clear current_client_id as long as its status equals requested and current_client_id
@@ -572,7 +572,7 @@ const confirmTrip = async (
     tripSnapshot = await tripRequestRef.once("value");
   } while (tripSnapshot.val() == null);
   // important: sleep a bit to guarantee that final status is persisted
-  await sleep(200);
+  await sleep(300);
   return { trip_status: tripSnapshot.val().trip_status };
 };
 
