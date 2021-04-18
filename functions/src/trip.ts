@@ -172,6 +172,9 @@ const clientCancelTrip = async (
   if (
     tripRequest == null ||
     (tripRequest.trip_status != TripStatus.waitingConfirmation &&
+      tripRequest.trip_status != TripStatus.paymentFailed &&
+      tripRequest.trip_status != TripStatus.noDriversAvailable && 
+      tripRequest.trip_status != TripStatus.lookingForDriver &&
       tripRequest.trip_status != TripStatus.waitingDriver &&
       tripRequest.trip_status != TripStatus.inProgress)
   ) {

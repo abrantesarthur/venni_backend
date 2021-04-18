@@ -408,9 +408,6 @@ describe("trip", () => {
       );
     });
 
-    it("fails if trip has payment-failed status", async () => {
-      await failsWithStatus("payment-failed");
-    });
 
     it("fails if trip has cancelled-by-client status", async () => {
       await failsWithStatus("cancelled-by-client");
@@ -424,13 +421,6 @@ describe("trip", () => {
       await failsWithStatus("completed");
     });
 
-    it("fails if trip has no-drivers-available status", async () => {
-      await failsWithStatus("no-drivers-available");
-    });
-
-    it("fails if trip has looking-for-driver status", async () => {
-      await failsWithStatus("looking-for-driver");
-    });
 
     it("fails if trip has waiting-payment status", async () => {
       await failsWithStatus("waiting-payment");
@@ -438,6 +428,18 @@ describe("trip", () => {
 
     it("succeeds when trip has waiting-confirmation status", async () => {
       await succeedsWithStatus("waiting-confirmation");
+    });
+
+    it("succeeds when trip has payment-failed status", async () => {
+      await succeedsWithStatus("payment-failed");
+    });
+
+    it("succeeds when trip has no-drivers-available status", async () => {
+      await succeedsWithStatus("no-drivers-available");
+    });
+
+    it("succeeds when trip has looking-for-driver status", async () => {
+      await succeedsWithStatus("looking-for-driver");
     });
 
     it("succeeds when trip has waiting-driver status", async () => {
