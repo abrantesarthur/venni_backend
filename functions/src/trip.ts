@@ -410,7 +410,7 @@ const confirmTrip = async (
   let cancelFurtherPilotRequests = false;
   let asyncTimeout = new AsyncTimeout();
   let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
-  let confirmTripResponse : LooseObject = {};
+  let confirmTripResponse: LooseObject = {};
   tripRequestRef.on("value", (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
@@ -509,20 +509,19 @@ const confirmTrip = async (
     // in case cancelFurtherPilotRequests is set to true, we stop waiting.
     if (i != nearbyPilots.length - 1) {
       let msPassed = 0;
-      do{
+      do {
         await sleep(1);
-        if(cancelFurtherPilotRequests) {
+        if (cancelFurtherPilotRequests) {
           break;
         }
         msPassed += 1;
-      } while(msPassed < 4000);
+      } while (msPassed < 4000);
     }
   }
 
   // wait for timeout to end or for rider to accept trip, thus clearing timeout
   // and resolving timeoutPromise
   await timeoutPromise;
-
 
   // we want to return from confirmTrip only after trip_status has reached its final
   // state. If timeoutPromse was cleared, this may not be the case yet. If clear()
@@ -532,12 +531,17 @@ const confirmTrip = async (
   // wait here until waitingDriver state is reached.
   if (asyncTimeout.wasCleared) {
     // listen for trip status and only continue when it has waiting-driver status
-    // we want to exit confirmTrip if trip having its inal status
+    // we want to exit confirmTrip if trip having its final status
     let tripSnapshot = await tripRequestRef.once("value");
     do {
       await sleep(1);
       tripSnapshot = await tripRequestRef.once("value");
-    } while (tripSnapshot.val().trip_status != "waiting-driver");
+    } while (
+      tripSnapshot.val() == null ||
+      tripSnapshot.val().trip_status != "waiting-driver"
+    );
+    // important: sleep a bit to guarantee that waiting-driver status is persisted
+    await sleep(200);
 
     // for pilots who were requested but failed to respond in time, set status to available
     // and clear current_client_id as long as its status equals requested and current_client_id
@@ -553,17 +557,23 @@ const confirmTrip = async (
 
     // respond with confirmTripResponse, which should be already set by this point, but we await
     // just to be sure.
-    do{
+    do {
       await sleep(1);
-    } while(confirmTripResponse == undefined);
+    } while (confirmTripResponse == undefined);
     // pupulate response with trip status
-    confirmTripResponse.trip_status = "waiting-driver";
+    confirmTripResponse.trip_status = tripSnapshot.val().trip_status;
     return confirmTripResponse;
   }
 
   // otherwise, return object with trip_status
   let tripSnapshot = await tripRequestRef.once("value");
-  return {trip_status: tripSnapshot.val().trip_status};
+  do {
+    await sleep(1);
+    tripSnapshot = await tripRequestRef.once("value");
+  } while (tripSnapshot.val() == null);
+  // important: sleep a bit to guarantee that final status is persisted
+  await sleep(200);
+  return { trip_status: tripSnapshot.val().trip_status };
 };
 
 const acceptTrip = async (
