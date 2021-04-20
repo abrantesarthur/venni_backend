@@ -23,7 +23,9 @@ export interface RequestTripInterface {
 
 /**
  * TODO: add payment_method
- * TODO: add used_card_number
+ * TODO: add card_id
+ *  * TODO: update its use to have these fields as well
+
  */
 export interface TripInterface {
   uid: string;
@@ -39,6 +41,8 @@ export interface TripInterface {
   encoded_points: string;
   request_time: number; // number of milliseconds since 01/01/1970
   driver_id?: string;
+  origin_address: string;
+  destination_address: string;
 }
 
 /******************************************************
@@ -156,19 +160,9 @@ export enum UserPaymentMethod {
   card = "card",
 }
 
-export interface UserPastTrip {
-  request_time: number; // is also the key
-  departure_time: number;
-  arrival_time: number;
-  finish_status: TripStatus;
-  origin_place_id: string;
-  destination_place_id: string;
-  distance_value: number;
-  ride_fare: number;
-  payment_method: UserPaymentMethod;
-  used_card_id?: string;
-}
-
-export interface UserInterface {
-  past_trips: Array<UserPastTrip>;
+export interface ClientInterface {
+  past_trips?: TripInterface[];
+  total_trips: number;
+  total_rating: number;
+  rating: number;
 }

@@ -1,15 +1,15 @@
 {
+  "functions": {
+    "predeploy": "npm --prefix \"functions\" run build"
+  },
   "emulators": {
     "ui": {
       "enabled": "true"
     },
     "functions": {
-      "host": "192.168.0.106",
-      "port": "5001"
+      "port": "5001",
+      "host": "192.168.0.106"
     }
-  },
-  "functions": {
-    "predeploy": "npm --prefix \"functions\" run build"
   },
   "googleapi": {
     "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"

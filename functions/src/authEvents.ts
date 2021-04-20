@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
+import { ClientInterface } from "./interfaces";
 
 //clean user data whenever user is deleted
 export const clean_user_data = functions.auth
@@ -11,8 +12,8 @@ export const clean_user_data = functions.auth
 
       // delete entry in 'trip-requests'
       await db.ref("trip-requests").child(user.uid).remove();
-      // delete entry in users
-      await db.ref("users").child(user.uid).remove();
+      // delete entry in clients
+      await db.ref("clients").child(user.uid).remove();
 
       // delete storage data if it exists
       const getFilesResponse = await firebaseAdmin
@@ -24,5 +25,22 @@ export const clean_user_data = functions.auth
       getFilesResponse[0].forEach(async (file) => {
         await file.delete();
       });
+    }
+  );
+
+//create entry on clients database whenever a new pilot is created
+export const create_client = functions.auth
+  .user()
+  .onCreate(
+    async (user: functions.auth.UserRecord, _: functions.EventContext) => {
+      const client: ClientInterface = {
+        past_trips: [],
+        total_trips: 0,
+        total_rating: 0,
+        rating: 0,
+      };
+
+      // add client entry to database
+      await firebaseAdmin.database().ref("clients").child(user.uid).set(client);
     }
   );
