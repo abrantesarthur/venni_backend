@@ -397,6 +397,8 @@ const mockDriveToDestination = async (pilot: PilotInterface) => {
     return pilot;
   });
 
+  // wait 1 second before completing the trip
+  await sleep(1000);
   await mockTripComplete(pilot);
 };
 
