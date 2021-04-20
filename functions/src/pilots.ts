@@ -1,7 +1,12 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
 import { LatLngLiteral, Status } from "@googlemaps/google-maps-services-js";
-import { PilotInterface, TripInterface, pilotsFromObj } from "./interfaces";
+import {
+  PilotInterface,
+  TripInterface,
+  pilotsFromObj,
+  PilotStatus,
+} from "./interfaces";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
 import { getZonesAdjacentTo, ZoneName } from "./zones";
 import { createMockPilots } from "./mock";
@@ -226,4 +231,29 @@ export const filterPilotsByZone = (
   }
 
   return nearbyPilots;
+};
+
+// freePilot sets the pilot's status to available, empties its current_client_uid,
+// and resets its idle_time to now.
+export const freePilot = async (
+  pilotID: string,
+  incrementTotalTrips = false
+) => {
+  if (pilotID == undefined || pilotID.length == 0) {
+    return;
+  }
+  const pilotRef = firebaseAdmin.database().ref("pilots").child(pilotID);
+  await pilotRef.transaction((pilot: PilotInterface) => {
+    if (pilot == null) {
+      return {};
+    }
+    pilot.status = PilotStatus.available;
+    pilot.current_client_uid = "";
+    pilot.idle_since = Date.now();
+    if (incrementTotalTrips) {
+      pilot.total_trips =
+        pilot.total_trips == undefined ? 1 : pilot.total_trips + 1;
+    }
+    return pilot;
+  });
 };
