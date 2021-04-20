@@ -3,12 +3,12 @@
     "predeploy": "npm --prefix \"functions\" run build"
   },
   "emulators": {
-    "ui": {
-      "enabled": "true"
-    },
     "functions": {
       "port": "5001",
       "host": "192.168.0.106"
+    },
+    "ui": {
+      "enabled": "true"
     }
   },
   "googleapi": {

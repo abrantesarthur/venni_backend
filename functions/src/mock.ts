@@ -7,11 +7,13 @@ import {
   PilotStatus,
   TripInterface,
   TripStatus,
+  ClientInterface,
 } from "./interfaces";
 import { getZoneNameFromCoordinate, LatLimit, LngLimit } from "./zones";
 import { database, Change, EventContext } from "firebase-functions";
-import { sleep } from "./utils";
+import { sleep, transaction } from "./utils";
 import { Client, Language } from "@googlemaps/google-maps-services-js";
+import { freePilot } from "./pilots";
 
 // initialize google maps API client
 const googleMaps = new Client({});
@@ -324,7 +326,7 @@ const mockTripStart = async (pilot: PilotInterface) => {
   await mockDriveToDestination(pilot);
 };
 
-export const mockDriveToDestination = async (pilot: PilotInterface) => {
+const mockDriveToDestination = async (pilot: PilotInterface) => {
   console.log("mockDriveToDestination began execution");
   if (pilot.current_client_uid == null) {
     console.log("mockDriveToDestination couldn't find 'current_client_id'");
@@ -376,7 +378,7 @@ export const mockDriveToDestination = async (pilot: PilotInterface) => {
   // iterate over directions response updating pilot's coordiantes every 1 second
   const steps = directionsResponse.data.routes[0].legs[0].steps;
   for (var i = 0; i < steps.length; i++) {
-    pilotRef.transaction((pilot) => {
+    await transaction(pilotRef, (pilot) => {
       if (pilot == null) {
         return {};
       }
@@ -386,7 +388,7 @@ export const mockDriveToDestination = async (pilot: PilotInterface) => {
     });
     await sleep(1000);
   }
-  pilotRef.transaction((pilot) => {
+  await transaction(pilotRef, (pilot) => {
     if (pilot == null) {
       return {};
     }
@@ -394,6 +396,88 @@ export const mockDriveToDestination = async (pilot: PilotInterface) => {
     pilot.current_longitude = steps[steps.length - 1].end_location.lng;
     return pilot;
   });
+
+  await mockTripComplete(pilot);
+};
+
+const mockTripComplete = async (pilot: PilotInterface) => {
+  console.log("mockTripComplete began execution");
+
+  // make sure the pilot's status is busy and trip's current_client_id is set
+  if (
+    pilot == null ||
+    pilot.status != PilotStatus.busy ||
+    pilot.current_client_uid == null
+  ) {
+    console.log("pilot " + pilot.uid + " is not busy!");
+    return;
+  }
+
+  // get a reference to user's trip request
+  const tripRequestRef = firebaseAdmin
+    .database()
+    .ref("trip-requests")
+    .child(pilot.current_client_uid);
+
+  // set trip's status to completed only if it is being handled by our driver
+  await transaction(
+    tripRequestRef,
+    (tripRequest: TripInterface) => {
+      if (tripRequest == null) {
+        // we always check for null in transactions.
+        return {};
+      }
+
+      // if trip is waiting for our driver
+      if (
+        tripRequest.trip_status == "in-progress" &&
+        tripRequest.driver_id == pilot.uid
+      ) {
+        // set trip's status to completed
+        tripRequest.trip_status = TripStatus.completed;
+        return tripRequest;
+      }
+
+      // otherwise, abort
+      return;
+    },
+    async (error, completed, _) => {
+      // if transaction failed abnormally
+      if (error) {
+        console.log(error);
+        return;
+      }
+
+      // if transaction was aborted
+      if (completed == false) {
+        // another pilot was handling  the trip, so throw error.
+        console.log("trip is not being handled by pilot " + pilot.uid);
+        return;
+      }
+      console.log("pilot has succesfully completed the trip!");
+
+      // free the pilot to handle other trips
+      await freePilot(pilot.uid, true);
+
+      // update client's data
+      if (pilot.current_client_uid != undefined) {
+        const clientRef = firebaseAdmin
+          .database()
+          .ref("clients")
+          .child(pilot.current_client_uid);
+        let clientSnapshot = await clientRef.once("value");
+        let client = clientSnapshot.val() as ClientInterface;
+        let totalTrips =
+          client.total_trips == undefined ? 1 : client.total_trips + 1;
+        let totalRating =
+          client.total_rating == undefined ? 5 : client.total_rating + 5;
+        await clientRef.child("total_trips").set(totalTrips);
+        await clientRef.child("total_rating").set(totalRating);
+        await clientRef.child("rating").set(totalRating / totalTrips);
+        await clientRef.child("past_trips").push({ mock_trip: "mock_trip" });
+      }
+    }
+  );
 };
 
 // mock driver behaves as a driver accepting a trip request would behave
