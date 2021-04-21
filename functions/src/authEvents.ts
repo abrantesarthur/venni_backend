@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
-import { ClientInterface } from "./interfaces";
+import { Client } from "./database/client";
 
 //clean user data whenever user is deleted
 export const clean_user_data = functions.auth
@@ -33,7 +33,7 @@ export const create_client = functions.auth
   .user()
   .onCreate(
     async (user: functions.auth.UserRecord, _: functions.EventContext) => {
-      const client: ClientInterface = {
+      const client: Client.Interface = {
         past_trips: [],
         total_trips: 0,
         total_rating: 0,

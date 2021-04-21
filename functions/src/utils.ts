@@ -1,5 +1,3 @@
-import * as firebaseAdmin from "firebase-admin";
-
 // sleep returns a promise which resolves after ms milliseconds.
 // call await sleep(ms) to pause execution for ms milliseconds.
 export function sleep(ms: number) {
@@ -70,57 +68,3 @@ export class AsyncTimeout {
 export interface LooseObject {
   [key: string]: any;
 }
-
-// transaction is an asynchronous a wrapper on firebase database's transaction
-// It returns a promise which only resolves after onComplete finishes. Moreover,
-// it catches any errors thrown by onComplete and re-throws them in the toplevel stack.
-export const transaction = async (
-  ref: firebaseAdmin.database.Reference,
-  transactionUpdate: (a: any) => any,
-  onComplete?: (
-    a: Error | null,
-    b: boolean,
-    c: firebaseAdmin.database.DataSnapshot | null
-  ) => any
-) => {
-  let onCompleteFinished = false;
-  let transactionError;
-
-  // onCompleteWrapper is just like onComplete, with the difference that it  sets
-  // onCompleteFinished to true once if finishes.
-  const onCompleteWrapper = async (
-    e: Error | null,
-    complete: boolean,
-    snapshot: firebaseAdmin.database.DataSnapshot | null
-  ) => {
-    if (onComplete != undefined) {
-      if (onComplete.constructor.name === "AsyncFunction") {
-        try {
-          await onComplete(e, complete, snapshot);
-        } catch (e) {
-          transactionError = e;
-        }
-      } else {
-        try {
-          onComplete(e, complete, snapshot);
-        } catch (e) {
-          transactionError = e;
-        }
-      }
-      onCompleteFinished = true;
-    } else {
-      onCompleteFinished = true;
-    }
-  };
-  // run a transaction on ref using transactionUpdate and a onCompleteWrapper as callback
-  ref.transaction(transactionUpdate, onCompleteWrapper);
-
-  // wait until onCompleteWrapper finishes executing before returning.
-  do {
-    await sleep(1);
-  } while (onCompleteFinished == false);
-
-  if (transactionError != undefined) {
-    throw transactionError;
-  }
-};

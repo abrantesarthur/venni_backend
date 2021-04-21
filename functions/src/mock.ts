@@ -1,22 +1,20 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
 import * as uuid from "uuid";
-import {
-  VehicleInterface,
-  PilotInterface,
-  PilotStatus,
-  TripInterface,
-  TripStatus,
-  ClientInterface,
-} from "./interfaces";
+import { Pilot } from "./database/pilot";
+import { TripRequest } from "./database/tripRequest";
+import { Client } from "./database/client";
 import { getZoneNameFromCoordinate, LatLimit, LngLimit } from "./zones";
 import { database, Change, EventContext } from "firebase-functions";
-import { sleep, transaction } from "./utils";
-import { Client, Language } from "@googlemaps/google-maps-services-js";
-import { freePilot } from "./pilots";
+import { sleep } from "./utils";
+import {
+  Client as GoogleMapsClient,
+  Language,
+} from "@googlemaps/google-maps-services-js";
+import { transaction } from "./database";
 
 // initialize google maps API client
-const googleMaps = new Client({});
+const googleMaps = new GoogleMapsClient({});
 
 // returns a random latitude between LatLimit.highest and LatLimit.ninthHighest
 export const getRandomLatitude = () => {
@@ -43,7 +41,7 @@ export const getRandomLongitude = () => {
 export const createMockPilots = async (amount: number) => {
   const db = firebaseAdmin.database();
   const storage = firebaseAdmin.storage();
-  let defaultVehicle: VehicleInterface = {
+  let defaultVehicle: Pilot.VehicleInterface = {
     brand: "honda",
     model: "CG-150",
     year: 2020,
@@ -84,13 +82,13 @@ export const createMockPilots = async (amount: number) => {
   }
 };
 
-const mockTripAccept = async (pilot: PilotInterface) => {
+const mockTripAccept = async (pilot: Pilot.Interface) => {
   console.log("mockTripAccept began execution");
 
   // make sure the pilot's status is requested and trip's current_client_id is set
   if (
     pilot == null ||
-    pilot.status != PilotStatus.requested ||
+    pilot.status != Pilot.Status.requested ||
     pilot.current_client_uid == null
   ) {
     console.log("pilot " + pilot.uid + " is no longer requested!");
@@ -98,15 +96,14 @@ const mockTripAccept = async (pilot: PilotInterface) => {
   }
 
   // get a reference to user's trip request
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(pilot.current_client_uid);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.ref.child(pilot.current_client_uid);
 
   // set trip's driver_id in a transaction only if it is null or empty. Otherwise,
   // it means another pilot already picked the trip ahead of us. Throw error in that case.
-  tripRequestRef.transaction(
-    (tripRequest: TripInterface) => {
+  await transaction(
+    tripRequestRef,
+    (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
         return {};
@@ -139,37 +136,36 @@ const mockTripAccept = async (pilot: PilotInterface) => {
     }
   );
 
+  // TODO: may be abel to delete this
   // wait enough time for confirmTrip to run transaction on pilot status
   await sleep(500);
 
   // wait until pilot's status is set to busy or available by confirmTrip
-  let pilotRef = firebaseAdmin.database().ref("pilots").child(pilot.uid);
-  let pilotSnapshot = await pilotRef.once("value");
-  let updatedPilot = pilotSnapshot.val() as PilotInterface;
+  const p = new Pilot();
+  let updatedPilot = await p.getPilotByID(pilot.uid);
   while (
-    updatedPilot.status != PilotStatus.busy &&
-    updatedPilot.status != PilotStatus.available
+    updatedPilot.status != Pilot.Status.busy &&
+    updatedPilot.status != Pilot.Status.available
   ) {
     await sleep(1);
-    pilotSnapshot = await pilotRef.once("value");
-    updatedPilot = pilotSnapshot.val() as PilotInterface;
+    updatedPilot = await p.getPilotByID(pilot.uid);
   }
 
   // if it was set to available, confirmTrip denied trip to the pilot
-  if (updatedPilot.status == PilotStatus.available) {
+  if (updatedPilot.status == Pilot.Status.available) {
     console.log("trip denied to the pilot");
     return;
   }
 
   // if it was set busy, confirmTrip indeed granted the trip to the pilot.
-  if (updatedPilot.status == PilotStatus.busy) {
+  if (updatedPilot.status == Pilot.Status.busy) {
     console.log("trip granted trip to the pilot");
-    await mockDrivingToClient(updatedPilot as PilotInterface);
+    await mockDrivingToClient(updatedPilot as Pilot.Interface);
     return;
   }
 };
 
-const mockDrivingToClient = async (pilot: PilotInterface) => {
+const mockDrivingToClient = async (pilot: Pilot.Interface) => {
   console.log("mockDrivingToClient began execution");
   if (pilot.current_client_uid == null) {
     console.log("mockDrivingToClient couldn't find 'current_client_id'");
@@ -183,16 +179,12 @@ const mockDrivingToClient = async (pilot: PilotInterface) => {
   };
 
   // get trip request reference
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(pilot.current_client_uid);
-  let tripRequestSnapshot = await tripRequestRef.once("value");
-  if (tripRequestSnapshot.val() == null) {
+  const tr = new TripRequest();
+  const tripRequest = await tr.getTripRequestByID(pilot.current_client_uid);
+  if (tripRequest == null) {
     console.log("mockDrivingToClient couldn't find trip-request");
     return;
   }
-  let tripRequest = tripRequestSnapshot.val() as TripInterface;
 
   // get trip origin's place ID
   let originPlaceID = tripRequest.origin_place_id;
@@ -216,12 +208,13 @@ const mockDrivingToClient = async (pilot: PilotInterface) => {
   }
 
   // get reference to pilot's entry in the database
-  const pilotRef = firebaseAdmin.database().ref("pilots").child(pilot.uid);
+  const p = new Pilot();
+  const pilotRef = p.getReferenceByID(pilot.uid);
 
   // iterate over response updating pilot's coordiantes every 1 second
   const steps = directionsResponse.data.routes[0].legs[0].steps;
   for (var i = 0; i < steps.length; i++) {
-    pilotRef.transaction((pilot) => {
+    await transaction(pilotRef, (pilot) => {
       if (pilot == null) {
         return {};
       }
@@ -231,7 +224,7 @@ const mockDrivingToClient = async (pilot: PilotInterface) => {
     });
     await sleep(1000);
   }
-  pilotRef.transaction((pilot) => {
+  await transaction(pilotRef, (pilot) => {
     if (pilot == null) {
       return {};
     }
@@ -244,24 +237,23 @@ const mockDrivingToClient = async (pilot: PilotInterface) => {
   await sleep(1000);
 
   // get pilot's updated coordinates
-  let pilotSnapshot = await pilotRef.once("value");
-  if (pilotSnapshot.val() == null) {
+  pilot = await p.getPilotByReference(pilotRef);
+  if (pilot == null) {
     console.log("failed to retrieve pilot from database before starting trip.");
     return;
   }
-  pilot = pilotSnapshot.val() as PilotInterface;
 
   // start trip
   await mockTripStart(pilot);
 };
 
-const mockTripStart = async (pilot: PilotInterface) => {
+const mockTripStart = async (pilot: Pilot.Interface) => {
   console.log("mockTripStart began execution");
 
   // make sure the pilot's status is busy and trip's current_client_id is set
   if (
     pilot == null ||
-    pilot.status != PilotStatus.busy ||
+    pilot.status != Pilot.Status.busy ||
     pilot.current_client_uid == null
   ) {
     console.log("pilot " + pilot.uid + " is not busy!");
@@ -269,14 +261,13 @@ const mockTripStart = async (pilot: PilotInterface) => {
   }
 
   // get a reference to user's trip request
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(pilot.current_client_uid);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.ref.child(pilot.current_client_uid);
 
   // update trip's status in a transaction only if is waiting for our driver.
-  tripRequestRef.transaction(
-    (tripRequest: TripInterface) => {
+  await transaction(
+    tripRequestRef,
+    (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
         return {};
@@ -288,7 +279,7 @@ const mockTripStart = async (pilot: PilotInterface) => {
         tripRequest.driver_id == pilot.uid
       ) {
         // set trip's status to inProgress
-        tripRequest.trip_status = TripStatus.inProgress;
+        tripRequest.trip_status = TripRequest.Status.inProgress;
         return tripRequest;
       }
 
@@ -312,13 +303,12 @@ const mockTripStart = async (pilot: PilotInterface) => {
     }
   );
 
-  let pilotRef = firebaseAdmin.database().ref("pilots").child(pilot.uid);
-  let pilotSnapshot = await pilotRef.once("value");
-  if (pilotSnapshot.val() == null) {
+  const p = new Pilot();
+  pilot = await p.getPilotByID(pilot.uid);
+  if (pilot == null) {
     console.log("mockTripStart failed to retrieve pilot from database");
     return;
   }
-  pilot = pilotSnapshot.val() as PilotInterface;
 
   // after accepting trip, wait 1 seconds before driving to destination
   await sleep(1000);
@@ -326,7 +316,7 @@ const mockTripStart = async (pilot: PilotInterface) => {
   await mockDriveToDestination(pilot);
 };
 
-const mockDriveToDestination = async (pilot: PilotInterface) => {
+const mockDriveToDestination = async (pilot: Pilot.Interface) => {
   console.log("mockDriveToDestination began execution");
   if (pilot.current_client_uid == null) {
     console.log("mockDriveToDestination couldn't find 'current_client_id'");
@@ -340,16 +330,12 @@ const mockDriveToDestination = async (pilot: PilotInterface) => {
   };
 
   // get trip request reference
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(pilot.current_client_uid);
-  let tripRequestSnapshot = await tripRequestRef.once("value");
-  if (tripRequestSnapshot.val() == null) {
+  const tr = new TripRequest();
+  let tripRequest = await tr.getTripRequestByID(pilot.current_client_uid);
+  if (tripRequest == null) {
     console.log("mockDriveToDestination couldn't find trip-request");
     return;
   }
-  let tripRequest = tripRequestSnapshot.val() as TripInterface;
 
   // get trip destination's place id
   let destinationPlaceID = tripRequest.destination_place_id;
@@ -373,7 +359,8 @@ const mockDriveToDestination = async (pilot: PilotInterface) => {
   }
 
   // get reference to pilot's entry in the database
-  const pilotRef = firebaseAdmin.database().ref("pilots").child(pilot.uid);
+  const p = new Pilot();
+  const pilotRef = p.getReferenceByID(pilot.uid);
 
   // iterate over directions response updating pilot's coordiantes every 1 second
   const steps = directionsResponse.data.routes[0].legs[0].steps;
@@ -402,13 +389,13 @@ const mockDriveToDestination = async (pilot: PilotInterface) => {
   await mockTripComplete(pilot);
 };
 
-const mockTripComplete = async (pilot: PilotInterface) => {
+const mockTripComplete = async (pilot: Pilot.Interface) => {
   console.log("mockTripComplete began execution");
 
   // make sure the pilot's status is busy and trip's current_client_id is set
   if (
     pilot == null ||
-    pilot.status != PilotStatus.busy ||
+    pilot.status != Pilot.Status.busy ||
     pilot.current_client_uid == null
   ) {
     console.log("pilot " + pilot.uid + " is not busy!");
@@ -416,15 +403,13 @@ const mockTripComplete = async (pilot: PilotInterface) => {
   }
 
   // get a reference to user's trip request
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(pilot.current_client_uid);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.getReferenceByID(pilot.current_client_uid);
 
   // set trip's status to completed only if it is being handled by our driver
   await transaction(
     tripRequestRef,
-    (tripRequest: TripInterface) => {
+    (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
         return {};
@@ -436,7 +421,7 @@ const mockTripComplete = async (pilot: PilotInterface) => {
         tripRequest.driver_id == pilot.uid
       ) {
         // set trip's status to completed
-        tripRequest.trip_status = TripStatus.completed;
+        tripRequest.trip_status = TripRequest.Status.completed;
         return tripRequest;
       }
 
@@ -459,16 +444,14 @@ const mockTripComplete = async (pilot: PilotInterface) => {
       console.log("pilot has succesfully completed the trip!");
 
       // free the pilot to handle other trips
-      await freePilot(pilot.uid, true);
+      const p = new Pilot();
+      await p.freeByID(pilot.uid, true);
 
       // update client's data
       if (pilot.current_client_uid != undefined) {
-        const clientRef = firebaseAdmin
-          .database()
-          .ref("clients")
-          .child(pilot.current_client_uid);
-        let clientSnapshot = await clientRef.once("value");
-        let client = clientSnapshot.val() as ClientInterface;
+        const c = new Client();
+        const clientRef = c.getReferenceByID(pilot.current_client_uid);
+        let client = await c.getClientByReference(clientRef);
         if (client != null) {
           let totalTrips =
             client.total_trips == undefined ? 1 : client.total_trips + 1;
@@ -493,6 +476,6 @@ export const pilot_handling_trip = database
     async (change: Change<database.DataSnapshot>, context: EventContext) => {
       // make sure the status changed to requested and current_client_id did too
       let pilot = change.after.val();
-      await mockTripAccept(pilot as PilotInterface);
+      await mockTripAccept(pilot as Pilot.Interface);
     }
   );
