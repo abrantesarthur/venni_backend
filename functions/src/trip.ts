@@ -1,23 +1,22 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
-import { findPilots, freePilot } from "./pilots";
 import { calculateFare } from "./fare";
-import { Client, Language } from "@googlemaps/google-maps-services-js";
+import {
+  Client as GoogleMapsClient,
+  Language,
+} from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 import { HttpsError } from "firebase-functions/lib/providers/https";
-import { AsyncTimeout, sleep, LooseObject, transaction } from "./utils";
+import { AsyncTimeout, sleep, LooseObject } from "./utils";
 import { getZoneNameFromCoordinate } from "./zones";
-import {
-  RequestTripInterface,
-  TripInterface,
-  TripStatus,
-  PilotInterface,
-  PilotStatus,
-  ClientInterface,
-} from "./interfaces";
+import { TripRequest } from "./database/tripRequest";
+import { Pilot } from "./database/pilot";
+import { Client } from "./database/client";
+import "./database/index";
+import { transaction } from "./database/index";
 
 // initialize google maps API client
-const googleMaps = new Client({});
+const googleMaps = new GoogleMapsClient({});
 
 function validateRequestTripArguments(obj: any) {
   if (
@@ -79,6 +78,11 @@ function validateCompleteTripArguments(obj: any) {
   }
 }
 
+export interface RequestTripInterface {
+  origin_place_id: string;
+  destination_place_id: string;
+}
+
 // TODO: only accept requests departing from Paracatu
 const requestTrip = async (
   data: any,
@@ -93,24 +97,21 @@ const requestTrip = async (
   }
   validateRequestTripArguments(data);
 
-  // define the db
-  const db = firebaseAdmin.database();
-
   // type cast data
   const body = data as RequestTripInterface;
 
   // get a reference to user's trip request
-  const tripRequestRef = db.ref("trip-requests").child(context.auth?.uid);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.getReferenceByID(context.auth.uid);
 
   // fail if there exists an ongoing trip
-  const snapshot = await tripRequestRef.once("value");
-  const tripRequest = snapshot.val() as TripInterface;
+  const tripRequest = await tr.getTripRequestByReference(tripRequestRef);
   if (
     tripRequest != null &&
-    (tripRequest.trip_status == TripStatus.inProgress ||
-      tripRequest.trip_status == TripStatus.lookingForDriver ||
-      tripRequest.trip_status == TripStatus.waitingDriver ||
-      tripRequest.trip_status == TripStatus.waitingPayment)
+    (tripRequest.trip_status == TripRequest.Status.inProgress ||
+      tripRequest.trip_status == TripRequest.Status.lookingForDriver ||
+      tripRequest.trip_status == TripRequest.Status.waitingDriver ||
+      tripRequest.trip_status == TripRequest.Status.waitingPayment)
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -139,9 +140,9 @@ const requestTrip = async (
   // create a trip request entry in the database
   const route = directionsResponse.data.routes[0];
   const leg = route.legs[0]; // we don't support multiple stops in same route
-  const result: TripInterface = {
+  const result: TripRequest.Interface = {
     uid: context.auth?.uid,
-    trip_status: TripStatus.waitingConfirmation,
+    trip_status: TripRequest.Status.waitingConfirmation,
     origin_place_id: body.origin_place_id,
     origin_zone: getZoneNameFromCoordinate(
       leg.start_location.lat,
@@ -185,22 +186,19 @@ const clientCancelTrip = async (
   }
 
   // get a reference to user's trip request
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(context.auth?.uid);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.getReferenceByID(context.auth.uid);
 
   // trip must be in a valid status to be cancelled
-  const tripRequestSnapshot = await tripRequestRef.once("value");
-  const tripRequest = tripRequestSnapshot.val() as TripInterface;
+  const tripRequest = await tr.getTripRequestByReference(tripRequestRef);
   if (
     tripRequest == null ||
-    (tripRequest.trip_status != TripStatus.waitingConfirmation &&
-      tripRequest.trip_status != TripStatus.paymentFailed &&
-      tripRequest.trip_status != TripStatus.noDriversAvailable &&
-      tripRequest.trip_status != TripStatus.lookingForDriver &&
-      tripRequest.trip_status != TripStatus.waitingDriver &&
-      tripRequest.trip_status != TripStatus.inProgress)
+    (tripRequest.trip_status != TripRequest.Status.waitingConfirmation &&
+      tripRequest.trip_status != TripRequest.Status.paymentFailed &&
+      tripRequest.trip_status != TripRequest.Status.noDriversAvailable &&
+      tripRequest.trip_status != TripRequest.Status.lookingForDriver &&
+      tripRequest.trip_status != TripRequest.Status.waitingDriver &&
+      tripRequest.trip_status != TripRequest.Status.inProgress)
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -212,22 +210,22 @@ const clientCancelTrip = async (
 
   // if a pilot is handling the trip, free him to handle other trips
   const pilotID = tripRequest.driver_id;
+  const p = new Pilot();
   if (pilotID != null && pilotID.length > 0) {
-    freePilot(pilotID);
+    p.freeByID(pilotID);
   }
 
   // set trip status to cancelled-by-client
-  await transaction(tripRequestRef, (tripRequest: TripInterface) => {
+  await transaction(tripRequestRef, (tripRequest: TripRequest.Interface) => {
     if (tripRequest == null) {
       return {};
     }
-    tripRequest.trip_status = TripStatus.cancelledByClient;
+    tripRequest.trip_status = TripRequest.Status.cancelledByClient;
     return tripRequest;
   });
 
   // return updated trip-request to client
-  const snapshot = await tripRequestRef.once("value");
-  return snapshot.val();
+  return await tr.getTripRequestByReference(tripRequestRef);
 };
 
 const confirmTrip = async (
@@ -243,22 +241,17 @@ const confirmTrip = async (
   }
 
   // get a reference to the user's trip request and driver_id
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(context.auth.uid);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.getReferenceByID(context.auth.uid);
+  let tripRequest = await tr.getTripRequestByReference(tripRequestRef);
 
   // throw error if user has no active trip request
-  const snapshot = await tripRequestRef.once("value");
-  if (snapshot.val() == null) {
+  if (tripRequest == null) {
     throw new functions.https.HttpsError(
       "not-found",
       "User with uid " + context.auth.uid + " has no active trip request."
     );
   }
-
-  // save original trip-request value
-  let tripRequest = snapshot.val() as TripInterface;
 
   // throw error if trip request is not waiting confirmation
   // or any status that mean the user is trying again
@@ -284,7 +277,7 @@ const confirmTrip = async (
   // requests to pilots. Use only transactions after that, because pilots
   // use transactions to modify trip request, and us using set would
   // cancel their transactions.
-  tripRequest.trip_status = TripStatus.waitingPayment;
+  tripRequest.trip_status = TripRequest.Status.waitingPayment;
   await tripRequestRef.set(tripRequest);
 
   // start processing payment
@@ -295,7 +288,7 @@ const confirmTrip = async (
   // if payment failed
   if (!paymentSucceeded) {
     // set trip-request status to payment-failed
-    tripRequest.trip_status = TripStatus.paymentFailed;
+    tripRequest.trip_status = TripRequest.Status.paymentFailed;
     await tripRequestRef.set(tripRequest);
     // TODO: give more context in the message.
     throw new functions.https.HttpsError(
@@ -305,24 +298,25 @@ const confirmTrip = async (
   }
 
   // change trip-request status to lookingForDriver
-  tripRequest.trip_status = TripStatus.lookingForDriver;
+  tripRequest.trip_status = TripRequest.Status.lookingForDriver;
   tripRequestRef.set(tripRequest);
 
   // search available drivers nearby client
-  let nearbyPilots: PilotInterface[];
+  let nearbyPilots: Pilot.Interface[];
+  const p = new Pilot();
   try {
-    nearbyPilots = await findPilots(tripRequest);
+    nearbyPilots = await p.findAllAvailable(tripRequest);
   } catch (e) {
     let error: HttpsError = e as HttpsError;
     // if failed to find pilots, update trip-request status to no-drivers-available
-    tripRequest.trip_status = TripStatus.noDriversAvailable;
+    tripRequest.trip_status = TripRequest.Status.noDriversAvailable;
     await tripRequestRef.set(tripRequest);
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
   // if didn't find pilots, update trip-reqeust status to noDriversAvailable and throw exception
   if (nearbyPilots.length == 0) {
-    tripRequest.trip_status = TripStatus.noDriversAvailable;
+    tripRequest.trip_status = TripRequest.Status.noDriversAvailable;
     await tripRequestRef.set(tripRequest);
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -338,7 +332,7 @@ const confirmTrip = async (
 
   // requestPilot is the callback used to update pilots' statuses to requested.
   // it tires to set availablePilot's status to 'requested' and current_client_id to client's uid
-  const requestPilot = (pilot: PilotInterface) => {
+  const requestPilot = (pilot: Pilot.Interface) => {
     if (pilot == null) {
       // we should always check for null even if there is data at this reference in the server.
       // If there is no cached data for this node, the SDK will 'guess' its value as 'null'.
@@ -350,7 +344,7 @@ const confirmTrip = async (
       return {};
     }
     if (
-      pilot.status == PilotStatus.available &&
+      pilot.status == Pilot.Status.available &&
       (pilot.current_client_uid == undefined || pilot.current_client_uid == "")
     ) {
       // if pilot is still available, change its status to 'requested'
@@ -358,7 +352,7 @@ const confirmTrip = async (
       // each pilot has 20 seconds to reply on their end.
       // they will use the current_client_uid to find the trip-request entry for the
       // client and try updating its driver_id field.
-      pilot.status = PilotStatus.requested;
+      pilot.status = Pilot.Status.requested;
       pilot.current_client_uid = context.auth?.uid;
 
       // mark pilot as requested.
@@ -372,7 +366,7 @@ const confirmTrip = async (
   };
 
   // unrequestPilot undoes what requestPilot does.
-  const unrequestPilot = (pilot: PilotInterface) => {
+  const unrequestPilot = (pilot: Pilot.Interface) => {
     if (pilot == null) {
       // we always check for null. Read comments above for explanation.
       return {};
@@ -382,7 +376,7 @@ const confirmTrip = async (
       pilot.current_client_uid == context.auth?.uid
     ) {
       // if pilot was requested to this trip, cancel request.
-      pilot.status = PilotStatus.available;
+      pilot.status = Pilot.Status.available;
       pilot.current_client_uid = "";
       return pilot;
     }
@@ -434,7 +428,7 @@ const confirmTrip = async (
         "Something wrong happend. Try again later."
       );
     }
-    let trip = snapshot.val() as TripInterface;
+    let trip = snapshot.val() as TripRequest.Interface;
     // if one of the pilots accepts the trip, they will call accept-trip which
     // will update the trip's driver_id with the id of the accepting pilot
     if (trip.driver_id != undefined && trip.driver_id.length > 0) {
@@ -447,7 +441,7 @@ const confirmTrip = async (
       });
       if (!isValidDriverID) {
         // clear driver_id so other pilots have the chance of claiming the trip
-        tripRequestRef.transaction((tripRequest: TripInterface) => {
+        tripRequestRef.transaction((tripRequest: TripRequest.Interface) => {
           if (tripRequest == null) {
             return {};
           }
@@ -470,12 +464,12 @@ const confirmTrip = async (
 
       // set status of pilot who successfully picked the ride to busy.
       // and current_client_id to the id of requesting client. Also, set confirmTripResponse.
-      pilotsRef.child(trip.driver_id).transaction((pilot: PilotInterface) => {
+      pilotsRef.child(trip.driver_id).transaction((pilot: Pilot.Interface) => {
         if (pilot == null) {
           // always check for null on transactoins
           return {};
         }
-        pilot.status = PilotStatus.busy;
+        pilot.status = Pilot.Status.busy;
         pilot.current_client_uid = context.auth?.uid;
         // populate final confirmTrip response with data from pilot
         confirmTripResponse.uid = pilot.uid;
@@ -498,11 +492,11 @@ const confirmTrip = async (
 
       // set trip_status to waiting-driver. this is how the client knows that
       // confirm-trip was successful.
-      tripRequestRef.transaction((tripRequest: TripInterface) => {
+      tripRequestRef.transaction((tripRequest: TripRequest.Interface) => {
         if (tripRequest == null) {
           return {};
         }
-        tripRequest.trip_status = TripStatus.waitingDriver;
+        tripRequest.trip_status = TripRequest.Status.waitingDriver;
         return tripRequest;
       });
     }
@@ -547,13 +541,13 @@ const confirmTrip = async (
   if (asyncTimeout.wasCleared) {
     // listen for trip status and only continue when it has waiting-driver status
     // we want to exit confirmTrip if trip having its final status
-    let tripSnapshot = await tripRequestRef.once("value");
+    tripRequest = await tr.getTripRequestByReference(tripRequestRef);
     do {
       await sleep(1);
-      tripSnapshot = await tripRequestRef.once("value");
+      tripRequest = await tr.getTripRequestByReference(tripRequestRef);
     } while (
-      tripSnapshot.val() == null ||
-      tripSnapshot.val().trip_status != "waiting-driver"
+      tripRequest == null ||
+      tripRequest.trip_status != "waiting-driver"
     );
     // important: sleep a bit to guarantee that waiting-driver status is persisted
     await sleep(300);
@@ -576,19 +570,19 @@ const confirmTrip = async (
       await sleep(1);
     } while (confirmTripResponse == undefined);
     // pupulate response with trip status
-    confirmTripResponse.trip_status = tripSnapshot.val().trip_status;
+    confirmTripResponse.trip_status = tripRequest.trip_status;
     return confirmTripResponse;
   }
 
   // otherwise, return object with trip_status
-  let tripSnapshot = await tripRequestRef.once("value");
+  tripRequest = await tr.getTripRequestByReference(tripRequestRef);
   do {
     await sleep(1);
-    tripSnapshot = await tripRequestRef.once("value");
-  } while (tripSnapshot.val() == null);
+    tripRequest = await tr.getTripRequestByReference(tripRequestRef);
+  } while (tripRequest == null);
   // important: sleep a bit to guarantee that final status is persisted
   await sleep(300);
-  return { trip_status: tripSnapshot.val().trip_status };
+  return { trip_status: tripRequest.trip_status };
 };
 
 const acceptTrip = async (
@@ -614,10 +608,10 @@ const acceptTrip = async (
 
   // make sure the pilot's status is requested and trip's current_client_id is set
   let pilotSnapshot = await pilotRef.once("value");
-  let pilot = pilotSnapshot.val() as PilotInterface;
+  let pilot = pilotSnapshot.val() as Pilot.Interface;
   if (
     pilot == null ||
-    pilot.status != PilotStatus.requested ||
+    pilot.status != Pilot.Status.requested ||
     pilot.current_client_uid != clientID
   ) {
     throw new functions.https.HttpsError(
@@ -627,16 +621,14 @@ const acceptTrip = async (
   }
 
   // get a reference to user's trip request
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(clientID);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.getReferenceByID(clientID);
 
   // set trip's driver_id in a transaction only if it is null or empty. Otherwise,
   // it means another pilot already picked the trip ahead of us. Throw error in that case.
   await transaction(
     tripRequestRef,
-    (tripRequest: TripInterface) => {
+    (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
         return {};
@@ -674,18 +666,18 @@ const acceptTrip = async (
 
   // wait until pilot's status is set to busy or available by confirmTrip
   pilotSnapshot = await pilotRef.once("value");
-  pilot = pilotSnapshot.val() as PilotInterface;
+  pilot = pilotSnapshot.val() as Pilot.Interface;
   while (
-    pilot.status != PilotStatus.busy &&
-    pilot.status != PilotStatus.available
+    pilot.status != Pilot.Status.busy &&
+    pilot.status != Pilot.Status.available
   ) {
     await sleep(1);
     pilotSnapshot = await pilotRef.once("value");
-    pilot = pilotSnapshot.val() as PilotInterface;
+    pilot = pilotSnapshot.val() as Pilot.Interface;
   }
 
   // if it was set to available, confirmTrip denied trip to the pilot
-  if (pilot.status == PilotStatus.available) {
+  if (pilot.status == Pilot.Status.available) {
     throw new functions.https.HttpsError(
       "failed-precondition",
       "trip denied to the pilot"
@@ -693,7 +685,7 @@ const acceptTrip = async (
   }
 
   // if it was set busy, confirmTrip indeed granted the trip to the pilot.
-  if (pilot.status == PilotStatus.busy) {
+  if (pilot.status == Pilot.Status.busy) {
     return;
   }
 };
@@ -717,10 +709,10 @@ const startTrip = async (
 
   // make sure the pilot's status is busy and trip's current_client_id is set correctly
   let pilotSnapshot = await pilotRef.once("value");
-  let pilot = pilotSnapshot.val() as PilotInterface;
+  let pilot = pilotSnapshot.val() as Pilot.Interface;
   if (
     pilot == null ||
-    pilot.status != PilotStatus.busy ||
+    pilot.status != Pilot.Status.busy ||
     pilot.current_client_uid == undefined ||
     pilot.current_client_uid == ""
   ) {
@@ -732,16 +724,14 @@ const startTrip = async (
 
   // get a reference to user's trip request
   const clientID = pilot.current_client_uid;
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(clientID);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.getReferenceByID(clientID);
 
   // set trip's status to in-progress in a transaction only if it is waiting for
   // driver who is trying to start the trip
   await transaction(
     tripRequestRef,
-    (tripRequest: TripInterface) => {
+    (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
         return {};
@@ -752,7 +742,7 @@ const startTrip = async (
         tripRequest.trip_status == "waiting-driver" &&
         tripRequest.driver_id == context.auth?.uid
       ) {
-        tripRequest.trip_status = TripStatus.inProgress;
+        tripRequest.trip_status = TripRequest.Status.inProgress;
         return tripRequest;
       }
 
@@ -823,10 +813,10 @@ const completeTrip = async (
 
   // make sure the pilot's status is busy and trip's current_client_id is set
   let pilotSnapshot = await pilotRef.once("value");
-  let pilot = pilotSnapshot.val() as PilotInterface;
+  let pilot = pilotSnapshot.val() as Pilot.Interface;
   if (
     pilot == null ||
-    pilot.status != PilotStatus.busy ||
+    pilot.status != Pilot.Status.busy ||
     pilot.current_client_uid == undefined ||
     pilot.current_client_uid == ""
   ) {
@@ -838,9 +828,9 @@ const completeTrip = async (
 
   // make sure there exists a client entry
   const clientID = pilot.current_client_uid;
-  const clientRef = firebaseAdmin.database().ref("clients").child(clientID);
-  const clientSnapshot = await clientRef.once("value");
-  if (clientSnapshot.val() == null) {
+  const c = new Client();
+  let client = await c.getClientByID(clientID);
+  if (client == null) {
     throw new functions.https.HttpsError(
       "failed-precondition",
       "there exists no client with id '" + clientID + "'"
@@ -848,16 +838,14 @@ const completeTrip = async (
   }
 
   // get a reference to user's trip request
-  const tripRequestRef = firebaseAdmin
-    .database()
-    .ref("trip-requests")
-    .child(clientID);
+  const tr = new TripRequest();
+  const tripRequestRef = tr.getReferenceByID(clientID);
 
   // set trip's status to completed in a transaction only if it is being handled
   // by the driver who is trying to complete the trip
   await transaction(
     tripRequestRef,
-    (tripRequest: TripInterface) => {
+    (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
         return {};
@@ -868,7 +856,7 @@ const completeTrip = async (
         tripRequest.trip_status == "in-progress" &&
         tripRequest.driver_id == pilotID
       ) {
-        tripRequest.trip_status = TripStatus.completed;
+        tripRequest.trip_status = TripRequest.Status.completed;
         return tripRequest;
       }
 
@@ -885,7 +873,7 @@ const completeTrip = async (
       }
 
       // if there was no trip request for the user
-      const trip = tripSnapshot?.val() as TripInterface;
+      const trip = tripSnapshot?.val() as TripRequest.Interface;
       if (trip == undefined || trip == null) {
         throw new functions.https.HttpsError(
           "not-found",
@@ -915,12 +903,13 @@ const completeTrip = async (
       // if transaction succeeded
 
       // free the pilot to handle other trips and increment their total trips
-      await freePilot(pilotID, true);
+      const p = new Pilot();
+      await p.freeByID(pilotID, true);
 
       // update client's rating
       // TODO: export this to another function
-      let clientSnapshot = await clientRef.once("value");
-      let client = clientSnapshot.val() as ClientInterface;
+      let clientRef = c.getReferenceByID(clientID);
+      client = await c.getClientByReference(clientRef);
       let totalTrips =
         client.total_trips == undefined ? 1 : client.total_trips + 1;
       let totalRating =
