@@ -443,7 +443,7 @@ const mockTripComplete = async (pilot: PilotInterface) => {
       // otherwise, abort
       return;
     },
-    async (error, completed, _) => {
+    async (error, completed, tripSnapshot) => {
       // if transaction failed abnormally
       if (error) {
         console.log(error);
@@ -469,14 +469,17 @@ const mockTripComplete = async (pilot: PilotInterface) => {
           .child(pilot.current_client_uid);
         let clientSnapshot = await clientRef.once("value");
         let client = clientSnapshot.val() as ClientInterface;
-        let totalTrips =
-          client.total_trips == undefined ? 1 : client.total_trips + 1;
-        let totalRating =
-          client.total_rating == undefined ? 5 : client.total_rating + 5;
-        await clientRef.child("total_trips").set(totalTrips);
-        await clientRef.child("total_rating").set(totalRating);
-        await clientRef.child("rating").set(totalRating / totalTrips);
-        await clientRef.child("past_trips").push({ mock_trip: "mock_trip" });
+        if (client != null) {
+          let totalTrips =
+            client.total_trips == undefined ? 1 : client.total_trips + 1;
+          let totalRating =
+            client.total_rating == undefined ? 5 : client.total_rating + 5;
+          await clientRef.child("total_trips").set(totalTrips);
+          await clientRef.child("total_rating").set(totalRating);
+          await clientRef.child("rating").set(totalRating / totalTrips);
+          await clientRef.child("past_trips").push(tripSnapshot?.val());
+          console.log("updated client in database");
+        }
       }
     }
   );
@@ -484,7 +487,7 @@ const mockTripComplete = async (pilot: PilotInterface) => {
 
 // mock driver behaves as a driver accepting a trip request would behave
 // TODO: delete on production
-export const pilot_accepting_trip = database
+export const pilot_handling_trip = database
   .ref("pilots/{pilotID}")
   .onUpdate(
     async (change: Change<database.DataSnapshot>, context: EventContext) => {

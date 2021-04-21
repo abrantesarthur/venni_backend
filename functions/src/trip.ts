@@ -285,7 +285,7 @@ const confirmTrip = async (
   // use transactions to modify trip request, and us using set would
   // cancel their transactions.
   tripRequest.trip_status = TripStatus.waitingPayment;
-  tripRequestRef.set(tripRequest);
+  await tripRequestRef.set(tripRequest);
 
   // start processing payment
   // TODO: substitute this for actual payment processing
@@ -296,7 +296,7 @@ const confirmTrip = async (
   if (!paymentSucceeded) {
     // set trip-request status to payment-failed
     tripRequest.trip_status = TripStatus.paymentFailed;
-    tripRequestRef.set(tripRequest);
+    await tripRequestRef.set(tripRequest);
     // TODO: give more context in the message.
     throw new functions.https.HttpsError(
       "cancelled",
@@ -316,14 +316,14 @@ const confirmTrip = async (
     let error: HttpsError = e as HttpsError;
     // if failed to find pilots, update trip-request status to no-drivers-available
     tripRequest.trip_status = TripStatus.noDriversAvailable;
-    tripRequestRef.set(tripRequest);
+    await tripRequestRef.set(tripRequest);
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
   // if didn't find pilots, update trip-reqeust status to noDriversAvailable and throw exception
   if (nearbyPilots.length == 0) {
     tripRequest.trip_status = TripStatus.noDriversAvailable;
-    tripRequestRef.set(tripRequest);
+    await tripRequestRef.set(tripRequest);
     throw new functions.https.HttpsError(
       "failed-precondition",
       "There are no available pilots. Try again later."
