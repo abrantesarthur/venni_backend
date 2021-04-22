@@ -181,7 +181,7 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
   // get trip request reference
   const tr = new TripRequest();
   const tripRequest = await tr.getTripRequestByID(pilot.current_client_uid);
-  if (tripRequest == null) {
+  if (tripRequest == null || tripRequest == undefined) {
     console.log("mockDrivingToClient couldn't find trip-request");
     return;
   }
@@ -332,7 +332,7 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
   // get trip request reference
   const tr = new TripRequest();
   let tripRequest = await tr.getTripRequestByID(pilot.current_client_uid);
-  if (tripRequest == null) {
+  if (tripRequest == null || tripRequest == undefined) {
     console.log("mockDriveToDestination couldn't find trip-request");
     return;
   }
@@ -450,19 +450,7 @@ const mockTripComplete = async (pilot: Pilot.Interface) => {
       // update client's data
       if (pilot.current_client_uid != undefined) {
         const c = new Client();
-        const clientRef = c.getReferenceByID(pilot.current_client_uid);
-        let client = await c.getClientByReference(clientRef);
-        if (client != null) {
-          let totalTrips =
-            client.total_trips == undefined ? 1 : client.total_trips + 1;
-          let totalRating =
-            client.total_rating == undefined ? 5 : client.total_rating + 5;
-          await clientRef.child("total_trips").set(totalTrips);
-          await clientRef.child("total_rating").set(totalRating);
-          await clientRef.child("rating").set(totalRating / totalTrips);
-          await clientRef.child("past_trips").push(tripSnapshot?.val());
-          console.log("updated client in database");
-        }
+        c.saveTripAndRateByID(pilot.current_client_uid, tripSnapshot?.val(), 5);
       }
     }
   );

@@ -33,11 +33,12 @@ export const create_client = functions.auth
   .user()
   .onCreate(
     async (user: functions.auth.UserRecord, _: functions.EventContext) => {
+      // clients start out with a 5-star rating. After 5 trips, they start seeing
+      // an average of their atual ratings.
       const client: Client.Interface = {
+        uid: user.uid,
         past_trips: [],
-        total_trips: 0,
-        total_rating: 0,
-        rating: 0,
+        rating: 5,
       };
 
       // add client entry to database

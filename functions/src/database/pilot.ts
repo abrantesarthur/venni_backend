@@ -71,7 +71,7 @@ export class Pilot extends Database {
       createMockPilots(100);
       return [];
     }
-    let pilots = Pilot.Interface.fromObj(snapshot.val());
+    let pilots = Pilot.Interface.fromObjs(snapshot.val());
     if (pilots.length == 0) {
       return [];
     }
@@ -315,7 +315,10 @@ export namespace Pilot {
 
   export namespace Interface {
     // transform an object of pilots in an array of pilots
-    export const fromObj = (obj: any): Pilot.Interface[] => {
+    export const fromObjs = (obj: any): Pilot.Interface[] => {
+      if (obj == null || obj == undefined) {
+        return [];
+      }
       let pilots: Pilot.Interface[] = [];
       Object.keys(obj).forEach((pilotUID) => {
         // don't add obj to list if it doesn't conform to PilotInterface
@@ -345,6 +348,9 @@ export namespace Pilot {
     };
 
     export const is = (obj: any): obj is Pilot.Interface => {
+      if (obj == null || obj == undefined) {
+        return false;
+      }
       if ("vehicle" in obj) {
         if (!VehicleInterface.is(obj.vehicle)) {
           return false;
@@ -380,6 +386,9 @@ export namespace Pilot {
 
   export namespace VehicleInterface {
     export const is = (obj: any): obj is VehicleInterface => {
+      if (obj == null || obj == undefined) {
+        return false;
+      }
       return (
         "brand" in obj && "model" in obj && "year" in obj && "plate" in obj
       );
