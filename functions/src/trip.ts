@@ -108,6 +108,7 @@ const requestTrip = async (
   const tripRequest = await tr.getTripRequestByReference(tripRequestRef);
   if (
     tripRequest != null &&
+    tripRequest != undefined &&
     (tripRequest.trip_status == TripRequest.Status.inProgress ||
       tripRequest.trip_status == TripRequest.Status.lookingForDriver ||
       tripRequest.trip_status == TripRequest.Status.waitingDriver ||
@@ -193,6 +194,7 @@ const clientCancelTrip = async (
   const tripRequest = await tr.getTripRequestByReference(tripRequestRef);
   if (
     tripRequest == null ||
+    tripRequest == undefined ||
     (tripRequest.trip_status != TripRequest.Status.waitingConfirmation &&
       tripRequest.trip_status != TripRequest.Status.paymentFailed &&
       tripRequest.trip_status != TripRequest.Status.noDriversAvailable &&
@@ -203,7 +205,7 @@ const clientCancelTrip = async (
     throw new functions.https.HttpsError(
       "failed-precondition",
       "Trip request can't be cancelled when in status '" +
-        tripRequest.trip_status +
+        tripRequest?.trip_status +
         "'"
     );
   }
@@ -246,7 +248,7 @@ const confirmTrip = async (
   let tripRequest = await tr.getTripRequestByReference(tripRequestRef);
 
   // throw error if user has no active trip request
-  if (tripRequest == null) {
+  if (tripRequest == null || tripRequest == undefined) {
     throw new functions.https.HttpsError(
       "not-found",
       "User with uid " + context.auth.uid + " has no active trip request."
@@ -278,7 +280,7 @@ const confirmTrip = async (
   // use transactions to modify trip request, and us using set would
   // cancel their transactions.
   tripRequest.trip_status = TripRequest.Status.waitingPayment;
-  await tripRequestRef.set(tripRequest);
+  tripRequestRef.set(tripRequest);
 
   // start processing payment
   // TODO: substitute this for actual payment processing
@@ -547,6 +549,7 @@ const confirmTrip = async (
       tripRequest = await tr.getTripRequestByReference(tripRequestRef);
     } while (
       tripRequest == null ||
+      tripRequest == undefined ||
       tripRequest.trip_status != "waiting-driver"
     );
     // important: sleep a bit to guarantee that waiting-driver status is persisted
@@ -579,7 +582,7 @@ const confirmTrip = async (
   do {
     await sleep(1);
     tripRequest = await tr.getTripRequestByReference(tripRequestRef);
-  } while (tripRequest == null);
+  } while (tripRequest == null || tripRequest == undefined);
   // important: sleep a bit to guarantee that final status is persisted
   await sleep(300);
   return { trip_status: tripRequest.trip_status };
@@ -830,7 +833,7 @@ const completeTrip = async (
   const clientID = pilot.current_client_uid;
   const c = new Client();
   let client = await c.getClientByID(clientID);
-  if (client == null) {
+  if (client == null || client == undefined) {
     throw new functions.https.HttpsError(
       "failed-precondition",
       "there exists no client with id '" + clientID + "'"
@@ -906,21 +909,7 @@ const completeTrip = async (
       const p = new Pilot();
       await p.freeByID(pilotID, true);
 
-      // update client's rating
-      // TODO: export this to another function
-      let clientRef = c.getReferenceByID(clientID);
-      client = await c.getClientByReference(clientRef);
-      let totalTrips =
-        client.total_trips == undefined ? 1 : client.total_trips + 1;
-      let totalRating =
-        client.total_rating == undefined
-          ? data.client_rating
-          : client.total_rating + data.client_rating;
-      await clientRef.child("total_trips").set(totalTrips);
-      await clientRef.child("total_rating").set(totalRating);
-      await clientRef.child("rating").set(totalRating / totalTrips);
-      // pushing a trip results in chronological order
-      await clientRef.child("past_trips").push(trip);
+      await c.saveTripAndRateByID(clientID, trip, data.client_rating);
     }
   );
 };
