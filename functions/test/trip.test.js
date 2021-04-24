@@ -597,290 +597,290 @@ describe("trip", () => {
       await admin.database().ref("trip-requests").remove();
     };
 
-  it("user must be authenticated", async () => {
-    // run generic test without context with client id
-    await genericTest(
-      "failed-precondition",
-      "Missing authentication credentials.",
-      {}
-    );
-  });
+    it("user must be authenticated", async () => {
+      // run generic test without context with client id
+      await genericTest(
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
 
-  it("user must have active trip request", async () => {
-    // run generic test without context with client id
-    await genericTest(
-      "not-found",
-      "User with uid " + defaultUID + " has no active trip request.",
-      defaultCtx
-    );
-  });
+    it("user must have active trip request", async () => {
+      // run generic test without context with client id
+      await genericTest(
+        "not-found",
+        "User with uid " + defaultUID + " has no active trip request.",
+        defaultCtx
+      );
+    });
 
-  it("trip request can't have invalid status", async () => {
-    // populate database with trip request with invalid waiting-payment status
-    await createTripRequest("waiting-payment");
+    it("trip request can't have invalid status", async () => {
+      // populate database with trip request with invalid waiting-payment status
+      await createTripRequest("waiting-payment");
 
-    // expect confirmTrip to fail
-    await genericTest(
-      "failed-precondition",
-      "Trip request of user with uid " +
-        defaultUID +
-        " has invalid status 'waiting-payment'",
-      defaultCtx
-    );
+      // expect confirmTrip to fail
+      await genericTest(
+        "failed-precondition",
+        "Trip request of user with uid " +
+          defaultUID +
+          " has invalid status 'waiting-payment'",
+        defaultCtx
+      );
 
-    // populate database with trip request with invalid waiting-driver status
+      // populate database with trip request with invalid waiting-driver status
 
-    await createTripRequest("waiting-driver");
+      await createTripRequest("waiting-driver");
 
-    // expect confirmTrip to fail
-    await genericTest(
-      "failed-precondition",
-      "Trip request of user with uid " +
-        defaultUID +
-        " has invalid status 'waiting-driver'",
-      defaultCtx
-    );
+      // expect confirmTrip to fail
+      await genericTest(
+        "failed-precondition",
+        "Trip request of user with uid " +
+          defaultUID +
+          " has invalid status 'waiting-driver'",
+        defaultCtx
+      );
 
-    // populate database with trip request with invalid completed status
-    await createTripRequest("completed");
+      // populate database with trip request with invalid completed status
+      await createTripRequest("completed");
 
-    // expect confirmTrip to fail
-    await genericTest(
-      "failed-precondition",
-      "Trip request of user with uid " +
-        defaultUID +
-        " has invalid status 'completed'",
-      defaultCtx
-    );
+      // expect confirmTrip to fail
+      await genericTest(
+        "failed-precondition",
+        "Trip request of user with uid " +
+          defaultUID +
+          " has invalid status 'completed'",
+        defaultCtx
+      );
 
-    // populate database with trip request with invalid cancelled-by-client status
-    await createTripRequest("cancelled-by-client");
+      // populate database with trip request with invalid cancelled-by-client status
+      await createTripRequest("cancelled-by-client");
 
-    // expect confirmTrip to fail
-    await genericTest(
-      "failed-precondition",
-      "Trip request of user with uid " +
-        defaultUID +
-        " has invalid status 'cancelled-by-client'",
-      defaultCtx
-    );
+      // expect confirmTrip to fail
+      await genericTest(
+        "failed-precondition",
+        "Trip request of user with uid " +
+          defaultUID +
+          " has invalid status 'cancelled-by-client'",
+        defaultCtx
+      );
 
-    // populate database with trip request with invalid in-progress status
-    await createTripRequest("in-progress");
+      // populate database with trip request with invalid in-progress status
+      await createTripRequest("in-progress");
 
-    // expect confirmTrip to fail
-    await genericTest(
-      "failed-precondition",
-      "Trip request of user with uid " +
-        defaultUID +
-        " has invalid status 'in-progress'",
-      defaultCtx
-    );
+      // expect confirmTrip to fail
+      await genericTest(
+        "failed-precondition",
+        "Trip request of user with uid " +
+          defaultUID +
+          " has invalid status 'in-progress'",
+        defaultCtx
+      );
 
-    // clear database
-    await removeTripRequests();
-  });
+      // clear database
+      await removeTripRequests();
+    });
 
-  it("fails if there are no pilots nearby", async () => {
-    // delete all pilots from database
-    await admin.database().ref("pilots").remove();
+    it("fails if there are no pilots nearby", async () => {
+      // delete all pilots from database
+      await admin.database().ref("pilots").remove();
 
-    // populate database with trip request with valid status
-    await createTripRequest("waiting-confirmation");
+      // populate database with trip request with valid status
+      await createTripRequest("waiting-confirmation");
 
-    // expect confirmTrip to fail
-    await genericTest(
-      "failed-precondition",
-      "There are no available pilots. Try again later."
-    );
+      // expect confirmTrip to fail
+      await genericTest(
+        "failed-precondition",
+        "There are no available pilots. Try again later."
+      );
 
-    // clear database
-    await removeTripRequests();
-  });
+      // clear database
+      await removeTripRequests();
+    });
 
-  it("works when integrated with accept trip", async () => {
-    // delete all pilots from the database
-    const pilotsRef = admin.database().ref("pilots");
-    await pilotsRef.remove();
+    it("works when integrated with accept trip", async () => {
+      // delete all pilots from the database
+      const pilotsRef = admin.database().ref("pilots");
+      await pilotsRef.remove();
 
-    // add three available pilots to the database
-    const pilotID1 = "pilotID1";
-    const pilotID2 = "pilotID2";
-    const pilotID3 = "pilotID3";
-    let pilot = {
-      uid: "",
-      name: "Fulano",
-      last_name: "de Tal",
-      member_since: Date.now(),
-      phone_number: "(38) 99999-9999",
-      current_latitude: -17.217587,
-      current_longitude: -46.881064,
-      current_zone: "AA",
-      status: "available",
-      vehicle: {
-        brand: "honda",
-        model: "CG 150",
-        year: 2020,
-        plate: "HMR 1092",
-      },
-      idle_since: Date.now(),
-      rating: 5.0,
-    };
-    pilot.uid = pilotID1;
-    await pilotsRef.child(pilotID1).set(pilot);
-    pilot.uid = pilotID2;
-    await pilotsRef.child(pilotID2).set(pilot);
-    pilot.uid = pilotID3;
-    await pilotsRef.child(pilotID3).set(pilot);
+      // add three available pilots to the database
+      const pilotID1 = "pilotID1";
+      const pilotID2 = "pilotID2";
+      const pilotID3 = "pilotID3";
+      let pilot = {
+        uid: "",
+        name: "Fulano",
+        last_name: "de Tal",
+        member_since: Date.now(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: -17.217587,
+        current_longitude: -46.881064,
+        current_zone: "AA",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now(),
+        rating: 5.0,
+      };
+      pilot.uid = pilotID1;
+      await pilotsRef.child(pilotID1).set(pilot);
+      pilot.uid = pilotID2;
+      await pilotsRef.child(pilotID2).set(pilot);
+      pilot.uid = pilotID3;
+      await pilotsRef.child(pilotID3).set(pilot);
 
-    // add trip request to database
-    const tripRequestRef = await createTripRequest();
+      // add trip request to database
+      const tripRequestRef = await createTripRequest();
 
-    // confirm trip
-    const wrappedConfirm = test.wrap(trip.confirm);
-    const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
+      // confirm trip
+      const wrappedConfirm = test.wrap(trip.confirm);
+      const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-    // wait enough time for confirm to send request to pilot1 and pilot 2
-    await sleep(8000);
+      // wait enough time for confirm to send request to pilot1 and pilot 2
+      await sleep(8000);
 
-    // assert trip has looking-for-driver status
-    let tripRequestSnapshot = await tripRequestRef.once("value");
-    assert.isNotNull(tripRequestSnapshot.val());
-    assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-driver");
+      // assert trip has looking-for-driver status
+      let tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripRequestSnapshot.val());
+      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-driver");
 
-    // assert pilot 1 has been requested
-    let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
-    assert.isNotNull(pilot1Snapshot.val());
-    assert.equal(pilot1Snapshot.val().status, "requested");
-    assert.isUndefined(pilot1Snapshot.val().total_trips);
-    // assert pilot 2 has been requested
-    let pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
-    assert.isNotNull(pilot2Snapshot.val());
-    assert.equal(pilot2Snapshot.val().status, "requested");
-    // assert pilot 3 has not been requested
-    let pilot3Snapshot = await pilotsRef.child(pilotID3).once("value");
-    assert.isNotNull(pilot3Snapshot.val());
-    assert.equal(pilot3Snapshot.val().status, "available");
+      // assert pilot 1 has been requested
+      let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
+      assert.isNotNull(pilot1Snapshot.val());
+      assert.equal(pilot1Snapshot.val().status, "requested");
+      assert.isUndefined(pilot1Snapshot.val().total_trips);
+      // assert pilot 2 has been requested
+      let pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
+      assert.isNotNull(pilot2Snapshot.val());
+      assert.equal(pilot2Snapshot.val().status, "requested");
+      // assert pilot 3 has not been requested
+      let pilot3Snapshot = await pilotsRef.child(pilotID3).once("value");
+      assert.isNotNull(pilot3Snapshot.val());
+      assert.equal(pilot3Snapshot.val().status, "available");
 
-    // pilot one accepts the trip
-    const wrappedAccept = test.wrap(trip.accept);
-    await wrappedAccept(
-      { client_id: defaultUID },
-      { auth: { uid: pilotID1 } }
-    );
-    await sleep(200);
+      // pilot one accepts the trip
+      const wrappedAccept = test.wrap(trip.accept);
+      await wrappedAccept(
+        { client_id: defaultUID },
+        { auth: { uid: pilotID1 } }
+      );
+      await sleep(200);
 
-    // assert confirm trip returned information about pilot 1
-    const confirmResult = await confirmPromise;
-    assert.equal(confirmResult.uid, pilotID1);
-    assert.equal(confirmResult.status, "busy");
-    assert.equal(confirmResult.current_client_uid, defaultUID);
-    assert.equal(confirmResult.trip_status, "waiting-driver");
-    // pilot's total_trips is zero
-    assert.equal(confirmResult.total_trips, 0);
+      // assert confirm trip returned information about pilot 1
+      const confirmResult = await confirmPromise;
+      assert.equal(confirmResult.uid, pilotID1);
+      assert.equal(confirmResult.status, "busy");
+      assert.equal(confirmResult.current_client_uid, defaultUID);
+      assert.equal(confirmResult.trip_status, "waiting-driver");
+      // pilot's total_trips is zero
+      assert.equal(confirmResult.total_trips, 0);
 
-    // assert trip has waiting-driver status
-    tripRequestSnapshot = await tripRequestRef.once("value");
-    assert.isNotNull(tripRequestSnapshot.val());
-    assert.equal(tripRequestSnapshot.val().trip_status, "waiting-driver");
+      // assert trip has waiting-driver status
+      tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripRequestSnapshot.val());
+      assert.equal(tripRequestSnapshot.val().trip_status, "waiting-driver");
 
-    // assert pilot 1 status is busy
-    pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
-    assert.isNotNull(pilot1Snapshot.val());
-    assert.equal(pilot1Snapshot.val().status, "busy");
-    assert.equal(pilot1Snapshot.val().current_client_uid, defaultUID);
-    // assert pilot 2 status once again available
-    pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
-    assert.isNotNull(pilot2Snapshot.val());
-    assert.equal(pilot2Snapshot.val().status, "available");
-    // assert pilot 3 is still available
-    pilot3Snapshot = await pilotsRef.child(pilotID3).once("value");
-    assert.isNotNull(pilot3Snapshot.val());
-    assert.equal(pilot3Snapshot.val().status, "available");
+      // assert pilot 1 status is busy
+      pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
+      assert.isNotNull(pilot1Snapshot.val());
+      assert.equal(pilot1Snapshot.val().status, "busy");
+      assert.equal(pilot1Snapshot.val().current_client_uid, defaultUID);
+      // assert pilot 2 status once again available
+      pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
+      assert.isNotNull(pilot2Snapshot.val());
+      assert.equal(pilot2Snapshot.val().status, "available");
+      // assert pilot 3 is still available
+      pilot3Snapshot = await pilotsRef.child(pilotID3).once("value");
+      assert.isNotNull(pilot3Snapshot.val());
+      assert.equal(pilot3Snapshot.val().status, "available");
 
-    // clean database
-    await pilotsRef.remove();
-    await tripRequestRef.remove();
-  });
+      // clean database
+      await pilotsRef.remove();
+      await tripRequestRef.remove();
+    });
 
-  it("doesn't accept pilots who were not picked by the algorithm", async () => {
-    // delete all pilots from the database
-    const pilotsRef = admin.database().ref("pilots");
-    await pilotsRef.remove();
+    it("doesn't accept pilots who were not picked by the algorithm", async () => {
+      // delete all pilots from the database
+      const pilotsRef = admin.database().ref("pilots");
+      await pilotsRef.remove();
 
-    // add one available and one busy pilots to the database
-    const pilotID1 = "pilotID1";
-    const pilotID2 = "pilotID2";
-    let pilot = {
-      uid: "",
-      name: "Fulano",
-      last_name: "de Tal",
-      member_since: Date.now(),
-      phone_number: "(38) 99999-9999",
-      current_latitude: -17.217587,
-      current_longitude: -46.881064,
-      current_zone: "AA",
-      status: "",
-      vehicle: {
-        brand: "honda",
-        model: "CG 150",
-        year: 2020,
-        plate: "HMR 1092",
-      },
-      idle_since: Date.now(),
-      rating: 5.0,
-    };
-    pilot.uid = pilotID1;
-    pilot.status = "available";
-    await pilotsRef.child(pilotID1).set(pilot);
-    pilot.uid = pilotID2;
-    pilot.status = "busy";
-    await pilotsRef.child(pilotID2).set(pilot);
+      // add one available and one busy pilots to the database
+      const pilotID1 = "pilotID1";
+      const pilotID2 = "pilotID2";
+      let pilot = {
+        uid: "",
+        name: "Fulano",
+        last_name: "de Tal",
+        member_since: Date.now(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: -17.217587,
+        current_longitude: -46.881064,
+        current_zone: "AA",
+        status: "",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now(),
+        rating: 5.0,
+      };
+      pilot.uid = pilotID1;
+      pilot.status = "available";
+      await pilotsRef.child(pilotID1).set(pilot);
+      pilot.uid = pilotID2;
+      pilot.status = "busy";
+      await pilotsRef.child(pilotID2).set(pilot);
 
-    // add trip request to database
-    const tripRequestRef = await createTripRequest();
+      // add trip request to database
+      const tripRequestRef = await createTripRequest();
 
-    // confirm trip
-    const wrappedConfirm = test.wrap(trip.confirm);
-    const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
+      // confirm trip
+      const wrappedConfirm = test.wrap(trip.confirm);
+      const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-    // wait enough time for confirm to send request to pilot1
-    await sleep(1500);
+      // wait enough time for confirm to send request to pilot1
+      await sleep(1500);
 
-    // assert trip has looking-for-driver status
-    let tripRequestSnapshot = await tripRequestRef.once("value");
-    assert.isNotNull(tripRequestSnapshot.val());
-    assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-driver");
+      // assert trip has looking-for-driver status
+      let tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripRequestSnapshot.val());
+      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-driver");
 
-    // assert pilot 1 has been requested
-    let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
-    assert.isNotNull(pilot1Snapshot.val());
-    assert.equal(pilot1Snapshot.val().status, "requested");
-    // assert pilot 2 has not been requested
-    let pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
-    assert.isNotNull(pilot2Snapshot.val());
-    assert.equal(pilot2Snapshot.val().status, "busy");
+      // assert pilot 1 has been requested
+      let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
+      assert.isNotNull(pilot1Snapshot.val());
+      assert.equal(pilot1Snapshot.val().status, "requested");
+      // assert pilot 2 has not been requested
+      let pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
+      assert.isNotNull(pilot2Snapshot.val());
+      assert.equal(pilot2Snapshot.val().status, "busy");
 
-    // pilot 2 accepts the trip (bypass accepTrip, which would fail)
-    await tripRequestRef.child("driver_id").set(pilotID2);
+      // pilot 2 accepts the trip (bypass accepTrip, which would fail)
+      await tripRequestRef.child("driver_id").set(pilotID2);
 
-    // assert confirm trip didn't accept pilot 2
-    tripRequestSnapshot = await tripRequestRef.once("value");
-    assert.isNotNull(tripRequestSnapshot.val());
-    assert.equal(tripRequestSnapshot.val().driver_id, "");
+      // assert confirm trip didn't accept pilot 2
+      tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripRequestSnapshot.val());
+      assert.equal(tripRequestSnapshot.val().driver_id, "");
 
-    // pilot 1 accepts the trip
-    await tripRequestRef.child("driver_id").set(pilotID1);
+      // pilot 1 accepts the trip
+      await tripRequestRef.child("driver_id").set(pilotID1);
 
-    // assert confirm trip accepted pilot 1
-    tripRequestSnapshot = await tripRequestRef.once("value");
-    assert.isNotNull(tripRequestSnapshot.val());
-    assert.equal(tripRequestSnapshot.val().driver_id, pilotID1);
+      // assert confirm trip accepted pilot 1
+      tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripRequestSnapshot.val());
+      assert.equal(tripRequestSnapshot.val().driver_id, pilotID1);
 
-    // clean database
-    await pilotsRef.remove();
-    await tripRequestRef.remove();
-  });
+      // clean database
+      await pilotsRef.remove();
+      await tripRequestRef.remove();
+    });
   });
 
   describe("accept", () => {

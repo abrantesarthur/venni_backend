@@ -13,10 +13,6 @@ export class Pilot extends Database {
     this.ref = this.DB.ref("pilots").child(pilotID);
   }
 
-  getReference = (): Database.Reference => {
-    return this.ref;
-  };
-
   getPilot = async (): Promise<Pilot.Interface | undefined> => {
     const snapshot = await this.ref.once("value");
     return Pilot.Interface.fromObj(snapshot.val());

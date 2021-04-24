@@ -1,12 +1,95 @@
 const pt = require("../lib/database/pastTrips");
 const chai = require("chai");
+const admin = require("firebase-admin");
 
 const assert = chai.assert;
 
 describe("PastTrips", () => {
+  let clientID;
+  let pilotID;
   let pastTrips;
+  let p;
   before(() => {
+    if (admin.apps.length == 0) {
+      admin.initializeApp();
+    }
+    clientID = "clientID";
+    pilotID = "pilotID";
     pastTrips = pt.PastTrips;
+    p = new pt.PastTrips("clients", clientID);
+    defaultTrip = {
+      uid: clientID,
+      trip_status: "completed",
+      origin_place_id: "origin_place_id",
+      destination_place_id: "destination_place_id",
+      origin_zone: "AA",
+      fare_price: 5,
+      distance_meters: 100,
+      distance_text: "100 metes",
+      duration_seconds: 300,
+      duration_text: "5 minutes",
+      encoded_points: "encoded_points",
+      request_time: Date.now(),
+      origin_address: "origin_address",
+      destination_address: "destination_address",
+      driver_id: pilotID,
+    };
+  });
+
+  describe("getPastTrips", () => {
+    it("returns empty list if user has no past trips", async () => {
+      let result = await p.getPastTrips();
+      assert.isEmpty(result);
+    });
+
+    it("returns list of user's past trips if user has past trips", async () => {
+      // add past trips to the user
+      await p.pushPastTrip(defaultTrip);
+
+      // assert that user has past trips
+      let result = await p.getPastTrips();
+      assert.isNotEmpty(result);
+
+      // clear database
+      await admin.database().ref("past-trips").remove();
+    });
+  });
+
+  describe("getPastTripsCount", () => {
+    it("returns zero user has no past trips", async () => {
+      let result = await p.getPastTripsCount();
+      assert.equal(result, 0);
+    });
+
+    it("returns number of user's past trips if user has past trips", async () => {
+      // add past trips to the user
+      await p.pushPastTrip(defaultTrip);
+
+      // assert that user has past trips
+      let result = await p.getPastTripsCount();
+      assert.equal(result, 1);
+
+      // clear database
+      await admin.database().ref("past-trips").remove();
+    });
+  });
+
+  describe("pushPastTrip", () => {
+    it("adds past trip to user's list of past trips", async () => {
+      // assert user has no past trips
+      let result = await p.getPastTripsCount();
+      assert.equal(result, 0);
+
+      // add past trips to the user
+      await p.pushPastTrip(defaultTrip);
+
+      // assert that user has past trips
+      result = await p.getPastTripsCount();
+      assert.equal(result, 1);
+
+      // clear database
+      await admin.database().ref("past-trips").remove();
+    });
   });
 
   describe("fromObjs", () => {
