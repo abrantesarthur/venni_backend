@@ -96,13 +96,12 @@ const mockTripAccept = async (pilot: Pilot.Interface) => {
   }
 
   // get a reference to user's trip request
-  const tr = new TripRequest();
-  const tripRequestRef = tr.ref.child(pilot.current_client_uid);
+  const tr = new TripRequest(pilot.current_client_uid);
 
   // set trip's driver_id in a transaction only if it is null or empty. Otherwise,
   // it means another pilot already picked the trip ahead of us. Throw error in that case.
   await transaction(
-    tripRequestRef,
+    tr.ref,
     (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
@@ -141,14 +140,14 @@ const mockTripAccept = async (pilot: Pilot.Interface) => {
   await sleep(500);
 
   // wait until pilot's status is set to busy or available by confirmTrip
-  const p = new Pilot();
-  let updatedPilot = await p.getPilotByID(pilot.uid);
+  const p = new Pilot(pilot.uid);
+  let updatedPilot = await p.getPilot();
   while (
-    updatedPilot.status != Pilot.Status.busy &&
-    updatedPilot.status != Pilot.Status.available
+    updatedPilot?.status != Pilot.Status.busy &&
+    updatedPilot?.status != Pilot.Status.available
   ) {
     await sleep(1);
-    updatedPilot = await p.getPilotByID(pilot.uid);
+    updatedPilot = await p.getPilot();
   }
 
   // if it was set to available, confirmTrip denied trip to the pilot
@@ -179,8 +178,8 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
   };
 
   // get trip request reference
-  const tr = new TripRequest();
-  const tripRequest = await tr.getTripRequestByID(pilot.current_client_uid);
+  const tr = new TripRequest(pilot.current_client_uid);
+  const tripRequest = await tr.getTripRequest();
   if (tripRequest == null || tripRequest == undefined) {
     console.log("mockDrivingToClient couldn't find trip-request");
     return;
@@ -208,13 +207,12 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
   }
 
   // get reference to pilot's entry in the database
-  const p = new Pilot();
-  const pilotRef = p.getReferenceByID(pilot.uid);
+  const p = new Pilot(pilot.uid);
 
   // iterate over response updating pilot's coordiantes every 1 second
   const steps = directionsResponse.data.routes[0].legs[0].steps;
   for (var i = 0; i < steps.length; i++) {
-    await transaction(pilotRef, (pilot) => {
+    await transaction(p.ref, (pilot) => {
       if (pilot == null) {
         return {};
       }
@@ -224,7 +222,7 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
     });
     await sleep(1000);
   }
-  await transaction(pilotRef, (pilot) => {
+  await transaction(p.ref, (pilot) => {
     if (pilot == null) {
       return {};
     }
@@ -237,14 +235,14 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
   await sleep(1000);
 
   // get pilot's updated coordinates
-  pilot = await p.getPilotByReference(pilotRef);
-  if (pilot == null) {
+  let updatedPilot = await p.getPilot();
+  if (updatedPilot == undefined) {
     console.log("failed to retrieve pilot from database before starting trip.");
     return;
   }
 
   // start trip
-  await mockTripStart(pilot);
+  await mockTripStart(updatedPilot);
 };
 
 const mockTripStart = async (pilot: Pilot.Interface) => {
@@ -261,12 +259,11 @@ const mockTripStart = async (pilot: Pilot.Interface) => {
   }
 
   // get a reference to user's trip request
-  const tr = new TripRequest();
-  const tripRequestRef = tr.ref.child(pilot.current_client_uid);
+  const tr = new TripRequest(pilot.current_client_uid);
 
   // update trip's status in a transaction only if is waiting for our driver.
   await transaction(
-    tripRequestRef,
+    tr.ref,
     (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
@@ -303,9 +300,9 @@ const mockTripStart = async (pilot: Pilot.Interface) => {
     }
   );
 
-  const p = new Pilot();
-  pilot = await p.getPilotByID(pilot.uid);
-  if (pilot == null) {
+  const p = new Pilot(pilot.uid);
+  let updatedPilot = await p.getPilot();
+  if (updatedPilot == null) {
     console.log("mockTripStart failed to retrieve pilot from database");
     return;
   }
@@ -313,7 +310,7 @@ const mockTripStart = async (pilot: Pilot.Interface) => {
   // after accepting trip, wait 1 seconds before driving to destination
   await sleep(1000);
 
-  await mockDriveToDestination(pilot);
+  await mockDriveToDestination(updatedPilot);
 };
 
 const mockDriveToDestination = async (pilot: Pilot.Interface) => {
@@ -330,8 +327,8 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
   };
 
   // get trip request reference
-  const tr = new TripRequest();
-  let tripRequest = await tr.getTripRequestByID(pilot.current_client_uid);
+  const tr = new TripRequest(pilot.current_client_uid);
+  let tripRequest = await tr.getTripRequest();
   if (tripRequest == null || tripRequest == undefined) {
     console.log("mockDriveToDestination couldn't find trip-request");
     return;
@@ -359,13 +356,12 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
   }
 
   // get reference to pilot's entry in the database
-  const p = new Pilot();
-  const pilotRef = p.getReferenceByID(pilot.uid);
+  const p = new Pilot(pilot.uid);
 
   // iterate over directions response updating pilot's coordiantes every 1 second
   const steps = directionsResponse.data.routes[0].legs[0].steps;
   for (var i = 0; i < steps.length; i++) {
-    await transaction(pilotRef, (pilot) => {
+    await transaction(p.ref, (pilot) => {
       if (pilot == null) {
         return {};
       }
@@ -375,7 +371,7 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
     });
     await sleep(1000);
   }
-  await transaction(pilotRef, (pilot) => {
+  await transaction(p.ref, (pilot) => {
     if (pilot == null) {
       return {};
     }
@@ -403,12 +399,11 @@ const mockTripComplete = async (pilot: Pilot.Interface) => {
   }
 
   // get a reference to user's trip request
-  const tr = new TripRequest();
-  const tripRequestRef = tr.getReferenceByID(pilot.current_client_uid);
+  const tr = new TripRequest(pilot.current_client_uid);
 
   // set trip's status to completed only if it is being handled by our driver
   await transaction(
-    tripRequestRef,
+    tr.ref,
     (tripRequest: TripRequest.Interface) => {
       if (tripRequest == null) {
         // we always check for null in transactions.
@@ -444,13 +439,18 @@ const mockTripComplete = async (pilot: Pilot.Interface) => {
       console.log("pilot has succesfully completed the trip!");
 
       // free the pilot to handle other trips
-      const p = new Pilot();
-      await p.freeByID(pilot.uid, true);
+      const p = new Pilot(pilot.uid);
+      await p.free();
+      // save trip to list of pilot's past trips
+      let trip = TripRequest.Interface.fromObj(tripSnapshot?.val());
+      if (trip != undefined) {
+        await p.pushPastTrip(trip);
 
-      // update client's data
-      if (pilot.current_client_uid != undefined) {
-        const c = new Client();
-        c.saveTripAndRateByID(pilot.current_client_uid, tripSnapshot?.val(), 5);
+        // update client's data
+        if (pilot.current_client_uid != undefined) {
+          const c = new Client(pilot.current_client_uid);
+          c.pushPastTripAndRate(trip, 4);
+        }
       }
     }
   );

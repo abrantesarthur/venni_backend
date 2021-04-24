@@ -10,26 +10,13 @@ import { Database } from "./index";
 export class TripRequest extends Database {
   readonly ref: Database.Reference;
 
-  constructor() {
+  constructor(clientID: string) {
     super();
-    this.ref = this.DB.ref("trip-requests");
+    this.ref = this.DB.ref("trip-requests").child(clientID);
   }
 
-  getReferenceByID = (id: string): Database.Reference => {
-    return this.ref.child(id);
-  };
-
-  getTripRequestByID = async (
-    id: string
-  ): Promise<TripRequest.Interface | undefined> => {
-    const snapshot = await this.getReferenceByID(id).once("value");
-    return TripRequest.Interface.fromObj(snapshot.val());
-  };
-
-  getTripRequestByReference = async (
-    ref: Database.Reference
-  ): Promise<TripRequest.Interface | undefined> => {
-    const snapshot = await ref.once("value");
+  getTripRequest = async (): Promise<TripRequest.Interface | undefined> => {
+    const snapshot = await this.ref.once("value");
     return TripRequest.Interface.fromObj(snapshot.val());
   };
 }
@@ -67,7 +54,9 @@ export namespace TripRequest {
     origin_address: string;
     destination_address: string;
     driver_id?: string;
-    rating?: number;
+    client_rating?: number;
+    driver_rating?: number;
+    pilot_past_trip_ref_key?: string;
   }
 
   export namespace Interface {

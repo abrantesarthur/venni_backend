@@ -11,6 +11,7 @@ describe("TripRequest.Interface", () => {
     it("returns false when object is null", () => {
       assert.equal(tr.TripRequest.Interface.is(null), false);
     });
+
     it("returns true when object is TripRequest.Interface", () => {
       const obj = {
         uid: "uid",
@@ -56,6 +57,9 @@ describe("TripRequest.Interface", () => {
         request_time: "request_time",
         origin_address: "origin_address",
         destination_address: "destination_address",
+        client_rating: "client_rating",
+        driver_rating: "driver_rating",
+        pilot_past_trip_ref_key: "pilot_past_trip_ref_key",
       };
       const response = tr.TripRequest.Interface.fromObj(obj);
       assert.isDefined(response);
@@ -73,6 +77,9 @@ describe("TripRequest.Interface", () => {
       assert.equal(response.request_time, "request_time");
       assert.equal(response.origin_address, "origin_address");
       assert.equal(response.destination_address, "destination_address");
+      assert.equal(response.client_rating, "client_rating");
+      assert.equal(response.driver_rating, "driver_rating");
+      assert.equal(response.pilot_past_trip_ref_key, "pilot_past_trip_ref_key");
     });
   });
 });
