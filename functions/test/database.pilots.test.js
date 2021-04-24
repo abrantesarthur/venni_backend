@@ -2,35 +2,35 @@ const chai = require("chai");
 const assert = chai.assert;
 const expect = chai.expect;
 const admin = require("firebase-admin");
+let p = require("../lib/database/pilots");
 
 describe("pilots", () => {
-  let interfaces;
-  let p;
+  let Pilots;
   before(() => {
-    p = require("../lib/pilots");
-    interfaces = require("../lib/interfaces");
     if (admin.apps.length == 0) {
       admin.initializeApp();
     }
+    Pilots = new p.Pilots();
+    p;
   });
 
-  describe("pilosFromObj", () => {
+  describe("fromObjs", () => {
     it("outputs empty list when obj is empty", () => {
-      const pilots = interfaces.pilotsFromObj({});
-      assert.equal(pilots.length, 0);
+      const pilots = Pilots.fromObjs({});
+      assert.isEmpty(pilots);
     });
 
     it("outputs empty list when obj doesn't conform to PilotInterface", () => {
-      const pilots = interfaces.pilotsFromObj({
+      const pilots = Pilots.fromObjs({
         invalid_pilot: {
           invalid_uid: "invalid",
         },
       });
-      assert.equal(pilots.length, 0);
+      assert.isEmpty(pilots);
     });
 
     it("ignores irrelevant fields in obj that don't conform to PilotInterface", () => {
-      const pilots = interfaces.pilotsFromObj({
+      const pilots = Pilots.fromObjs({
         valid_pilot: {
           irrelevant_field: "irrelevant",
           uid: "first_pilot_uid",
@@ -60,7 +60,7 @@ describe("pilots", () => {
     });
 
     it("doesn't failt when obj misses optional fields", () => {
-      const pilots = interfaces.pilotsFromObj({
+      const pilots = Pilots.fromObjs({
         valid_pilot: {
           uid: "first_pilot_uid",
           name: "Fulano",
@@ -116,7 +116,7 @@ describe("pilots", () => {
       };
 
       // convert pilots obj into PilotInterface list
-      const pilots = interfaces.pilotsFromObj(obj);
+      const pilots = Pilots.fromObjs(obj);
 
       assert.equal(pilots.length, 1);
       assert.equal(pilots[0].uid, "first_pilot_uid");
@@ -136,7 +136,7 @@ describe("pilots", () => {
     });
   });
 
-  const expectThrowsAsync = async (method, errorCode, errorMessage) => {
+  const asyncExpectThrows = async (method, errorCode, errorMessage) => {
     let error = null;
     try {
       await method();
@@ -174,7 +174,7 @@ describe("pilots", () => {
     it("works", async () => {
       assert.isTrue(defaultPilots[0].distance_to_client == undefined);
 
-      const pilotsWithDistances = await p.assignPilotsDistanceToClient(
+      const pilotsWithDistances = await Pilots.assignDistances(
         defaultOriginPlaceID,
         defaultPilots,
         process.env.GOOGLE_MAPS_API_KEY
@@ -192,9 +192,9 @@ describe("pilots", () => {
     });
 
     it("throws error on wrong api key", async () => {
-      await expectThrowsAsync(
+      await asyncExpectThrows(
         () =>
-          p.assignPilotsDistanceToClient(
+          Pilots.assignDistances(
             defaultOriginPlaceID,
             defaultPilots,
             "WRONGAPIKEY"
@@ -207,67 +207,67 @@ describe("pilots", () => {
 
   describe("distanceScore", () => {
     it("yields 0 points for distances greater than 4999 meters", () => {
-      assert.isBelow(p.distanceScore(4999), 1);
-      assert.equal(p.distanceScore(5000), 0);
-      assert.equal(p.distanceScore(10000), 0);
+      assert.isBelow(Pilots.distanceScore(4999), 1);
+      assert.equal(Pilots.distanceScore(5000), 0);
+      assert.equal(Pilots.distanceScore(10000), 0);
     });
 
     it("yields 50 points for distances smaller than 100 meters", () => {
-      assert.equal(p.distanceScore(100), 50);
-      assert.equal(p.distanceScore(0), 50);
+      assert.equal(Pilots.distanceScore(100), 50);
+      assert.equal(Pilots.distanceScore(0), 50);
     });
 
     it("yields between 0 and 50 points for distances between 100 and 5000 meters", () => {
       for (var i = 150; i < 5000; i = i + 50) {
-        assert.isAbove(p.distanceScore(i), 0);
-        assert.isBelow(p.distanceScore(i), 50);
+        assert.isAbove(Pilots.distanceScore(i), 0);
+        assert.isBelow(Pilots.distanceScore(i), 50);
       }
     });
   });
 
-  describe("distanceScore", () => {
+  describe("ratingScore", () => {
     it("yields 0 points for ratings smaller than 3", () => {
-      assert.equal(p.ratingScore(3), 0);
-      assert.equal(p.ratingScore(0), 0);
+      assert.equal(Pilots.ratingScore(3), 0);
+      assert.equal(Pilots.ratingScore(0), 0);
     });
 
     it("yields 10 points for ratings greater or equal to 5", () => {
-      assert.equal(p.ratingScore(5), 10);
-      assert.equal(p.ratingScore(7), 10);
+      assert.equal(Pilots.ratingScore(5), 10);
+      assert.equal(Pilots.ratingScore(7), 10);
     });
 
     it("yields between 0 and 10 points for ratings between 3 and 5 meters", () => {
       for (var i = 3.1; i < 5; i = i + 0.1) {
-        assert.isAbove(p.ratingScore(i), 0);
-        assert.isBelow(p.ratingScore(i), 10);
+        assert.isAbove(Pilots.ratingScore(i), 0);
+        assert.isBelow(Pilots.ratingScore(i), 10);
       }
     });
   });
 
-  describe("idleScore", () => {
+  describe("idleTimeScore", () => {
     it("yields 0 points for idleness equal to 0 seconds", () => {
-      assert.equal(p.idleTimeScore(0), 0);
+      assert.equal(Pilots.idleTimeScore(0), 0);
     });
 
     it("yields 40 points for idleness equal to 5 minutes", () => {
-      assert.equal(p.idleTimeScore(300), 40);
+      assert.equal(Pilots.idleTimeScore(300), 40);
     });
 
     it("yields between 0 and 40 points for idleness between 0 and 5 minutes", () => {
       for (var i = 10; i < 300; i = i + 10) {
-        assert.isAbove(p.idleTimeScore(i), 0);
-        assert.isBelow(p.idleTimeScore(i), 40);
+        assert.isAbove(Pilots.idleTimeScore(i), 0);
+        assert.isBelow(Pilots.idleTimeScore(i), 40);
       }
     });
 
     it("yields more than 40 points for idleness longer than 5 minutes", () => {
       for (var i = 310; i < 3000; i = i + 10) {
-        assert.isAbove(p.idleTimeScore(i), 40);
+        assert.isAbove(Pilots.idleTimeScore(i), 40);
       }
     });
   });
 
-  describe("rankPilots", () => {
+  describe("rank", () => {
     let defaultPilot1;
     let defaultPilot2;
     let now;
@@ -320,7 +320,7 @@ describe("pilots", () => {
       // pilot 2 comes first initially
       let pilots = [defaultPilot2, defaultPilot1];
 
-      const rankedPilots = p.rankPilots(pilots);
+      const rankedPilots = Pilots.rank(pilots);
 
       // now, pilot 1 comes first
       assert.equal(rankedPilots[0].uid, "pilot1");
@@ -333,7 +333,7 @@ describe("pilots", () => {
       // pilot 2 comes first initially
       let pilots = [defaultPilot2, defaultPilot1];
 
-      const rankedPilots = p.rankPilots(pilots);
+      const rankedPilots = Pilots.rank(pilots);
 
       // now, pilot 1 comes first
       assert.equal(rankedPilots[0].uid, "pilot1");
@@ -346,14 +346,14 @@ describe("pilots", () => {
       // pilot 2 comes first initially
       let pilots = [defaultPilot2, defaultPilot1];
 
-      const rankedPilots = p.rankPilots(pilots);
+      const rankedPilots = Pilots.rank(pilots);
 
       // now, pilot 1 comes first
       assert.equal(rankedPilots[0].uid, "pilot1");
     });
   });
 
-  describe("filterPilotsByZone", () => {
+  describe("filterByZone", () => {
     let pilotBB;
     let pilotCC;
     let pilotHD;
@@ -374,7 +374,7 @@ describe("pilots", () => {
 
     it("returns only pilots in current zone if found at least three pilots in zone", () => {
       let twoPilotsInBB = [pilotBB, pilotBB, pilotCC];
-      let filteredPilots = p.filterPilotsByZone("BB", twoPilotsInBB);
+      let filteredPilots = Pilots.filterByZone("BB", twoPilotsInBB);
 
       // function returns pilot in zone CC since zone BB has only two pilots
       assert.equal(filteredPilots.length, 3);
@@ -383,7 +383,7 @@ describe("pilots", () => {
       assert.equal(filteredPilots[2].uid, "pilotCC");
 
       let threePilotsInBB = [pilotBB, pilotBB, pilotBB, pilotCC];
-      filteredPilots = p.filterPilotsByZone("BB", threePilotsInBB);
+      filteredPilots = Pilots.filterByZone("BB", threePilotsInBB);
 
       // function doesn't return pilot in zone CC since zone BB three pilots
       assert.equal(filteredPilots.length, 3);
@@ -392,7 +392,7 @@ describe("pilots", () => {
       assert.equal(filteredPilots[2].uid, "pilotBB");
 
       let fourPilotsInBB = [pilotBB, pilotBB, pilotBB, pilotBB];
-      filteredPilots = p.filterPilotsByZone("BB", fourPilotsInBB);
+      filteredPilots = Pilots.filterByZone("BB", fourPilotsInBB);
 
       // function returns all pilots in zone BB
       assert.equal(filteredPilots.length, 4);
@@ -404,7 +404,7 @@ describe("pilots", () => {
 
     it("returns only pilots in current + adjacent zones if found at least three pilots there", () => {
       let onePilotInBBOneInCC = [pilotBB, pilotCC, pilotHD];
-      let filteredPilots = p.filterPilotsByZone("BB", onePilotInBBOneInCC);
+      let filteredPilots = Pilots.filterByZone("BB", onePilotInBBOneInCC);
 
       // function returns pilot in zone HD since zone + adjacent have only two pilots
       assert.equal(filteredPilots.length, 3);
@@ -413,7 +413,7 @@ describe("pilots", () => {
       assert.equal(filteredPilots[2].uid, "pilotHD");
 
       let threePilotsInBBAndCC = [pilotBB, pilotBB, pilotCC, pilotHD];
-      filteredPilots = p.filterPilotsByZone("BB", threePilotsInBBAndCC);
+      filteredPilots = Pilots.filterByZone("BB", threePilotsInBBAndCC);
 
       // function doesn't return pilot in zone HD since zone + adjacent have three pilots
       assert.equal(filteredPilots.length, 3);
@@ -422,7 +422,7 @@ describe("pilots", () => {
       assert.equal(filteredPilots[2].uid, "pilotCC");
 
       let fourPilotsInBBAndCC = [pilotBB, pilotBB, pilotCC, pilotCC];
-      filteredPilots = p.filterPilotsByZone("BB", fourPilotsInBBAndCC);
+      filteredPilots = Pilots.filterByZone("BB", fourPilotsInBBAndCC);
 
       // function returns all pilots in zone + adjacent
       assert.equal(filteredPilots.length, 4);
@@ -433,7 +433,7 @@ describe("pilots", () => {
     });
   });
 
-  describe("findPilots", () => {
+  describe("findAllAvailable", () => {
     beforeEach(async () => {
       // clear pilots from database
       await admin.database().ref("pilots").remove();
@@ -535,7 +535,7 @@ describe("pilots", () => {
       });
 
       // find available pilots near zone DC
-      const pilots = await p.findPilots({
+      const pilots = await Pilots.findAllAvailable({
         origin_zone: "DC",
         origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
       });

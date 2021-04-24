@@ -14,6 +14,8 @@ export const clean_user_data = functions.auth
       await db.ref("trip-requests").child(user.uid).remove();
       // delete entry in clients
       await db.ref("clients").child(user.uid).remove();
+      // delete entry in past-trips
+      await db.ref("past-trips").child("clients").child(user.uid).remove();
 
       // delete storage data if it exists
       const getFilesResponse = await firebaseAdmin
@@ -37,8 +39,9 @@ export const create_client = functions.auth
       // an average of their atual ratings.
       const client: Client.Interface = {
         uid: user.uid,
-        past_trips: [],
         rating: 5,
+        total_rated_trips: 0,
+        total_rating: 0,
       };
 
       // add client entry to database
