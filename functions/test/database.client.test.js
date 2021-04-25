@@ -23,7 +23,7 @@ describe("Client", () => {
       pilotID = "pilotID";
       defaultClient = {
         uid: clientID,
-        rating: 5,
+        rating: "5",
       };
       defaultTrip = {
         uid: clientID,
@@ -37,7 +37,7 @@ describe("Client", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         driver_id: pilotID,
@@ -72,7 +72,7 @@ describe("Client", () => {
         let result = await c.getClient();
         assert.isDefined(result);
         assert.equal(result.uid, clientID);
-        assert.equal(result.rating, 5);
+        assert.equal(result.rating, "5");
         // clear database
         await admin.database().ref("clients").remove();
       });
@@ -106,7 +106,7 @@ describe("Client", () => {
         // assert client now has a past trip with client_rating
         let pastTrips = await cpt.getPastTrips();
         assert.equal(pastTrips.length, 1);
-        assert.equal(pastTrips[0].client_rating, 2);
+        assert.equal(pastTrips[0].client_rating, "2");
 
         // clear database
         await admin.database().ref("past-trips").remove();
@@ -129,11 +129,11 @@ describe("Client", () => {
         // after rating, client has defined total_rated_trips and total_rating
         result = await c.getClient();
         assert.isDefined(result);
-        assert.equal(result.total_rated_trips, 1);
-        assert.equal(result.total_rating, rate);
+        assert.equal(result.total_rated_trips, "1");
+        assert.equal(result.total_rating, rate.toString());
 
         // because client has less than 5 trips, his rating is 5
-        assert.equal(result.rating, 5);
+        assert.equal(result.rating, "5");
 
         // clear database
         await admin.database().ref("clients").remove();
@@ -151,10 +151,37 @@ describe("Client", () => {
         assert.equal(Client.Client.Interface.is(null), false);
       });
 
+      it("returns false when total_rated_trips, if present, is not a string", () => {
+        const obj = {
+          uid: "clientUID",
+          rating: "5",
+          total_rated_trips: 1,
+        };
+        assert.equal(Client.Client.Interface.is(obj), false);
+      });
+
+      it("returns false when total_rating, if present, is not a string", () => {
+        const obj = {
+          uid: "clientUID",
+          rating: "5",
+          total_rating: 1,
+        };
+        assert.equal(Client.Client.Interface.is(obj), false);
+      });
+
+      it("returns false if contains an invalid field", () => {
+        const obj = {
+          uid: "clientUID",
+          rating: "5",
+          invalid_field: "invalid_field",
+        };
+        assert.equal(Client.Client.Interface.is(obj), false);
+      });
+
       it("returns true when all required fields are present", () => {
         const obj = {
           uid: "clientUID",
-          rating: 5,
+          rating: "5",
         };
         assert.equal(Client.Client.Interface.is(obj), true);
       });
@@ -177,7 +204,7 @@ describe("Client", () => {
 
       it("returns undefined if obj is not Client.Interface II", () => {
         const obj = {
-          rating: 5,
+          rating: "5",
         };
         assert.equal(Client.Client.Interface.fromObj(obj), undefined);
       });
@@ -185,13 +212,13 @@ describe("Client", () => {
       it("returns Client.Interface if obj is Client.Interface I", () => {
         const obj = {
           uid: "clientUID",
-          rating: 5,
+          rating: "5",
         };
 
         const response = Client.Client.Interface.fromObj(obj);
         assert.isDefined(response);
         assert.equal(response.uid, "clientUID");
-        assert.equal(response.rating, 5);
+        assert.equal(response.rating, "5");
         assert.isUndefined(response.total_rating);
         assert.isUndefined(response.total_rated_trips);
       });
@@ -199,19 +226,19 @@ describe("Client", () => {
       it("returns Client.Interface if obj is Client.Interface II", () => {
         const obj = {
           uid: "clientUID",
-          rating: 5,
-          total_rated_trips: 1,
-          total_rating: 1,
+          rating: "5",
+          total_rated_trips: "1",
+          total_rating: "1",
         };
 
         const response = Client.Client.Interface.fromObj(obj);
         assert.isDefined(response);
         assert.equal(response.uid, "clientUID");
-        assert.equal(response.rating, 5);
+        assert.equal(response.rating, "5");
         assert.isDefined(response.total_rated_trips);
         assert.isDefined(response.total_rating);
-        assert.equal(response.total_rated_trips, 1);
-        assert.equal(response.total_rating, 1);
+        assert.equal(response.total_rated_trips, "1");
+        assert.equal(response.total_rating, "1");
       });
     });
   });

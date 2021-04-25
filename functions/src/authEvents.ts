@@ -39,9 +39,7 @@ export const create_client = functions.auth
       // an average of their atual ratings.
       const client: Client.Interface = {
         uid: user.uid,
-        rating: 5,
-        total_rated_trips: 0,
-        total_rating: 0,
+        rating: "5",
       };
 
       // add client entry to database

@@ -244,7 +244,7 @@ const requestTrip = async (
     duration_seconds: leg.duration.value.toString(),
     duration_text: leg.duration.text,
     encoded_points: route.overview_polyline.points,
-    request_time: Date.now(),
+    request_time: Date.now().toString(),
     origin_address: leg.start_address,
     destination_address: leg.end_address,
   };
@@ -566,7 +566,7 @@ const confirmTrip = async (
         confirmTripResponse.name = pilot.name;
         confirmTripResponse.last_name = pilot.last_name;
         confirmTripResponse.total_trips =
-          pilot.total_trips == undefined ? 0 : pilot.total_trips;
+          pilot.total_trips == undefined ? "0" : pilot.total_trips;
         confirmTripResponse.member_since = pilot.member_since;
         confirmTripResponse.phone_number = pilot.phone_number;
         confirmTripResponse.current_client_uid = pilot.current_client_uid;

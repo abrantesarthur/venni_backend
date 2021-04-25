@@ -26,10 +26,10 @@ describe("Pilot", () => {
         uid: pilotID,
         name: "name",
         last_name: "last_name",
-        member_since: Date.now() - 100000000,
+        member_since: (Date.now() - 100000000).toString(),
         phone_number: "phone_number",
-        current_latitude: -16,
-        current_longitude: 42,
+        current_latitude: "-16",
+        current_longitude: "42",
         current_zone: "AA",
         status: "busy",
         current_client_uid: clientID,
@@ -39,12 +39,12 @@ describe("Pilot", () => {
           year: 1999,
           plate: "plate",
         },
-        idle_since: Date.now() - 100000,
+        idle_since: (Date.now() - 100000).toString(),
         rating: "rating",
       };
       defaultClient = {
         uid: clientID,
-        rating: 5,
+        rating: "5",
       };
       defaultTrip = {
         uid: clientID,
@@ -58,7 +58,7 @@ describe("Pilot", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         driver_id: pilotID,
@@ -106,7 +106,7 @@ describe("Pilot", () => {
         assert.equal(result.uid, pilotID);
         assert.equal(result.status, "busy");
         assert.equal(result.current_client_uid, clientID);
-        assert.isBelow(result.idle_since, Date.now() - 1000);
+        assert.isBelow(Number(result.idle_since), Date.now() - 1000);
 
         // call free
         await Pilot.free();
@@ -116,7 +116,7 @@ describe("Pilot", () => {
         assert.equal(result.uid, pilotID);
         assert.equal(result.status, "available");
         assert.equal(result.current_client_uid, "");
-        assert.isAbove(result.idle_since, Date.now() - 1000);
+        assert.isAbove(Number(result.idle_since), Date.now() - 1000);
 
         // clear database
         await admin.database().ref("pilots").remove();
@@ -154,7 +154,7 @@ describe("Pilot", () => {
 
         // assert pilot has total_trips
         result = await Pilot.getPilot();
-        assert.equal(result.total_trips, 1);
+        assert.equal(result.total_trips, "1");
 
         // clear database
         await admin.database().ref("pilots").remove();

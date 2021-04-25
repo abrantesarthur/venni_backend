@@ -36,12 +36,12 @@ describe("pilots", () => {
           uid: "first_pilot_uid",
           name: "Fulano",
           last_name: "de Tal",
-          total_trips: 123,
-          member_since: Date.now(),
+          total_trips: "123",
+          member_since: Date.now().toString(),
           phone_number: "(38) 99999-9999",
           current_client_uid: "",
-          current_latitude: 10.123456,
-          current_longitude: 11.123456,
+          current_latitude: "10.123456",
+          current_longitude: "11.123456",
           current_zone: "AA",
           status: "available",
           vehicle: {
@@ -50,8 +50,8 @@ describe("pilots", () => {
             year: 2015,
             plate: "AAA-0000",
           },
-          idle_since: Date.now(),
-          rating: 4.79,
+          idle_since: Date.now().toString(),
+          rating: "4.79",
         },
       });
       assert.equal(pilots.length, 1);
@@ -65,11 +65,11 @@ describe("pilots", () => {
           uid: "first_pilot_uid",
           name: "Fulano",
           last_name: "de Tal",
-          total_trips: 123,
-          member_since: Date.now(),
+          total_trips: "123",
+          member_since: Date.now().toString(),
           phone_number: "(38) 99999-9999",
-          current_latitude: 10.123456,
-          current_longitude: 11.123456,
+          current_latitude: "10.123456",
+          current_longitude: "11.123456",
           current_zone: "AA",
           status: "available",
           vehicle: {
@@ -78,8 +78,8 @@ describe("pilots", () => {
             year: 2015,
             plate: "AAA-0000",
           },
-          idle_since: Date.now(),
-          rating: 4.79,
+          idle_since: Date.now().toString(),
+          rating: "4.79",
         },
       });
       assert.equal(pilots.length, 1);
@@ -89,19 +89,19 @@ describe("pilots", () => {
     });
 
     it("outputs PilotInterface list when parameters are valid", () => {
-      let idleSince = Date.now();
-      let rating = 4.79;
+      let idleSince = Date.now().toString();
+      let rating = "4.79";
       const obj = {
         first_pilot_uid: {
           uid: "first_pilot_uid",
           name: "Fulano",
           last_name: "de Tal",
-          total_trips: 123,
-          member_since: Date.now(),
+          total_trips: "123",
+          member_since: Date.now().toString(),
           phone_number: "(38) 99999-9999",
           current_client_uid: "",
-          current_latitude: 10.123456,
-          current_longitude: 11.123456,
+          current_latitude: "10.123456",
+          current_longitude: "11.123456",
           current_zone: "AA",
           status: "available",
           vehicle: {
@@ -121,8 +121,8 @@ describe("pilots", () => {
       assert.equal(pilots.length, 1);
       assert.equal(pilots[0].uid, "first_pilot_uid");
       assert.equal(pilots[0].current_client_uid, "");
-      assert.equal(pilots[0].current_latitude, 10.123456);
-      assert.equal(pilots[0].current_longitude, 11.123456);
+      assert.equal(pilots[0].current_latitude, "10.123456");
+      assert.equal(pilots[0].current_longitude, "11.123456");
       assert.equal(pilots[0].current_zone, "AA");
       assert.equal(pilots[0].status, "available");
       assert.equal(pilots[0].idle_since, idleSince);
@@ -160,13 +160,13 @@ describe("pilots", () => {
           name: "Fulano",
           last_name: "de Tal",
           phone_number: "(38) 99999-9999",
-          current_latitude: -17.217587,
-          current_longitude: -46.881064,
+          current_latitude: "-17.217587",
+          current_longitude: "-46.881064",
           current_zone: "AA",
           status: "available",
           vehicle: {},
-          idle_since: Date.now(),
-          rating: 5.0,
+          idle_since: Date.now().toString(),
+          rating: "5.0",
         },
       ];
     });
@@ -278,16 +278,16 @@ describe("pilots", () => {
         uid: "pilot1",
         name: "Fulano",
         last_name: "de Tal",
-        total_trips: 123,
-        member_since: Date.now(),
+        total_trips: "123",
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "status",
         vehicle: {},
-        idle_since: now,
-        rating: 5.0,
+        idle_since: now.toString(),
+        rating: "5.0",
         position: {
           distance_value: 0,
         },
@@ -297,16 +297,16 @@ describe("pilots", () => {
         uid: "pilot2",
         name: "Beltrano",
         last_name: "de Tal",
-        total_trips: 123,
-        member_since: Date.now(),
+        total_trips: "123",
+        member_since: Date.now().toString(),
         phone_number: "(38) 88888-8888",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "status",
         vehicle: {},
-        idle_since: now,
-        rating: 5.0,
+        idle_since: now.toString(),
+        rating: "5.0",
         position: {
           distance_value: 0,
         },
@@ -315,7 +315,7 @@ describe("pilots", () => {
 
     it("pilot with more idle time is ranked higher", () => {
       // pilot 1 has more idle time
-      defaultPilot1.idle_since = now - 300;
+      defaultPilot1.idle_since = (now - 300).toString();
 
       // pilot 2 comes first initially
       let pilots = [defaultPilot2, defaultPilot1];
@@ -328,7 +328,7 @@ describe("pilots", () => {
 
     it("pilot with more higher rating is ranked higher", () => {
       // pilot 2 has lower rating
-      defaultPilot2.rating = 4;
+      defaultPilot2.rating = "4";
 
       // pilot 2 comes first initially
       let pilots = [defaultPilot2, defaultPilot1];
@@ -449,11 +449,11 @@ describe("pilots", () => {
         uid: "availableOneInDB",
         name: "Fulano",
         last_name: "de Tal",
-        total_trips: 123,
-        member_since: Date.now(),
+        total_trips: "123",
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.221879,
-        current_longitude: -46.875143,
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
         current_zone: "DB",
         status: "available",
         vehicle: {
@@ -462,18 +462,18 @@ describe("pilots", () => {
           model: "cg-150",
           plate: "aaa-0000",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       let availableTwoInDC = {
         uid: "availableTwoInDC",
         name: "Ciclano",
         last_name: "de Tal",
-        total_trips: 123,
-        member_since: Date.now(),
+        total_trips: "123",
+        member_since: Date.now().toString(),
         phone_number: "(38) 77777-8888",
-        current_latitude: -17.221035,
-        current_longitude: -46.863207,
+        current_latitude: "-17.221035",
+        current_longitude: "-46.863207",
         current_zone: "DC",
         status: "available",
         vehicle: {
@@ -482,18 +482,18 @@ describe("pilots", () => {
           model: "cg-150",
           plate: "aaa-0000",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       let availableThreeInDC = {
         uid: "availableThreeInDC",
         name: "Ciclano",
         last_name: "de Fulano",
-        total_trips: 123,
-        member_since: Date.now(),
+        total_trips: "123",
+        member_since: Date.now().toString(),
         phone_number: "(38) 77777-8888",
-        current_latitude: -17.221471,
-        current_longitude: -46.86266,
+        current_latitude: "-17.221471",
+        current_longitude: "-46.86266",
         current_zone: "DC",
         status: "available",
         vehicle: {
@@ -502,18 +502,18 @@ describe("pilots", () => {
           model: "cg-150",
           plate: "aaa-0000",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       let busyInDC = {
         uid: "busyInDC",
         name: "Betrano",
         last_name: "de Ciclano",
-        total_trips: 123,
-        member_since: Date.now(),
+        total_trips: "123",
+        member_since: Date.now().toString(),
         phone_number: "(38) 77777-8888",
-        current_latitude: -17.222722,
-        current_longitude: -46.861959,
+        current_latitude: "-17.222722",
+        current_longitude: "-46.861959",
         current_zone: "DC",
         status: "busy",
         vehicle: {
@@ -522,8 +522,8 @@ describe("pilots", () => {
           model: "cg-150",
           plate: "aaa-0000",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
 
       // add pilots to database

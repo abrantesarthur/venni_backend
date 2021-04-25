@@ -45,9 +45,7 @@ describe("authEvents", () => {
       };
       defaultClient = {
         uid: defaultUID,
-        rating: 5,
-        total_rated_trips: 0,
-        total_rating: 0,
+        rating: "5",
       };
       defaultPastTrip = {
         uid: defaultUID,
@@ -61,7 +59,7 @@ describe("authEvents", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         driver_id: "pilotID",
@@ -170,9 +168,9 @@ describe("authEvents", () => {
         .once("value");
       assert.isNotNull(snapshot.val());
       assert.equal(snapshot.val().uid, defaultUID);
-      assert.equal(snapshot.val().rating, 5);
-      assert.equal(snapshot.val().total_rated_trips, 0);
-      assert.equal(snapshot.val().total_rating, 0);
+      assert.equal(snapshot.val().rating, "5");
+      assert.isUndefined(snapshot.val().total_rated_trips);
+      assert.isUndefined(snapshot.val().total_rating);
     });
   });
 });
