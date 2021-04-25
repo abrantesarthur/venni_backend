@@ -65,7 +65,7 @@ describe("trip", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         driver_id: driverID,
@@ -461,9 +461,9 @@ describe("trip", () => {
         name: "Fulano",
         last_name: "de Tal",
         phone_number: "(38) 99999-9999",
-        member_since: Date.now(),
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        member_since: Date.now().toString(),
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "available",
         vehicle: {
@@ -472,8 +472,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       const pilotRef = admin.database().ref("pilots").child(pilotID);
       await pilotRef.set(defaultPilot);
@@ -491,7 +491,7 @@ describe("trip", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
       };
@@ -715,10 +715,10 @@ describe("trip", () => {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "available",
         vehicle: {
@@ -727,8 +727,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       pilot.uid = pilotID1;
       await pilotsRef.child(pilotID1).set(pilot);
@@ -781,7 +781,7 @@ describe("trip", () => {
       assert.equal(confirmResult.current_client_uid, defaultUID);
       assert.equal(confirmResult.trip_status, "waiting-driver");
       // pilot's total_trips is zero
-      assert.equal(confirmResult.total_trips, 0);
+      assert.equal(confirmResult.total_trips, "0");
 
       // assert trip has waiting-driver status
       tripRequestSnapshot = await tripRequestRef.once("value");
@@ -819,10 +819,10 @@ describe("trip", () => {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "",
         vehicle: {
@@ -831,8 +831,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       pilot.uid = pilotID1;
       pilot.status = "available";
@@ -966,10 +966,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "requested",
         current_client_uid: clientID,
@@ -979,8 +979,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1027,10 +1027,10 @@ describe("trip", () => {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "available",
         vehicle: {
@@ -1039,8 +1039,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       defaultPilot.uid = pilotID1;
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
@@ -1097,9 +1097,9 @@ describe("trip", () => {
         name: "Fulano",
         last_name: "de Tal",
         phone_number: "(38) 99999-9999",
-        member_since: Date.now(),
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        member_since: Date.now().toString(),
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "available",
         vehicle: {
@@ -1108,8 +1108,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       defaultPilot.uid = pilotID1;
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
@@ -1209,10 +1209,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: clientID,
         current_zone: "AA",
         status: "busy",
@@ -1222,8 +1222,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1268,10 +1268,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: clientID,
         current_zone: "AA",
         status: "busy",
@@ -1281,8 +1281,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1326,10 +1326,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: clientID,
         current_zone: "AA",
         status: "busy",
@@ -1339,8 +1339,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1367,10 +1367,10 @@ describe("trip", () => {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "available",
         vehicle: {
@@ -1379,8 +1379,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       defaultPilot.uid = pilotID1;
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
@@ -1569,10 +1569,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: clientID,
         current_zone: "AA",
         status: "available",
@@ -1582,8 +1582,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1611,10 +1611,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "busy",
         vehicle: {
@@ -1623,8 +1623,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1652,10 +1652,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: clientID,
         current_zone: "AA",
         status: "busy",
@@ -1665,8 +1665,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1683,7 +1683,7 @@ describe("trip", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         driver_id: pilotID1,
@@ -1723,7 +1723,7 @@ describe("trip", () => {
       const clientRef = admin.database().ref("clients").child(clientID);
       await clientRef.set({
         uid: clientID,
-        rating: 5,
+        rating: "5",
       });
 
       // add a pilot to the database supposedly handing a trip for clientID
@@ -1732,10 +1732,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: clientID,
         current_zone: "AA",
         status: "busy",
@@ -1745,8 +1745,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1777,7 +1777,7 @@ describe("trip", () => {
       const clientRef = admin.database().ref("clients").child(defaultUID);
       await clientRef.set({
         uid: defaultUID,
-        rating: 5,
+        rating: "5",
       });
 
       // add trip request for defaultUID with status different from in-progress
@@ -1789,10 +1789,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: defaultUID,
         current_zone: "AA",
         status: "busy",
@@ -1802,8 +1802,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1831,7 +1831,7 @@ describe("trip", () => {
       const clientRef = admin.database().ref("clients").child(defaultUID);
       await clientRef.set({
         uid: defaultUID,
-        rating: 5,
+        rating: "5",
       });
 
       // add trip request for clientID being handled by a different pilot
@@ -1843,10 +1843,10 @@ describe("trip", () => {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: defaultUID,
         current_zone: "AA",
         status: "busy",
@@ -1856,8 +1856,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
@@ -1882,7 +1882,7 @@ describe("trip", () => {
       const clientRef = admin.database().ref("clients").child(defaultUID);
       await clientRef.set({
         uid: defaultUID,
-        rating: 0,
+        rating: "0",
       });
 
       // add trip request for defaultUID being handled by the pilot
@@ -1898,7 +1898,7 @@ describe("trip", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         driver_id: pilotID1,
@@ -1911,16 +1911,16 @@ describe("trip", () => {
       await tripRequestRef.set(defaultTripRequest);
 
       // add a pilot to the database supposedly handing the trip for defaultUID
-      const initialIdleSince = Date.now();
+      const initialIdleSince = Date.now().toString();
       await admin.database().ref("pilots").remove();
       let defaultPilot = {
         uid: pilotID1,
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_client_uid: defaultUID,
         current_zone: "AA",
         status: "busy",
@@ -1931,7 +1931,7 @@ describe("trip", () => {
           plate: "HMR 1092",
         },
         idle_since: initialIdleSince,
-        rating: 5.0,
+        rating: "5.0",
       };
       const pilotRef = admin.database().ref("pilots").child(pilotID1);
       await pilotRef.set(defaultPilot);
@@ -1951,7 +1951,7 @@ describe("trip", () => {
       // before pilot completes trip, assert client has not been updated
       let clientSnapshot = await clientRef.once("value");
       assert.isNotNull(clientSnapshot.val());
-      assert.equal(clientSnapshot.val().rating, 0);
+      assert.equal(clientSnapshot.val().rating, "0");
       assert.equal(clientSnapshot.val().uid, defaultUID);
       assert.isUndefined(clientSnapshot.val().total_rated_trips);
       assert.isUndefined(clientSnapshot.val().total_rating);
@@ -1975,27 +1975,30 @@ describe("trip", () => {
       assert.isNotNull(pilotSnapshot.val());
       assert.equal(pilotSnapshot.val().status, "available");
       assert.equal(pilotSnapshot.val().current_client_uid, "");
-      assert.isAbove(pilotSnapshot.val().idle_since, initialIdleSince);
+      assert.isAbove(
+        Number(pilotSnapshot.val().idle_since),
+        Number(initialIdleSince)
+      );
 
       // assert pilot's has a past trip
       pilotPastTrips = await ppt.getPastTrips();
       assert.equal(pilotPastTrips.length, 1);
       assert.equal(pilotPastTrips[0].uid, defaultUID);
-      assert.equal(pilotSnapshot.val().total_trips, 1);
+      assert.equal(pilotSnapshot.val().total_trips, "1");
 
       // assert client has been updated
       clientSnapshot = await clientRef.once("value");
       assert.isNotNull(clientSnapshot.val());
-      assert.equal(clientSnapshot.val().rating, clientRating);
+      assert.equal(clientSnapshot.val().rating, clientRating.toString());
       assert.equal(clientSnapshot.val().uid, defaultUID);
-      assert.equal(clientSnapshot.val().total_rated_trips, 1);
-      assert.equal(clientSnapshot.val().total_rating, clientRating);
+      assert.equal(clientSnapshot.val().total_rated_trips, "1");
+      assert.equal(clientSnapshot.val().total_rating, clientRating.toString());
 
       // assert client has one past trip with client_rating
       clientPastTrips = await cpt.getPastTrips();
       assert.equal(clientPastTrips.length, 1);
       assert.equal(clientPastTrips[0].uid, defaultUID);
-      assert.equal(clientPastTrips[0].client_rating, clientRating);
+      assert.equal(clientPastTrips[0].client_rating, clientRating.toString());
 
       // assert a reference key has been added to the trip request.
       let tripSnapshot = await tripRequestRef.once("value");
@@ -2214,7 +2217,7 @@ describe("trip", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         driver_id: "driver_id",
@@ -2262,9 +2265,9 @@ describe("trip", () => {
         name: "Fulano",
         last_name: "de Tal",
         phone_number: "(38) 99999-9999",
-        member_since: Date.now(),
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        member_since: Date.now().toString(),
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "available",
         vehicle: {
@@ -2273,8 +2276,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       const pilotRef = admin.database().ref("pilots").child(pilotID);
       await pilotRef.set(defaultPilot);
@@ -2293,7 +2296,7 @@ describe("trip", () => {
         duration_seconds: 300,
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: Date.now(),
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         driver_id: pilotID,
@@ -2325,7 +2328,7 @@ describe("trip", () => {
       pastTrips = await ppt.getPastTrips();
       assert.equal(pastTrips.length, 1);
       assert.isDefined(pastTrips[0].driver_rating);
-      assert.equal(pastTrips[0].driver_rating.score, 2);
+      assert.equal(pastTrips[0].driver_rating.score, "2");
       assert.equal(pastTrips[0].driver_rating.cleanliness_went_well, true);
       assert.equal(pastTrips[0].driver_rating.safety_went_well, false);
       assert.equal(
@@ -2354,7 +2357,7 @@ describe("trip", () => {
       //  add client entry to the database
       await admin.database().ref("clients").child(defaultUID).set({
         uid: defaultUID,
-        rating: 2,
+        rating: "2",
       });
 
       // add an available pilot to the database
@@ -2363,10 +2366,10 @@ describe("trip", () => {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
-        member_since: Date.now(),
+        member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
-        current_latitude: -17.217587,
-        current_longitude: -46.881064,
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
         current_zone: "AA",
         status: "available",
         vehicle: {
@@ -2375,8 +2378,8 @@ describe("trip", () => {
           year: 2020,
           plate: "HMR 1092",
         },
-        idle_since: Date.now(),
-        rating: 5.0,
+        idle_since: Date.now().toString(),
+        rating: "5.0",
       };
       defaultPilot.uid = pilotID1;
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
@@ -2433,7 +2436,7 @@ describe("trip", () => {
       // expect past trip to have been updated
       pastTrips = await ppt.getPastTrips();
       assert.isDefined(pastTrips[0].driver_rating);
-      assert.equal(pastTrips[0].driver_rating.score, 5);
+      assert.equal(pastTrips[0].driver_rating.score, "5");
       assert.equal(pastTrips[0].driver_rating.cleanliness_went_well, true);
       assert.equal(pastTrips[0].driver_rating.safety_went_well, undefined);
       assert.equal(

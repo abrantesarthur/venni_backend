@@ -55,17 +55,17 @@ export namespace TripRequest {
     duration_seconds: string;
     duration_text: string;
     encoded_points: string;
-    request_time: number; // number of milliseconds since 01/01/1970
+    request_time: string; // number of milliseconds since 01/01/1970
     origin_address: string;
     destination_address: string;
     pilot_past_trip_ref_key?: string; // added when pilot completes the trip
     driver_id?: string;
-    client_rating?: number;
+    client_rating?: string;
     driver_rating?: DriverRating; // added to pilot's past trips when client rates the pilot
   }
 
   export interface DriverRating {
-    score: number;
+    score: string;
     cleanliness_went_well?: boolean;
     safety_went_well?: boolean;
     waiting_time_went_well?: boolean;

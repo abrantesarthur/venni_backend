@@ -27,7 +27,7 @@ export class Pilot extends Database {
       }
       pilot.status = Pilot.Status.available;
       pilot.current_client_uid = "";
-      pilot.idle_since = Date.now();
+      pilot.idle_since = Date.now().toString();
       return pilot;
     });
   };
@@ -41,9 +41,9 @@ export class Pilot extends Database {
       if (pilot.total_trips == undefined) {
         totalTrips = 1;
       } else {
-        totalTrips = pilot.total_trips + 1;
+        totalTrips = Number(pilot.total_trips) + 1;
       }
-      pilot.total_trips = totalTrips;
+      pilot.total_trips = totalTrips.toString();
       return pilot;
     });
   };
@@ -85,17 +85,17 @@ export class Pilot extends Database {
 
     let totalRatedTrips = 0;
     if (pilot.total_rated_trips != undefined) {
-      totalRatedTrips = pilot.total_rated_trips;
+      totalRatedTrips = Number(pilot.total_rated_trips);
     }
     totalRatedTrips += 1;
     let totalRating = 0;
     if (pilot.total_rating != undefined) {
-      totalRating = pilot.total_rating;
+      totalRating = Number(pilot.total_rating);
     }
     totalRating += rateObj.driver_rating;
 
-    await this.ref.child("total_rated_trips").set(totalRatedTrips);
-    await this.ref.child("total_rating").set(totalRating);
+    await this.ref.child("total_rated_trips").set(totalRatedTrips.toString());
+    await this.ref.child("total_rating").set(totalRating.toString());
 
     // get pilot's past 200 trips
     let last200Trips = await ppt.getPastTrips(200);
@@ -109,7 +109,7 @@ export class Pilot extends Database {
           trip.driver_rating != undefined &&
           trip.driver_rating.score != undefined
         ) {
-          last200TotalRating += trip.driver_rating.score;
+          last200TotalRating += Number(trip.driver_rating.score);
           last200NumberOfRatings += 1;
         }
       });
@@ -120,7 +120,7 @@ export class Pilot extends Database {
         last200Trips.length < 5
           ? 5
           : last200TotalRating / last200NumberOfRatings;
-      await this.ref.child("rating").set(rating);
+      await this.ref.child("rating").set(rating.toString());
     }
   };
 }
@@ -145,19 +145,19 @@ export namespace Pilot {
     uid: string;
     name: string;
     last_name: string;
-    member_since: number;
+    member_since: string;
     phone_number: string;
     current_client_uid?: string;
-    current_latitude: number;
-    current_longitude: number;
+    current_latitude: string;
+    current_longitude: string;
     current_zone: ZoneName;
     status: Status;
     vehicle: VehicleInterface;
-    idle_since: number;
-    total_rated_trips?: number; // all trips that have ever been rated
-    total_rating?: number; // cumulative rating across all rated trips
-    rating: number; // based on last 200 trips
-    total_trips?: number; // incremented when driver completes a trip
+    idle_since: string;
+    total_rated_trips?: string; // all trips that have ever been rated
+    total_rating?: string; // cumulative rating across all rated trips
+    rating: string; // based on last 200 trips
+    total_trips?: string; // incremented when driver completes a trip
     score?: number; // not stored in database
     // TODO: change name to route or somethign
     distance_to_client?: DistanceToClient; // not stored in database

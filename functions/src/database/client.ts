@@ -34,17 +34,17 @@ export class Client extends Database {
 
     let totalRatedTrips = 0;
     if (client.total_rated_trips != undefined) {
-      totalRatedTrips = client.total_rated_trips;
+      totalRatedTrips = Number(client.total_rated_trips);
     }
     totalRatedTrips += 1;
     let totalRating = 0;
     if (client.total_rating != undefined) {
-      totalRating = client.total_rating;
+      totalRating = Number(client.total_rating);
     }
     totalRating += rating;
 
-    await this.ref.child("total_rated_trips").set(totalRatedTrips);
-    await this.ref.child("total_rating").set(totalRating);
+    await this.ref.child("total_rated_trips").set(totalRatedTrips.toString());
+    await this.ref.child("total_rating").set(totalRating.toString());
 
     // get client past 100 trips
     let cpt = new ClientPastTrips(this.id);
@@ -56,7 +56,7 @@ export class Client extends Database {
       let last100NumberOfRatings = 0;
       last100Trips.forEach((trip) => {
         if (trip.client_rating != undefined) {
-          last100TotalRating += trip.client_rating;
+          last100TotalRating += Number(trip.client_rating);
           last100NumberOfRatings += 1;
         }
       });
@@ -67,7 +67,7 @@ export class Client extends Database {
         last100Trips.length < 5
           ? 5
           : last100TotalRating / last100NumberOfRatings;
-      await this.ref.child("rating").set(rating);
+      await this.ref.child("rating").set(rating.toString());
     }
   };
 
@@ -86,7 +86,7 @@ export class Client extends Database {
     trip: TripRequest.Interface,
     rating: number
   ): Promise<string | null> => {
-    trip.client_rating = rating;
+    trip.client_rating = rating.toString();
     let pastTripRefKey = await this.pushPastTrip(trip);
     await this.rate(rating);
     return pastTripRefKey;
@@ -96,9 +96,9 @@ export class Client extends Database {
 export namespace Client {
   export interface Interface {
     uid: string;
-    total_rated_trips?: number; // all trips that have ever been rated
-    total_rating?: number; // cumulative rating across all rated trips
-    rating: number; // average of the ratings of the last 100 trips
+    total_rated_trips?: string; // all trips that have ever been rated
+    total_rating?: string; // cumulative rating across all rated trips
+    rating: string; // average of the ratings of the last 100 trips
   }
 
   export namespace Interface {
@@ -106,22 +106,40 @@ export namespace Client {
       if (obj == null || obj == undefined) {
         return false;
       }
+      if (
+        obj.total_rated_trips != undefined &&
+        typeof obj.total_rated_trips != "string"
+      ) {
+        return false;
+      }
+      if (
+        obj.total_rating != undefined &&
+        typeof obj.total_rating != "string"
+      ) {
+        return false;
+      }
+      let keys = Object.keys(obj);
+      for (var i = 0; i < keys.length; i++) {
+        if (
+          keys[i] != "uid" &&
+          keys[i] != "rating" &&
+          keys[i] != "total_rated_trips" &&
+          keys[i] != "total_rating"
+        ) {
+          return false;
+        }
+      }
       return (
         "uid" in obj &&
         "rating" in obj &&
         typeof obj.uid == "string" &&
-        typeof obj.rating == "number"
+        typeof obj.rating == "string"
       );
     };
 
     export const fromObj = (obj: any): Client.Interface | undefined => {
       if (is(obj)) {
-        return {
-          uid: obj.uid,
-          rating: obj.rating,
-          total_rated_trips: obj.total_rated_trips,
-          total_rating: obj.total_rating,
-        };
+        return obj as Client.Interface;
       }
       return;
     };

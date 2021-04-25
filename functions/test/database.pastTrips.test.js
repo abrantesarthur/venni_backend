@@ -29,7 +29,7 @@ describe("PastTrips", () => {
       duration_seconds: 300,
       duration_text: "5 minutes",
       encoded_points: "encoded_points",
-      request_time: Date.now(),
+      request_time: Date.now().toString(),
       origin_address: "origin_address",
       destination_address: "destination_address",
       driver_id: pilotID,
@@ -120,7 +120,7 @@ describe("PastTrips", () => {
           driver_id: "driver_id",
           client_rating: "client_rating",
           driver_rating: {
-            score: 4,
+            score: "4",
           },
           pilot_past_trip_ref_key: "pilot_past_trip_ref_key",
         },

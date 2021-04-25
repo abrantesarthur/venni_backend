@@ -24,7 +24,7 @@ export const getRandomLatitude = () => {
         LatLimit.ninthHighest) *
         1000000
     ) / 1000000
-  );
+  ).toString();
 };
 
 // returns a random latitude between LngLimit.highest and LngLimit.seventhHighest
@@ -56,22 +56,22 @@ export const createMockPilots = async (amount: number) => {
       uid: uid,
       name: "Alberto",
       last_name: "Silva",
-      total_trips: 142,
-      member_since: Date.now(),
+      total_trips: "142",
+      member_since: Date.now().toString(),
       phone_number: "(38) 99999-9999",
       current_client_uid: "",
       current_latitude: getRandomLatitude(),
       current_longitude: getRandomLongitude(),
       status: "available",
       vehicle: defaultVehicle,
-      idle_since: now,
-      rating: 4.9,
+      idle_since: now.toString(),
+      rating: "4.9",
       current_zone: "",
     };
 
     pilot.current_zone = getZoneNameFromCoordinate(
-      pilot.current_latitude,
-      pilot.current_longitude
+      Number(pilot.current_latitude),
+      Number(pilot.current_longitude)
     );
     db.ref("pilots").child(pilot.uid).set(pilot);
 
@@ -173,8 +173,8 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
 
   // get pilot's current coordinates
   let pilotCoordinates = {
-    lat: pilot.current_latitude,
-    lng: pilot.current_longitude,
+    lat: Number(pilot.current_latitude),
+    lng: Number(pilot.current_longitude),
   };
 
   // get trip request reference
@@ -216,8 +216,8 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
       if (pilot == null) {
         return {};
       }
-      pilot.current_latitude = steps[i].start_location.lat;
-      pilot.current_longitude = steps[i].start_location.lng;
+      pilot.current_latitude = steps[i].start_location.lat.toString();
+      pilot.current_longitude = steps[i].start_location.lng.toString();
       return pilot;
     });
     await sleep(1000);
@@ -226,8 +226,12 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
     if (pilot == null) {
       return {};
     }
-    pilot.current_latitude = steps[steps.length - 1].end_location.lat;
-    pilot.current_longitude = steps[steps.length - 1].end_location.lng;
+    pilot.current_latitude = steps[
+      steps.length - 1
+    ].end_location.lat.toString();
+    pilot.current_longitude = steps[
+      steps.length - 1
+    ].end_location.lng.toString();
     return pilot;
   });
 
@@ -322,8 +326,8 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
 
   // get pilot's current coordinates
   let pilotCoordinates = {
-    lat: pilot.current_latitude,
-    lng: pilot.current_longitude,
+    lat: Number(pilot.current_latitude),
+    lng: Number(pilot.current_longitude),
   };
 
   // get trip request reference
@@ -365,8 +369,8 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
       if (pilot == null) {
         return {};
       }
-      pilot.current_latitude = steps[i].start_location.lat;
-      pilot.current_longitude = steps[i].start_location.lng;
+      pilot.current_latitude = steps[i].start_location.lat.toString();
+      pilot.current_longitude = steps[i].start_location.lng.toString();
       return pilot;
     });
     await sleep(1000);
@@ -375,8 +379,12 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
     if (pilot == null) {
       return {};
     }
-    pilot.current_latitude = steps[steps.length - 1].end_location.lat;
-    pilot.current_longitude = steps[steps.length - 1].end_location.lng;
+    pilot.current_latitude = steps[
+      steps.length - 1
+    ].end_location.lat.toString();
+    pilot.current_longitude = steps[
+      steps.length - 1
+    ].end_location.lng.toString();
     return pilot;
   });
 
@@ -424,26 +432,26 @@ const mockTripComplete = async (pilotID: string) => {
     );
   }
 
-   // free the pilot to handle other trips
+  // free the pilot to handle other trips
   await p.free();
 
-   // add trip with completed status to pilot's list of past trips
-   trip.trip_status = TripRequest.Status.completed;
-   let pastTripRefKey = await p.pushPastTrip(trip);
+  // add trip with completed status to pilot's list of past trips
+  trip.trip_status = TripRequest.Status.completed;
+  let pastTripRefKey = await p.pushPastTrip(trip);
 
-   // save past trip's reference key in trip request's pilot_past_trip_ref_key
-   // this is so the client can retrieve it later when rating the pilot
-   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
-     if (tripRequest == null) {
-       return {};
-     }
-     if (pastTripRefKey != null) {
-       tripRequest.pilot_past_trip_ref_key = pastTripRefKey;
-     }
-     return tripRequest;
-   });
+  // save past trip's reference key in trip request's pilot_past_trip_ref_key
+  // this is so the client can retrieve it later when rating the pilot
+  await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+    if (tripRequest == null) {
+      return {};
+    }
+    if (pastTripRefKey != null) {
+      tripRequest.pilot_past_trip_ref_key = pastTripRefKey;
+    }
+    return tripRequest;
+  });
 
-   // make sure there exists a client entry
+  // make sure there exists a client entry
   const c = new Client(clientID);
   let client = await c.getClient();
   if (client == null || client == undefined) {
@@ -458,20 +466,16 @@ const mockTripComplete = async (pilotID: string) => {
   // passes it by argument
   await c.pushPastTripAndRate(trip, 4);
 
-
   // set trip's status to completed only if it is being handled by our driver
-  await transaction(
-    tr.ref,
-    (tripRequest: TripRequest.Interface) => {
-      if (tripRequest == null) {
-        // we always check for null in transactions.
-        return {};
-      }
-        // set trip's status to completed
-        tripRequest.trip_status = TripRequest.Status.completed;
-        return tripRequest;
+  await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+    if (tripRequest == null) {
+      // we always check for null in transactions.
+      return {};
     }
-  );
+    // set trip's status to completed
+    tripRequest.trip_status = TripRequest.Status.completed;
+    return tripRequest;
+  });
 };
 
 // mock driver behaves as a driver accepting a trip request would behave

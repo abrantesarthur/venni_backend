@@ -114,8 +114,8 @@ export class Pilots extends Database {
     let pilotsCoordinates: Array<LatLngLiteral> = [];
     pilots.forEach((pilot) => {
       pilotsCoordinates.push({
-        lat: pilot.current_latitude,
-        lng: pilot.current_longitude,
+        lat: Number(pilot.current_latitude),
+        lng: Number(pilot.current_longitude),
       });
     });
 
@@ -183,11 +183,11 @@ export class Pilots extends Database {
     // calculate each pilot's score
     const now = Date.now();
     pilots.forEach((pilot) => {
-      let pilotIdleSeconds = (now - pilot.idle_since) / 1000;
+      let pilotIdleSeconds = (now - Number(pilot.idle_since)) / 1000;
       pilot.score =
         this.distanceScore(pilot.distance_to_client?.distance_value) +
         this.idleTimeScore(pilotIdleSeconds) +
-        this.ratingScore(pilot.rating);
+        this.ratingScore(Number(pilot.rating));
     });
 
     // sort pilots by score

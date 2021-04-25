@@ -72,7 +72,7 @@ describe("TripRequest.Interface", () => {
         request_time: "request_time",
         origin_address: "origin_address",
         driver_rating: {
-          score: 2,
+          score: "2",
           invalid_key: true,
         },
         destination_address: "destination_address",
@@ -96,7 +96,7 @@ describe("TripRequest.Interface", () => {
         request_time: "request_time",
         origin_address: "origin_address",
         driver_rating: {
-          score: 2,
+          score: "2",
           safety_went_well: true,
           cleanliness_went_well: false,
           feedback: "good trip!",
@@ -134,7 +134,7 @@ describe("TripRequest.Interface", () => {
         client_rating: "client_rating",
         pilot_past_trip_ref_key: "pilot_past_trip_ref_key",
         driver_rating: {
-          score: 4,
+          score: "4",
           cleanliness_went_well: true,
           feedback: "the trip went great!",
         },
@@ -157,7 +157,7 @@ describe("TripRequest.Interface", () => {
       assert.equal(response.destination_address, "destination_address");
       assert.equal(response.client_rating, "client_rating");
       assert.isDefined(response.driver_rating);
-      assert.equal(response.driver_rating.score, 4);
+      assert.equal(response.driver_rating.score, "4");
       assert.equal(response.driver_rating.cleanliness_went_well, true);
       assert.equal(response.driver_rating.safety_went_well, undefined);
       assert.equal(response.driver_rating.waiting_time_went_well, undefined);
