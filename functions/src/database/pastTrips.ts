@@ -9,7 +9,18 @@ export class PastTrips extends Database {
     this.ref = this.DB.ref("past-trips").child(userCategory).child(uid);
   }
 
-  // getPastTripsByID returns the past trips of the client. If 'limit' is defined, it returns
+  // updatePastTrip updates past trip with values
+  updatePastTrip = async (key: string, values: Object) => {
+    let snapshot = await this.ref.child(key).once("value");
+    // abort if trip does not exist
+    if (snapshot.val() == null) {
+      return;
+    }
+    // otherwise, update trip with values
+    await this.ref.child(key).update(values);
+  };
+
+  // getPastTrips returns the past trips of the client. If 'limit' is defined, it returns
   // at most 'limit' past trips. Otherwise, it returns all past trips.
   getPastTrips = async (limit?: number): Promise<TripRequest.Interface[]> => {
     let snapshot;

@@ -119,7 +119,9 @@ describe("PastTrips", () => {
           destination_address: "destination_address",
           driver_id: "driver_id",
           client_rating: "client_rating",
-          driver_rating: "driver_rating",
+          driver_rating: {
+            score: 4,
+          },
           pilot_past_trip_ref_key: "pilot_past_trip_ref_key",
         },
       };
