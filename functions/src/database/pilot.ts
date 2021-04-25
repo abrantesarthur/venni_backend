@@ -65,8 +65,8 @@ export class Pilot extends Database {
   };
 
   // rateObj has the following interface:
-  // {
-  //   driver_rating: number;
+  // driver_rating: {
+  //   score: number;
   //   cleanliness_went_well?: bool;
   //   safety_went_well?: bool;
   //   waiting_time_went_well?: bool;
@@ -92,7 +92,7 @@ export class Pilot extends Database {
     if (pilot.total_rating != undefined) {
       totalRating = Number(pilot.total_rating);
     }
-    totalRating += rateObj.driver_rating;
+    totalRating += rateObj.driver_rating.score;
 
     await this.ref.child("total_rated_trips").set(totalRatedTrips.toString());
     await this.ref.child("total_rating").set(totalRating.toString());
