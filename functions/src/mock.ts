@@ -35,7 +35,7 @@ export const getRandomLongitude = () => {
         LngLimit.seventhHighest) *
         1000000
     ) / 1000000
-  );
+  ).toString();
 };
 
 export const createMockPilots = async (amount: number) => {
