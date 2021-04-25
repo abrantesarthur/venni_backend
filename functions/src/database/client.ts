@@ -67,7 +67,7 @@ export class Client extends Database {
         last100Trips.length < 5
           ? 5
           : last100TotalRating / last100NumberOfRatings;
-      await this.ref.child("rating").set(rating.toString());
+      await this.ref.child("rating").set(((rating * 100) / 100).toFixed(2).toString());
     }
   };
 

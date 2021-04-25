@@ -120,7 +120,7 @@ export class Pilot extends Database {
         last200Trips.length < 5
           ? 5
           : last200TotalRating / last200NumberOfRatings;
-      await this.ref.child("rating").set(rating.toString());
+      await this.ref.child("rating").set(((rating * 100) / 100).toFixed(2).toString());
     }
   };
 }
