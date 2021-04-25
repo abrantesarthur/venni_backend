@@ -134,12 +134,12 @@ test: build
 
 deploy:
 ifdef FUNCTIONNAME
-	$(FIREBASEDEPLOY) --debug --only functions:$(FUNCTIONNAME)
+	$(FIREBASEDEPLOY) --only functions:$(FUNCTIONNAME)
 else 
 ifdef DEPLOYGROUP
-	$(FIREBASEDEPLOY) --debug --only functions:$(DEPLOYGROUP)
+	$(FIREBASEDEPLOY) --only functions:$(DEPLOYGROUP)
 else
-	$(FIREBASEDEPLOY) --debug --only functions
+	$(FIREBASEDEPLOY) --only functions
 endif
 endif
 

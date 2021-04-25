@@ -110,12 +110,14 @@ export namespace Client {
         obj.total_rated_trips != undefined &&
         typeof obj.total_rated_trips != "string"
       ) {
+
         return false;
       }
       if (
         obj.total_rating != undefined &&
         typeof obj.total_rating != "string"
       ) {
+
         return false;
       }
       let keys = Object.keys(obj);
@@ -129,6 +131,7 @@ export namespace Client {
           return false;
         }
       }
+
       return (
         "uid" in obj &&
         "rating" in obj &&
