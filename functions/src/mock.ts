@@ -382,24 +382,82 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
 
   // wait 1 second before completing the trip
   await sleep(1000);
-  await mockTripComplete(pilot);
+  await mockTripComplete(pilot.uid);
 };
 
-const mockTripComplete = async (pilot: Pilot.Interface) => {
+const mockTripComplete = async (pilotID: string) => {
   console.log("mockTripComplete began execution");
 
   // make sure the pilot's status is busy and trip's current_client_id is set
+  const p = new Pilot(pilotID);
+  let pilot = await p.getPilot();
   if (
     pilot == null ||
     pilot.status != Pilot.Status.busy ||
     pilot.current_client_uid == null
   ) {
-    console.log("pilot " + pilot.uid + " is not busy!");
+    console.log("pilot " + pilotID + " is not busy!");
     return;
   }
 
-  // get a reference to user's trip request
-  const tr = new TripRequest(pilot.current_client_uid);
+  // make sure the pilot is handling an inProgress trip for some client
+  const clientID = pilot.current_client_uid;
+  const tr = new TripRequest(clientID);
+  let trip = await tr.getTripRequest();
+  if (trip == null) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "There is no trip request being handled by the pilot '" + pilotID + "'"
+      // TODO: change message to include clientID
+    );
+  } else if (trip.trip_status != "in-progress") {
+    // it was aborted because trip is not in valid in-progress status
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "cannot complete trip in status '" + trip.trip_status + "'"
+    );
+  } else if (trip.driver_id != pilotID) {
+    // it was aborted because it is not being handled by our driver_id
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "pilot has not been designated to this trip"
+    );
+  }
+
+   // free the pilot to handle other trips
+  await p.free();
+
+   // add trip with completed status to pilot's list of past trips
+   trip.trip_status = TripRequest.Status.completed;
+   let pastTripRefKey = await p.pushPastTrip(trip);
+
+   // save past trip's reference key in trip request's pilot_past_trip_ref_key
+   // this is so the client can retrieve it later when rating the pilot
+   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+     if (tripRequest == null) {
+       return {};
+     }
+     if (pastTripRefKey != null) {
+       tripRequest.pilot_past_trip_ref_key = pastTripRefKey;
+     }
+     return tripRequest;
+   });
+
+   // make sure there exists a client entry
+  const c = new Client(clientID);
+  let client = await c.getClient();
+  if (client == null || client == undefined) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "there exists no client with id '" + clientID + "'"
+    );
+  }
+
+  // save trip to client's list of past trips and rate client
+  // we are hardcoding the rate, but in real example the pilot
+  // passes it by argument
+  await c.pushPastTripAndRate(trip, 4);
+
 
   // set trip's status to completed only if it is being handled by our driver
   await transaction(
@@ -409,49 +467,9 @@ const mockTripComplete = async (pilot: Pilot.Interface) => {
         // we always check for null in transactions.
         return {};
       }
-
-      // if trip is waiting for our driver
-      if (
-        tripRequest.trip_status == "in-progress" &&
-        tripRequest.driver_id == pilot.uid
-      ) {
         // set trip's status to completed
         tripRequest.trip_status = TripRequest.Status.completed;
         return tripRequest;
-      }
-
-      // otherwise, abort
-      return;
-    },
-    async (error, completed, tripSnapshot) => {
-      // if transaction failed abnormally
-      if (error) {
-        console.log(error);
-        return;
-      }
-
-      // if transaction was aborted
-      if (completed == false) {
-        // another pilot was handling  the trip, so throw error.
-        console.log("trip is not being handled by pilot " + pilot.uid);
-        return;
-      }
-      console.log("pilot has succesfully completed the trip!");
-
-      // free the pilot to handle other trips
-      const p = new Pilot(pilot.uid);
-      await p.free();
-      // save trip to list of pilot's past trips
-      let trip = TripRequest.Interface.fromObj(tripSnapshot?.val());
-      if (trip != undefined) {
-        await p.pushPastTrip(trip);
-
-        // update client's data
-        if (pilot.current_client_uid != undefined) {
-          const c = new Client(pilot.current_client_uid);
-          c.pushPastTripAndRate(trip, 4);
-        }
-      }
     }
   );
 };
