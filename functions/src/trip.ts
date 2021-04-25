@@ -134,80 +134,36 @@ function validateCompleteTripArguments(obj: any) {
   }
 }
 
-// validateRateDriverArguments enforce the following interface:
+// validateRateDriverArguments enforces DriverRating interface
+// plus driver_id
 // {
 //   driver_id: string;
-//   driver_rating: number;
-//   went_well?: {
-//     items?: DriverRatingFeedbackComponent[];
-//     another?: string;
-//   };
-//   must_improve?: {
-//     items?: DriverRatingFeedbackComponent[];
-//     another?: string;
-//   };
+//   score: number;
+//   cleanliness_went_well?: bool;
+//   safety_went_well?: bool;
+//   waiting_time_went_well?: bool;
+//   feedback: string;
 // }
 function validateRateDriverArguments(obj: any) {
   validateArgument(
     obj,
-    ["driver_id", "driver_rating", "went_well", "must_improve"],
-    ["string", "number", "object", "object"],
-    [true, true, false, false]
+    [
+      "driver_id",
+      "score",
+      "cleanliness_went_well",
+      "safety_went_well",
+      "waiting_time_went_well",
+      "feedback",
+    ],
+    ["string", "number", "boolean", "boolean", "boolean", "string"],
+    [true, true, false, false, false, false]
   );
 
-  if (obj.driver_rating > 5 || obj.driver_rating < 0) {
+  if (obj.score > 5 || obj.score < 0) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "argument driver_rating must be a number between 0 and 5."
+      "argument 'score' must be a number between 0 and 5."
     );
-  }
-
-  const validateItem = (keyName: string, item: string) => {
-    if (
-      item != DriverRatingFeedbackComponent.cleanliness &&
-      item != DriverRatingFeedbackComponent.safety &&
-      item != DriverRatingFeedbackComponent.waitingTime
-    ) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "invalid " +
-          keyName +
-          " item '" +
-          item +
-          "'. Must be one of 'cleanliness', 'safety' and 'waiting-time'."
-      );
-    }
-  };
-
-  if (obj.went_well != undefined) {
-    validateArgument(
-      obj.went_well,
-      ["items", "another"],
-      ["object", "string"],
-      [false, false]
-    );
-
-    if (obj.went_well.items != undefined) {
-      let wentWellItems = obj.went_well.items as string[];
-      wentWellItems.forEach((item) => {
-        validateItem("went_well", item);
-      });
-    }
-  }
-  if (obj.must_improve != undefined) {
-    validateArgument(
-      obj.must_improve,
-      ["items", "another"],
-      ["object", "string"],
-      [false, false]
-    );
-
-    if (obj.must_improve.items != undefined) {
-      let mustImproveItems = obj.must_improve.items as string[];
-      mustImproveItems.forEach((item) => {
-        validateItem("must_improve", item);
-      });
-    }
   }
 }
 
@@ -940,16 +896,12 @@ const completeTrip = async (
   // validate arguments
   validateCompleteTripArguments(data);
 
-  const pilotID = context.auth.uid;
-
-  // get a reference to pilot data
-  let p = new Pilot(pilotID);
-
   // make sure the pilot's status is busy and trip's current_client_id is set
-  let pilotSnapshot = await p.ref.once("value");
-  let pilot = pilotSnapshot.val() as Pilot.Interface;
+  const pilotID = context.auth.uid;
+  let p = new Pilot(pilotID);
+  let pilot = await p.getPilot();
   if (
-    pilot == null ||
+    pilot == undefined ||
     pilot.status != Pilot.Status.busy ||
     pilot.current_client_uid == undefined ||
     pilot.current_client_uid == ""
@@ -960,8 +912,49 @@ const completeTrip = async (
     );
   }
 
-  // make sure there exists a client entry
+  // make sure the pilot is handling an inProgress trip for some client
   const clientID = pilot.current_client_uid;
+  const tr = new TripRequest(clientID);
+  let trip = await tr.getTripRequest();
+  if (trip == null) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "There is no trip request being handled by the pilot '" + pilotID + "'"
+      // TODO: change message to include clientID
+    );
+  } else if (trip.trip_status != "in-progress") {
+    // it was aborted because trip is not in valid in-progress status
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "cannot complete trip in status '" + trip.trip_status + "'"
+    );
+  } else if (trip.driver_id != pilotID) {
+    // it was aborted because it is not being handled by our driver_id
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "pilot has not been designated to this trip"
+    );
+  }
+
+  // free the pilot to handle other trips
+  await p.free();
+
+  // add trip with completed status to pilot's list of past trips
+  trip.trip_status = TripRequest.Status.completed;
+  let pastTripRefKey = await p.pushPastTrip(trip);
+  // save past trip's reference key in trip request's pilot_past_trip_ref_key
+  // this is so the client can retrieve it later when rating the pilot
+  await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+    if (tripRequest == null) {
+      return {};
+    }
+    if (pastTripRefKey != null) {
+      tripRequest.pilot_past_trip_ref_key = pastTripRefKey;
+    }
+    return tripRequest;
+  });
+
+  // make sure there exists a client entry
   const c = new Client(clientID);
   let client = await c.getClient();
   if (client == null || client == undefined) {
@@ -971,111 +964,19 @@ const completeTrip = async (
     );
   }
 
-  // get a reference to user's trip request
-  const tr = new TripRequest(clientID);
+  // save trip to client's list of past trips and rate client
+  await c.pushPastTripAndRate(trip, data.client_rating);
 
-  // set trip's status to completed in a transaction only if it is being handled
-  // by the driver who is trying to complete the trip
-  await transaction(
-    tr.ref,
-    (tripRequest: TripRequest.Interface) => {
-      if (tripRequest == null) {
-        // we always check for null in transactions.
-        return {};
-      }
-
-      // set trip's status to completed only if it is being handled by our driver
-      if (
-        tripRequest.trip_status == "in-progress" &&
-        tripRequest.driver_id == pilotID
-      ) {
-        tripRequest.trip_status = TripRequest.Status.completed;
-        return tripRequest;
-      }
-
-      // otherwise, abort
-      return;
-    },
-    async (error, completed, tripSnapshot) => {
-      // if transaction failed abnormally
-      if (error) {
-        throw new functions.https.HttpsError(
-          "internal",
-          "Something went wrong."
-        );
-      }
-
-      // if there was no trip request for the user
-      const trip = tripSnapshot?.val() as TripRequest.Interface;
-      if (trip == undefined || trip == null) {
-        throw new functions.https.HttpsError(
-          "not-found",
-          "There is no trip request being handled by the pilot '" +
-            pilotID +
-            "'"
-        );
-      }
-
-      // if transaction was aborted
-      if (completed == false) {
-        if (trip.trip_status != "in-progress") {
-          // it was aborted because trip is not in valid in-progress status
-          throw new functions.https.HttpsError(
-            "failed-precondition",
-            "cannot complete trip in status '" + trip.trip_status + "'"
-          );
-        } else {
-          // it was aborted because it is not being handled by our driver_id
-          throw new functions.https.HttpsError(
-            "failed-precondition",
-            "pilot has not been designated to this trip"
-          );
-        }
-      }
-      // if transaction succeeded
-
-      // free the pilot to handle other trips
-      const p = new Pilot(pilotID);
-      await p.free();
-      // save trip to pilot's list of past trips and get its reference key in past_trips
-      let pastTripRefKey = await p.pushPastTrip(trip);
-
-      // save trip to client's list of past trips and rate client
-      const c = new Client(clientID);
-      await c.pushPastTripAndRate(trip, data.client_rating);
-
-      // save reference to pilot's past_trip so client can later retrieve it
-      // when rating the pilot
-      await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
-        if (tripRequest == null) {
-          return {};
-        }
-        if (pastTripRefKey != null) {
-          tripRequest.pilot_past_trip_ref_key = pastTripRefKey;
-        }
-        return tripRequest;
-      });
+  // set trip's status to completed in a transaction
+  await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+    if (tripRequest == null) {
+      return {};
     }
-  );
+    tripRequest.trip_status = TripRequest.Status.completed;
+    return tripRequest;
+  });
 };
 
-enum DriverRatingFeedbackComponent {
-  cleanliness = "cleanliness",
-  safety = "safety",
-  waitingTime = "waiting-time",
-}
-
-// {
-//   driver_rating: number;
-//   went_well?: {
-//     items?: DriverRatingFeedbackComponent[];
-//     another?: string;
-//   };
-//   must_improve?: {
-//     items?: DriverRatingFeedbackComponent[];
-//     another?: string;
-//   };
-// }
 const rateDriver = async (
   data: any,
   context: functions.https.CallableContext
@@ -1091,8 +992,8 @@ const rateDriver = async (
   // validate arguments
   validateRateDriverArguments(data);
 
-  // make sure the trip has already been completed and was handled by the
-  // pilot with id pilotID
+  // make sure the trip has already been completed and by pilot with id pilotID
+  // and has pilot_past_trip_ref_key field set
   const clientID: string = context.auth.uid;
   const pilotID: string = data.driver_id;
   const tr = new TripRequest(clientID);
@@ -1121,10 +1022,16 @@ const rateDriver = async (
         "'"
     );
   }
+  if (tripRequest.pilot_past_trip_ref_key == undefined) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "trip request has undefined field 'pilot_past_trip_ref_key'"
+    );
+  }
 
   // make sure pilot exists
   let p = new Pilot(pilotID);
-  const pilot = p.getPilot();
+  const pilot = await p.getPilot();
   if (pilot == undefined) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -1132,12 +1039,12 @@ const rateDriver = async (
     );
   }
 
-  // rate pilot
-  // the trip was already added to their list of past trips when pilot completed the trip
-  // it's worth noting that the trip doesn't have a rating associated with it.
-  // ideas for how to proceed
-  //     each score has its own bucket: 1, 2, 3, 4 and 5 stars.
-  // p.rateBy;
+  // add rating to pilot's past-trip's record of the trip
+  delete data["driver_id"];
+  await p.rate(tripRequest.pilot_past_trip_ref_key, { driver_rating: data });
+
+  // delete trip-request after rating it, so the client can't rate the same trip twice
+  await tr.remove();
 };
 
 export const request = functions.https.onCall(requestTrip);
@@ -1148,11 +1055,5 @@ export const accept = functions.https.onCall(acceptTrip);
 export const start = functions.https.onCall(startTrip);
 export const complete = functions.https.onCall(completeTrip);
 export const rate_driver = functions.https.onCall(rateDriver);
-
-/**
- * TESTS
- *  1) if user already has an active trip request, return "REQUEST_DENIED"
- *  2) request wiht missing body fields receive "INVALID_REQUEST"
- */
 
 // TODO: request directions to get encoded points when pilot reports his position

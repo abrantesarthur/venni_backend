@@ -63,6 +63,66 @@ export class Pilot extends Database {
 
     return refKey;
   };
+
+  // rateObj has the following interface:
+  // {
+  //   driver_rating: number;
+  //   cleanliness_went_well?: bool;
+  //   safety_went_well?: bool;
+  //   waiting_time_went_well?: bool;
+  //   feedback: string;
+  // }
+  rate = async (pastTripRefKey: string, rateObj: any) => {
+    // update driver's past trip
+    const ppt = new PilotPastTrips(this.id);
+    await ppt.updatePastTrip(pastTripRefKey, rateObj);
+
+    // get pilot
+    let pilot = await this.getPilot();
+    if (pilot == undefined) {
+      return;
+    }
+
+    let totalRatedTrips = 0;
+    if (pilot.total_rated_trips != undefined) {
+      totalRatedTrips = pilot.total_rated_trips;
+    }
+    totalRatedTrips += 1;
+    let totalRating = 0;
+    if (pilot.total_rating != undefined) {
+      totalRating = pilot.total_rating;
+    }
+    totalRating += rateObj.driver_rating;
+
+    await this.ref.child("total_rated_trips").set(totalRatedTrips);
+    await this.ref.child("total_rating").set(totalRating);
+
+    // get pilot's past 200 trips
+    let last200Trips = await ppt.getPastTrips(200);
+
+    // calculate rating
+    if (last200Trips != undefined) {
+      let last200TotalRating = 0;
+      let last200NumberOfRatings = 0;
+      last200Trips.forEach((trip) => {
+        if (
+          trip.driver_rating != undefined &&
+          trip.driver_rating.score != undefined
+        ) {
+          last200TotalRating += trip.driver_rating.score;
+          last200NumberOfRatings += 1;
+        }
+      });
+
+      // rating is 5 until pilot has done at least 5 trips. Then it's an average of
+      // the ratings of the last 200 trips.
+      let rating =
+        last200Trips.length < 5
+          ? 5
+          : last200TotalRating / last200NumberOfRatings;
+      await this.ref.child("rating").set(rating);
+    }
+  };
 }
 
 export namespace Pilot {
@@ -94,7 +154,9 @@ export namespace Pilot {
     status: Status;
     vehicle: VehicleInterface;
     idle_since: number;
-    rating: number; // based on last 500 trips
+    total_rated_trips?: number; // all trips that have ever been rated
+    total_rating?: number; // cumulative rating across all rated trips
+    rating: number; // based on last 200 trips
     total_trips?: number; // incremented when driver completes a trip
     score?: number; // not stored in database
     // TODO: change name to route or somethign
