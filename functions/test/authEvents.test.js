@@ -169,8 +169,6 @@ describe("authEvents", () => {
       assert.isNotNull(snapshot.val());
       assert.equal(snapshot.val().uid, defaultUID);
       assert.equal(snapshot.val().rating, "5");
-      assert.isUndefined(snapshot.val().total_rated_trips);
-      assert.isUndefined(snapshot.val().total_rating);
     });
   });
 });

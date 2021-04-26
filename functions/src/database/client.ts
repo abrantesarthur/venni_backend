@@ -21,30 +21,12 @@ export class Client extends Database {
     await this.ref.set(client);
   };
 
-  // rateByID sets client's total_rated_trips, total_rating and rating fields
-  // total_rated_trips: number of trips that have ever been rated
-  // total_rating: sum of ratings of all trips
-  // rating: average of last 100 ratings
-  // TODO: test that this works
-  private rate = async (rating: number) => {
+  // rateByID sets client's as average of last 100 ratings
+  private rate = async () => {
     let client = await this.getClient();
     if (client == undefined) {
       return;
     }
-
-    let totalRatedTrips = 0;
-    if (client.total_rated_trips != undefined) {
-      totalRatedTrips = Number(client.total_rated_trips);
-    }
-    totalRatedTrips += 1;
-    let totalRating = 0;
-    if (client.total_rating != undefined) {
-      totalRating = Number(client.total_rating);
-    }
-    totalRating += rating;
-
-    await this.ref.child("total_rated_trips").set(totalRatedTrips.toString());
-    await this.ref.child("total_rating").set(totalRating.toString());
 
     // get client past 100 trips
     let cpt = new ClientPastTrips(this.id);
@@ -86,9 +68,9 @@ export class Client extends Database {
     trip: TripRequest.Interface,
     rating: number
   ): Promise<string | null> => {
-    trip.client_rating = rating.toString();
+    trip.client_rating = ((rating * 100)/100).toFixed(2).toString();
     let pastTripRefKey = await this.pushPastTrip(trip);
-    await this.rate(rating);
+    await this.rate();
     return pastTripRefKey;
   };
 }
@@ -96,8 +78,6 @@ export class Client extends Database {
 export namespace Client {
   export interface Interface {
     uid: string;
-    total_rated_trips?: string; // all trips that have ever been rated
-    total_rating?: string; // cumulative rating across all rated trips
     rating: string; // average of the ratings of the last 100 trips
   }
 
@@ -106,27 +86,12 @@ export namespace Client {
       if (obj == null || obj == undefined) {
         return false;
       }
-      if (
-        obj.total_rated_trips != undefined &&
-        typeof obj.total_rated_trips != "string"
-      ) {
-
-        return false;
-      }
-      if (
-        obj.total_rating != undefined &&
-        typeof obj.total_rating != "string"
-      ) {
-
-        return false;
-      }
+      
       let keys = Object.keys(obj);
       for (var i = 0; i < keys.length; i++) {
         if (
           keys[i] != "uid" &&
-          keys[i] != "rating" &&
-          keys[i] != "total_rated_trips" &&
-          keys[i] != "total_rating"
+          keys[i] != "rating"
         ) {
           return false;
         }
