@@ -1953,8 +1953,6 @@ describe("trip", () => {
       assert.isNotNull(clientSnapshot.val());
       assert.equal(clientSnapshot.val().rating, "0");
       assert.equal(clientSnapshot.val().uid, defaultUID);
-      assert.isUndefined(clientSnapshot.val().total_rated_trips);
-      assert.isUndefined(clientSnapshot.val().total_rating);
 
       // before pilot complets trip, assert client has no past_trips
       let cpt = new ClientPastTrips(defaultUID);
@@ -1989,16 +1987,14 @@ describe("trip", () => {
       // assert client has been updated
       clientSnapshot = await clientRef.once("value");
       assert.isNotNull(clientSnapshot.val());
-      assert.equal(clientSnapshot.val().rating, clientRating.toString());
+      assert.equal(clientSnapshot.val().rating, "5.00");
       assert.equal(clientSnapshot.val().uid, defaultUID);
-      assert.equal(clientSnapshot.val().total_rated_trips, "1");
-      assert.equal(clientSnapshot.val().total_rating, clientRating.toString());
 
       // assert client has one past trip with client_rating
       clientPastTrips = await cpt.getPastTrips();
       assert.equal(clientPastTrips.length, 1);
       assert.equal(clientPastTrips[0].uid, defaultUID);
-      assert.equal(clientPastTrips[0].client_rating, clientRating.toString());
+      assert.equal(clientPastTrips[0].client_rating, "5.00");
 
       // assert a reference key has been added to the trip request.
       let tripSnapshot = await tripRequestRef.once("value");

@@ -83,20 +83,6 @@ export class Pilot extends Database {
       return;
     }
 
-    let totalRatedTrips = 0;
-    if (pilot.total_rated_trips != undefined) {
-      totalRatedTrips = Number(pilot.total_rated_trips);
-    }
-    totalRatedTrips += 1;
-    let totalRating = 0;
-    if (pilot.total_rating != undefined) {
-      totalRating = Number(pilot.total_rating);
-    }
-    totalRating += rateObj.driver_rating.score;
-
-    await this.ref.child("total_rated_trips").set(totalRatedTrips.toString());
-    await this.ref.child("total_rating").set(totalRating.toString());
-
     // get pilot's past 200 trips
     let last200Trips = await ppt.getPastTrips(200);
 
@@ -154,8 +140,6 @@ export namespace Pilot {
     status: Status;
     vehicle: VehicleInterface;
     idle_since: string;
-    total_rated_trips?: string; // all trips that have ever been rated
-    total_rating?: string; // cumulative rating across all rated trips
     rating: string; // based on last 200 trips
     total_trips?: string; // incremented when driver completes a trip
     score?: number; // not stored in database
