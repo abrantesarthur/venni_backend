@@ -220,7 +220,7 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
       pilot.current_longitude = steps[i].start_location.lng.toString();
       return pilot;
     });
-    await sleep(1000);
+    await sleep(500);
   }
   await transaction(p.ref, (pilot) => {
     if (pilot == null) {
@@ -235,8 +235,8 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
     return pilot;
   });
 
-  // after arriving to trip's origin, wait 1 seconds before starting trip
-  await sleep(1000);
+  // after arriving to trip's origin, wait 0.5 second before starting trip
+  await sleep(500);
 
   // get pilot's updated coordinates
   let updatedPilot = await p.getPilot();
@@ -311,8 +311,8 @@ const mockTripStart = async (pilot: Pilot.Interface) => {
     return;
   }
 
-  // after accepting trip, wait 1 seconds before driving to destination
-  await sleep(1000);
+  // after accepting trip, wait 0.5 seconds before driving to destination
+  await sleep(500);
 
   await mockDriveToDestination(updatedPilot);
 };
@@ -373,7 +373,7 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
       pilot.current_longitude = steps[i].start_location.lng.toString();
       return pilot;
     });
-    await sleep(1000);
+    await sleep(500);
   }
   await transaction(p.ref, (pilot) => {
     if (pilot == null) {
@@ -388,8 +388,8 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
     return pilot;
   });
 
-  // wait 1 second before completing the trip
-  await sleep(1000);
+  // wait 0.5 seconds before completing the trip
+  await sleep(500);
   await mockTripComplete(pilot.uid);
 };
 
@@ -464,6 +464,9 @@ const mockTripComplete = async (pilotID: string) => {
   // save trip to client's list of past trips and rate client
   // we are hardcoding the rate, but in real example the pilot
   // passes it by argument
+  if(pastTripRefKey != null) {
+    trip.pilot_past_trip_ref_key = pastTripRefKey;
+  }
   await c.pushPastTripAndRate(trip, 4);
 
   // set trip's status to completed only if it is being handled by our driver
