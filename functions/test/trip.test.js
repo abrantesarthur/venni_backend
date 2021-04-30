@@ -1990,11 +1990,12 @@ describe("trip", () => {
       assert.equal(clientSnapshot.val().rating, "5.00");
       assert.equal(clientSnapshot.val().uid, defaultUID);
 
-      // assert client has one past trip with client_rating
+      // assert client has one past trip with client_rating and pilot_past_trip_ref_key
       clientPastTrips = await cpt.getPastTrips();
       assert.equal(clientPastTrips.length, 1);
       assert.equal(clientPastTrips[0].uid, defaultUID);
       assert.equal(clientPastTrips[0].client_rating, "5.00");
+      assert.isDefined(clientPastTrips[0].pilot_past_trip_ref_key);
 
       // assert a reference key has been added to the trip request.
       let tripSnapshot = await tripRequestRef.once("value");

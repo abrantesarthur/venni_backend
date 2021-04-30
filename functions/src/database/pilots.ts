@@ -30,7 +30,7 @@ export class Pilots extends Database {
     if (snapshot.val() == null) {
       // if none is available, return empty list
       // TODO: remove before deploying
-      createMockPilots(10);
+      createMockPilots(500);
       return [];
     }
     let pilots = this.fromObjs(snapshot.val());

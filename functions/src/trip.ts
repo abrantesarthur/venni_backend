@@ -964,8 +964,14 @@ const completeTrip = async (
     );
   }
 
-  // save trip to client's list of past trips and rate client
-  await c.pushPastTripAndRate(trip, data.client_rating);
+  // save trip with pilot_past_trip_ref_key to client's list of past trips and rate client
+  if(pastTripRefKey != null) {
+    trip.pilot_past_trip_ref_key = pastTripRefKey;
+  }
+  if(trip != undefined) {
+    await c.pushPastTripAndRate(trip, data.client_rating);
+  }
+  
 
   // set trip's status to completed in a transaction
   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
