@@ -20,16 +20,33 @@ export class PastTrips extends Database {
     await this.ref.child(key).update(values);
   };
 
-  // getPastTrips returns the past trips of the client. If 'limit' is defined, it returns
-  // at most 'limit' past trips. Otherwise, it returns all past trips.
-  getPastTrips = async (limit?: number): Promise<TripRequest.Interface[]> => {
-    let snapshot;
-    if (limit != undefined && limit > 0) {
-      snapshot = await this.ref.limitToFirst(limit).once("value");
-    } else {
-      snapshot = await this.ref.once("value");
+  // getPastTrips returns the past trips of the client sorted by request time in descending order.
+  // That is, most recent trips come first. If 'limit' is defined, it returns at most 'limit' past trips.
+  // If 'maxVal' is defined, it returns trips whose request_time is less than 'maxVal'.
+  // By default, it returns all past trips.
+  getPastTrips = async (
+    limit?: number,
+    maxVal?: number
+  ): Promise<TripRequest.Interface[]> => {
+    let query = this.ref.orderByChild("request_time");
+    if (maxVal != undefined) {
+      query = query.endAt(maxVal.toString());
     }
-    return PastTrips.fromObjs(snapshot.val());
+    if (limit != undefined && limit > 0) {
+      query = query.limitToLast(limit);
+    }
+    let snapshot = await query.once("value");
+    let pastTrips = PastTrips.fromObjs(snapshot.val());
+
+    // more recent trips have the greatest request_time values
+    return pastTrips.reverse();
+  };
+
+  getPastTrip = async (
+    ref_key: string
+  ): Promise<TripRequest.Interface | undefined> => {
+    let snapshot = await this.ref.child(ref_key).once("value");
+    return TripRequest.Interface.fromObj(snapshot.val());
   };
 
   getPastTripsCount = async (): Promise<number> => {

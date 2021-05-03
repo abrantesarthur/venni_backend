@@ -9,7 +9,7 @@ describe("PastTrips", () => {
   let pilotID;
   let pastTrips;
   let p;
-  before(() => {
+  before(async () => {
     if (admin.apps.length == 0) {
       admin.initializeApp();
     }
@@ -32,8 +32,15 @@ describe("PastTrips", () => {
       request_time: Date.now().toString(),
       origin_address: "origin_address",
       destination_address: "destination_address",
-      driver_id: pilotID,
+      pilot_id: pilotID,
     };
+    // clear database
+    await admin.database().ref("past-trips").remove();
+  });
+
+  afterEach(async () => {
+    // clear database
+    await admin.database().ref("past-trips").remove();
   });
 
   describe("getPastTrips", () => {
@@ -43,15 +50,152 @@ describe("PastTrips", () => {
     });
 
     it("returns list of user's past trips if user has past trips", async () => {
-      // add past trips to the user
+      // assert that user has not past trips
+      let result = await p.getPastTrips();
+      assert.isEmpty(result);
+
+      // add past trips to the client
       await p.pushPastTrip(defaultTrip);
 
       // assert that user has past trips
+      result = await p.getPastTrips();
+      assert.isNotEmpty(result);
+    });
+
+    it("returns at most 'limit' past trips if 'limit' is defined", async () => {
+      // assert that user has not past trips
       let result = await p.getPastTrips();
+      assert.isEmpty(result);
+
+      // add three past trips to the client, with most recent added last
+      defaultTrip.request_time = Date.now().toString();
+      await p.pushPastTrip(defaultTrip);
+      defaultTrip.request_time = (Date.now() + 10000).toString();
+      await p.pushPastTrip(defaultTrip);
+      defaultTrip.request_time = (Date.now() + 20000).toString();
+      await p.pushPastTrip(defaultTrip);
+
+      // get past trips with limit equal to 2
+      result = await p.getPastTrips(2);
       assert.isNotEmpty(result);
 
+      // assert we get only 2 past trips
+      assert.equal(result.length, 2);
+
+      // assert trips are sorted by request_time, with most recent coming first
+      assert.isAbove(
+        Number.parseInt(result[0].request_time),
+        Number.parseInt(result[1].request_time)
+      );
+
+      // get past trips with limit equal to 4
+      result = await p.getPastTrips(4);
+
+      // assert we get 3 trips
+      assert.isNotEmpty(result);
+      assert.equal(result.length, 3);
+    });
+
+    it("returns trips with 'request_time' at most 'maxVal' if 'maxVal' is defined", async () => {
+      // assert that user has not past trips
+      let result = await p.getPastTrips();
+      assert.isEmpty(result);
+
+      let now = Date.now();
+
+      // add three past trips to the client, with most recent added last
+      defaultTrip.request_time = now.toString();
+      await p.pushPastTrip(defaultTrip);
+      defaultTrip.request_time = (now + 10000).toString();
+      await p.pushPastTrip(defaultTrip);
+      defaultTrip.request_time = (now + 20000).toString();
+      await p.pushPastTrip(defaultTrip);
+
+      // get trips with 'request_time' below now + 100001
+      result = await p.getPastTrips(3, (now + 10001).toString());
+      assert.isNotEmpty(result);
+
+      // assert we get only 2 results
+      assert.equal(result.length, 2);
+
+      // assert trips are sorted by request_time, with most recent coming first
+      assert.isAbove(
+        Number.parseInt(result[0].request_time),
+        Number.parseInt(result[1].request_time)
+      );
+
+      // assert all trips have request_time wiht value at most maxVal
+      assert.isBelow(Number(result[0].request_time), now + 10001);
+      assert.isBelow(Number(result[1].request_time), now + 10001);
+
+      // get trips with 'request_time' below 'now'
+      result = await p.getPastTrips(3, (now - 100).toString());
+      assert.isEmpty(result);
+
+      // get trips with 'request_time' at most 'now'
+      result = await p.getPastTrips(3, now.toString());
+      assert.isNotEmpty(result);
+
+      // assert we get only one result
+      assert.equal(result.length, 1);
+
+      // get trips with 'request_time' at most 'now + 20000'
+      result = await p.getPastTrips(3, (now + 20000).toString());
+      assert.isNotEmpty(result);
+
+      // assert we get only three result
+      assert.equal(result.length, 3);
+    });
+
+    it("works when both 'limit' and 'maxVal' are defined", async () => {
+      // assert that user has not past trips
+      let result = await p.getPastTrips();
+      assert.isEmpty(result);
+
+      let now = Date.now();
+
+      // add four past trips to the client, with most recent added last
+      defaultTrip.request_time = now.toString();
+      await p.pushPastTrip(defaultTrip);
+      defaultTrip.request_time = (now + 10000).toString();
+      await p.pushPastTrip(defaultTrip);
+      defaultTrip.request_time = (now + 20000).toString();
+      await p.pushPastTrip(defaultTrip);
+      defaultTrip.request_time = (now + 30000).toString();
+      await p.pushPastTrip(defaultTrip);
+
+      // get at most 2 trips with 'request_time' below now + 200000
+      result = await p.getPastTrips(2, (now + 20000).toString());
+      assert.isNotEmpty(result);
+
+      // assert we get only 2 results
+      assert.equal(result.length, 2);
+
+      // assert trips are sorted by request_time, with most recent coming first
+      assert.equal(result[0].request_time, (now + 20000).toString());
+      assert.equal(result[1].request_time, (now + 10000).toString());
+    });
+  });
+
+  describe("getPastTrip", () => {
+    afterEach(async () => {
       // clear database
       await admin.database().ref("past-trips").remove();
+    });
+
+    it("returns empty list if user has no past trips", async () => {
+      let result = await p.getPastTrip("anything");
+      assert.isUndefined(result);
+    });
+
+    it("returns correct past trip if user has past trip", async () => {
+      // add past trips to the client
+      const refKey = await p.pushPastTrip(defaultTrip);
+
+      // assert that user has past trip
+      result = await p.getPastTrip(refKey);
+      assert.isDefined(result);
+      assert.equal(result.uid, clientID);
     });
   });
 
@@ -117,9 +261,9 @@ describe("PastTrips", () => {
           request_time: "request_time",
           origin_address: "origin_address",
           destination_address: "destination_address",
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
           client_rating: "client_rating",
-          driver_rating: {
+          pilot_rating: {
             score: "4",
           },
           pilot_past_trip_ref_key: "pilot_past_trip_ref_key",

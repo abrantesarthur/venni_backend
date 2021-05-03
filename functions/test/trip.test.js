@@ -13,6 +13,7 @@ const {
   PilotPastTrips,
   ClientPastTrips,
 } = require("../lib/database/pastTrips");
+const { expect } = require("chai");
 const assert = chai.assert;
 
 // the tests actually hit venni-rider-development project in firebase
@@ -51,7 +52,7 @@ describe("trip", () => {
     // createTripRequest populates the database with request
     createTripRequest = async (
       status = "waiting-confirmation",
-      driverID = ""
+      pilotID = ""
     ) => {
       let defaultTripRequest = {
         uid: defaultUID,
@@ -68,7 +69,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        driver_id: driverID,
+        pilot_id: pilotID,
       };
 
       let tripRequestRef = admin
@@ -282,11 +283,11 @@ describe("trip", () => {
     it("fails when the user already has a trip request with inProgress status", async () => {
       await invalidTripStatusTest("in-progress");
     });
-    it("fails when the user already has a trip request with lookingForDriver status", async () => {
-      await invalidTripStatusTest("looking-for-driver");
+    it("fails when the user already has a trip request with lookingForPilot status", async () => {
+      await invalidTripStatusTest("looking-for-pilot");
     });
-    it("fails when the user already has a trip request with waitingDriver status", async () => {
-      await invalidTripStatusTest("waiting-driver");
+    it("fails when the user already has a trip request with waitingPilot status", async () => {
+      await invalidTripStatusTest("waiting-pilot");
     });
     it("fails when the user already has a trip request with waitingPayment status", async () => {
       await invalidTripStatusTest("waiting-payment");
@@ -415,8 +416,8 @@ describe("trip", () => {
       await failsWithStatus("cancelled-by-client");
     });
 
-    it("fails if trip has cancelled-by-driver status", async () => {
-      await failsWithStatus("cancelled-by-driver");
+    it("fails if trip has cancelled-by-pilot status", async () => {
+      await failsWithStatus("cancelled-by-pilot");
     });
 
     it("fails if trip has completed status", async () => {
@@ -435,16 +436,16 @@ describe("trip", () => {
       await succeedsWithStatus("payment-failed");
     });
 
-    it("succeeds when trip has no-drivers-available status", async () => {
-      await succeedsWithStatus("no-drivers-available");
+    it("succeeds when trip has no-pilots-available status", async () => {
+      await succeedsWithStatus("no-pilots-available");
     });
 
-    it("succeeds when trip has looking-for-driver status", async () => {
-      await succeedsWithStatus("looking-for-driver");
+    it("succeeds when trip has looking-for-pilot status", async () => {
+      await succeedsWithStatus("looking-for-pilot");
     });
 
-    it("succeeds when trip has waiting-driver status", async () => {
-      await succeedsWithStatus("waiting-driver");
+    it("succeeds when trip has waiting-pilot status", async () => {
+      await succeedsWithStatus("waiting-pilot");
     });
 
     it("succeeds when trip has in-progress status", async () => {
@@ -517,10 +518,10 @@ describe("trip", () => {
       // wait enough for confirm to send out request to pilot
       await sleep(1500);
 
-      // assert trip request has looking-for-driver status
+      // assert trip request has looking-for-pilot status
       snapshot = await tripRequestRef.once("value");
       assert.notEqual(snapshot.val(), null);
-      assert.equal(snapshot.val().trip_status, "looking-for-driver");
+      assert.equal(snapshot.val().trip_status, "looking-for-pilot");
 
       // assert pilot has been requested
       let pilotSnapshot = await pilotRef.once("value");
@@ -540,10 +541,10 @@ describe("trip", () => {
       assert.equal(pilotSnapshot.val().status, "busy");
       assert.equal(pilotSnapshot.val().current_client_uid, clientID);
 
-      // assert trip request has waiting-driver status
+      // assert trip request has waiting-pilot status
       snapshot = await tripRequestRef.once("value");
       assert.notEqual(snapshot.val(), null);
-      assert.equal(snapshot.val().trip_status, "waiting-driver");
+      assert.equal(snapshot.val().trip_status, "waiting-pilot");
 
       // assert trying to delete trip-request succeeds
       const wrapped = test.wrap(trip.client_cancel);
@@ -632,16 +633,16 @@ describe("trip", () => {
         defaultCtx
       );
 
-      // populate database with trip request with invalid waiting-driver status
+      // populate database with trip request with invalid waiting-pilot status
 
-      await createTripRequest("waiting-driver");
+      await createTripRequest("waiting-pilot");
 
       // expect confirmTrip to fail
       await genericTest(
         "failed-precondition",
         "Trip request of user with uid " +
           defaultUID +
-          " has invalid status 'waiting-driver'",
+          " has invalid status 'waiting-pilot'",
         defaultCtx
       );
 
@@ -747,10 +748,10 @@ describe("trip", () => {
       // wait enough time for confirm to send request to pilot1 and pilot 2
       await sleep(8000);
 
-      // assert trip has looking-for-driver status
+      // assert trip has looking-for-pilot status
       let tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-driver");
+      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-pilot");
 
       // assert pilot 1 has been requested
       let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
@@ -779,14 +780,14 @@ describe("trip", () => {
       assert.equal(confirmResult.uid, pilotID1);
       assert.equal(confirmResult.status, "busy");
       assert.equal(confirmResult.current_client_uid, defaultUID);
-      assert.equal(confirmResult.trip_status, "waiting-driver");
+      assert.equal(confirmResult.trip_status, "waiting-pilot");
       // pilot's total_trips is zero
       assert.equal(confirmResult.total_trips, "0");
 
-      // assert trip has waiting-driver status
+      // assert trip has waiting-pilot status
       tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().trip_status, "waiting-driver");
+      assert.equal(tripRequestSnapshot.val().trip_status, "waiting-pilot");
 
       // assert pilot 1 status is busy
       pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
@@ -851,10 +852,10 @@ describe("trip", () => {
       // wait enough time for confirm to send request to pilot1
       await sleep(1500);
 
-      // assert trip has looking-for-driver status
+      // assert trip has looking-for-pilot status
       let tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-driver");
+      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-pilot");
 
       // assert pilot 1 has been requested
       let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
@@ -866,20 +867,20 @@ describe("trip", () => {
       assert.equal(pilot2Snapshot.val().status, "busy");
 
       // pilot 2 accepts the trip (bypass accepTrip, which would fail)
-      await tripRequestRef.child("driver_id").set(pilotID2);
+      await tripRequestRef.child("pilot_id").set(pilotID2);
 
       // assert confirm trip didn't accept pilot 2
       tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().driver_id, "");
+      assert.equal(tripRequestSnapshot.val().pilot_id, "");
 
       // pilot 1 accepts the trip
-      await tripRequestRef.child("driver_id").set(pilotID1);
+      await tripRequestRef.child("pilot_id").set(pilotID1);
 
       // assert confirm trip accepted pilot 1
       tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().driver_id, pilotID1);
+      assert.equal(tripRequestSnapshot.val().pilot_id, pilotID1);
 
       // clean database
       await pilotsRef.remove();
@@ -991,7 +992,7 @@ describe("trip", () => {
         destination_place_id: valid_destination_place_id,
         trip_status: "waiting-confirmation",
         origin_zone: "AA",
-        driver_id: "anotherPilot",
+        pilot_id: "anotherPilot",
       };
       await admin
         .database()
@@ -1244,11 +1245,11 @@ describe("trip", () => {
       }
     });
 
-    it("fails when trying to start trip with status different from waiting-driver", async () => {
+    it("fails when trying to start trip with status different from waiting-pilot", async () => {
       const pilotID1 = "pilotID1";
       const clientID = "clientID";
 
-      // add trip request for clientID with status different from waiting-driver
+      // add trip request for clientID with status different from waiting-pilot
       let tripRequest = {
         uid: clientID,
         origin_place_id: valid_origin_place_id,
@@ -1286,7 +1287,7 @@ describe("trip", () => {
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
-      // fail if pilot tries starting the trip without waiting-driver status
+      // fail if pilot tries starting the trip without waiting-pilot status
       const wrappedStart = test.wrap(trip.start);
       try {
         await wrappedStart({}, { auth: { uid: pilotID1 } });
@@ -1305,13 +1306,13 @@ describe("trip", () => {
       const anotherPilotID = "anotherPilotID";
       const clientID = "clientID";
 
-      // add trip request for clientID that is being handled by another driver
+      // add trip request for clientID that is being handled by another pilot
       let tripRequest = {
         uid: clientID,
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "waiting-driver",
-        driver_id: anotherPilotID,
+        trip_status: "waiting-pilot",
+        pilot_id: anotherPilotID,
         origin_zone: "AA",
       };
       const tripRequestRef = admin
@@ -1344,7 +1345,7 @@ describe("trip", () => {
       };
       await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
 
-      // fail if pilot tries starting the trip without waiting-driver status
+      // fail if pilot tries starting the trip without waiting-pilot status
       const wrappedStart = test.wrap(trip.start);
       try {
         await wrappedStart({}, { auth: { uid: pilotID1 } });
@@ -1398,10 +1399,10 @@ describe("trip", () => {
       // TODO: may have to increase this once process payments is implemented
       await sleep(1500);
 
-      // assert trip status has changed to looking-for-driver
+      // assert trip status has changed to looking-for-pilot
       let tripSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripSnapshot.val());
-      assert.equal(tripSnapshot.val().trip_status, "looking-for-driver");
+      assert.equal(tripSnapshot.val().trip_status, "looking-for-pilot");
 
       // assert pilot1 has been requested
       let pilot1Ref = admin.database().ref("pilots").child(pilotID1);
@@ -1457,10 +1458,10 @@ describe("trip", () => {
       assert.isNotNull(pilot1Snapshot.val());
       assert.equal(pilot1Snapshot.val().status, "busy");
 
-      // assert trip status has changed to waiting-driver
+      // assert trip status has changed to waiting-pilot
       tripSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripSnapshot.val());
-      assert.equal(tripSnapshot.val().trip_status, "waiting-driver");
+      assert.equal(tripSnapshot.val().trip_status, "waiting-pilot");
 
       // now pilot 1 is able to start the trip
       await wrappedStart(
@@ -1559,7 +1560,7 @@ describe("trip", () => {
       );
     });
 
-    it("fails when driver is not busy", async () => {
+    it("fails when pilot is not busy", async () => {
       const pilotID1 = "pilotID1";
       const clientID = "clientID";
 
@@ -1686,7 +1687,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        driver_id: pilotID1,
+        pilot_id: pilotID1,
       };
       await admin
         .database()
@@ -1781,7 +1782,7 @@ describe("trip", () => {
       });
 
       // add trip request for defaultUID with status different from in-progress
-      await createTripRequest("waiting-driver");
+      await createTripRequest("waiting-pilot");
 
       // add a pilot to the database supposedly handing the trip for defaultUID
       await admin.database().ref("pilots").remove();
@@ -1819,7 +1820,7 @@ describe("trip", () => {
         assert.equal(e.code, "failed-precondition");
         assert.equal(
           e.message,
-          "cannot complete trip in status 'waiting-driver'"
+          "cannot complete trip in status 'waiting-pilot'"
         );
       }
     });
@@ -1901,7 +1902,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        driver_id: pilotID1,
+        pilot_id: pilotID1,
       };
       const tripRequestRef = admin
         .database()
@@ -2004,7 +2005,7 @@ describe("trip", () => {
     });
   });
 
-  describe("rateDriver", () => {
+  describe("ratePilot", () => {
     const genericTest = async (
       data,
       expectedCode,
@@ -2012,7 +2013,7 @@ describe("trip", () => {
       ctx = defaultCtx,
       succeeed = false
     ) => {
-      const wrapped = test.wrap(trip.rate_driver);
+      const wrapped = test.wrap(trip.rate_pilot);
       try {
         await wrapped(data, ctx);
         if (succeeed) {
@@ -2048,7 +2049,7 @@ describe("trip", () => {
 
     it("fails if argument score is not be present", async () => {
       await genericTest(
-        { driver_id: "driver_id" },
+        { pilot_id: "pilot_id" },
         "invalid-argument",
         "missing expected argument 'score'."
       );
@@ -2056,36 +2057,36 @@ describe("trip", () => {
 
     it("fails if argument score is not a number", async () => {
       await genericTest(
-        { score: "not a number", driver_id: "driver_id" },
+        { score: "not a number", pilot_id: "pilot_id" },
         "invalid-argument",
         "argument 'score' has invalid type. Expected 'number'. Received 'string'."
       );
     });
 
-    it("fails if argument driver_id is not present", async () => {
+    it("fails if argument pilot_id is not present", async () => {
       await genericTest(
         { score: 1 },
         "invalid-argument",
-        "missing expected argument 'driver_id'."
+        "missing expected argument 'pilot_id'."
       );
     });
 
-    it("fails if argument driver_id is not a string", async () => {
+    it("fails if argument pilot_id is not a string", async () => {
       await genericTest(
-        { score: 1, driver_id: {} },
+        { score: 1, pilot_id: {} },
         "invalid-argument",
-        "argument 'driver_id' has invalid type. Expected 'string'. Received 'object'."
+        "argument 'pilot_id' has invalid type. Expected 'string'. Received 'object'."
       );
     });
 
     it("fails if argument score is not a number between 0 and 5", async () => {
       await genericTest(
-        { score: -1, driver_id: "driver_id" },
+        { score: -1, pilot_id: "pilot_id" },
         "invalid-argument",
         "argument 'score' must be a number between 0 and 5."
       );
       await genericTest(
-        { score: 6, driver_id: "driver_id" },
+        { score: 6, pilot_id: "pilot_id" },
         "invalid-argument",
         "argument 'score' must be a number between 0 and 5."
       );
@@ -2095,7 +2096,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
           cleanliness_went_well: "not an boolean",
         },
         "invalid-argument",
@@ -2106,7 +2107,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
           safety_went_well: "not an boolean",
         },
         "invalid-argument",
@@ -2117,7 +2118,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
           waiting_time_went_well: "not an boolean",
         },
         "invalid-argument",
@@ -2128,7 +2129,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
           feedback: 1,
         },
         "invalid-argument",
@@ -2143,7 +2144,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
         },
         "failed-precondition",
         "could not find a trip request for client with id 'defaultUID'"
@@ -2157,7 +2158,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
         },
         "failed-precondition",
         "could not find a trip request with 'completed' status for client with id 'defaultUID'"
@@ -2167,17 +2168,17 @@ describe("trip", () => {
       await admin.database().ref("trip-requests").remove();
     });
 
-    it("fails if trip's  'driver_id' does not correspond to id of pilot being rated", async () => {
-      // create trip request with 'completed' status and invalid driver id
-      await createTripRequest("completed", "invalidDriverID");
+    it("fails if trip's  'pilot_id' does not correspond to id of pilot being rated", async () => {
+      // create trip request with 'completed' status and invalid pilot id
+      await createTripRequest("completed", "invalidPilotID");
 
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
         },
         "failed-precondition",
-        "could not find a trip request handled by a pilot with id 'driver_id' for client with id 'defaultUID'"
+        "could not find a trip request handled by a pilot with id 'pilot_id' for client with id 'defaultUID'"
       );
 
       // clear database
@@ -2185,13 +2186,13 @@ describe("trip", () => {
     });
 
     it("fails if trip's 'pilot_past_trip_ref_key' is not be set", async () => {
-      // create trip request with 'completed' status and valid driver id
-      await createTripRequest("completed", "driver_id");
+      // create trip request with 'completed' status and valid pilot id
+      await createTripRequest("completed", "pilot_id");
 
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
         },
         "failed-precondition",
         "trip request has undefined field 'pilot_past_trip_ref_key'"
@@ -2217,7 +2218,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        driver_id: "driver_id",
+        pilot_id: "pilot_id",
         pilot_past_trip_ref_key: refKey,
       };
 
@@ -2239,10 +2240,10 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          driver_id: "driver_id",
+          pilot_id: "pilot_id",
         },
         "failed-precondition",
-        "could not find a pilot wiht id id 'driver_id'"
+        "could not find a pilot wiht id id 'pilot_id'"
       );
 
       // clear database
@@ -2256,7 +2257,7 @@ describe("trip", () => {
       await admin.database().ref("pilots").remove();
 
       // create a pilot
-      const pilotID = "driver_id";
+      const pilotID = "pilot_id";
       let defaultPilot = {
         uid: pilotID,
         name: "Fulano",
@@ -2296,7 +2297,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        driver_id: pilotID,
+        pilot_id: pilotID,
       };
       let pastTripRefKey = await ppt.pushPastTrip(defaultTrip);
       await createValidTripRequest(pastTripRefKey);
@@ -2310,7 +2311,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 2,
-          driver_id: pilotID,
+          pilot_id: pilotID,
           cleanliness_went_well: true,
           safety_went_well: false,
           feedback: "the pilot is great!",
@@ -2324,15 +2325,15 @@ describe("trip", () => {
       // expect past trip to have been updated
       pastTrips = await ppt.getPastTrips();
       assert.equal(pastTrips.length, 1);
-      assert.isDefined(pastTrips[0].driver_rating);
-      assert.equal(pastTrips[0].driver_rating.score, "2");
-      assert.equal(pastTrips[0].driver_rating.cleanliness_went_well, true);
-      assert.equal(pastTrips[0].driver_rating.safety_went_well, false);
+      assert.isDefined(pastTrips[0].pilot_rating);
+      assert.equal(pastTrips[0].pilot_rating.score, "2");
+      assert.equal(pastTrips[0].pilot_rating.cleanliness_went_well, true);
+      assert.equal(pastTrips[0].pilot_rating.safety_went_well, false);
       assert.equal(
-        pastTrips[0].driver_rating.waiting_time_went_well,
+        pastTrips[0].pilot_rating.waiting_time_went_well,
         undefined
       );
-      assert.equal(pastTrips[0].driver_rating.feedback, "the pilot is great!");
+      assert.equal(pastTrips[0].pilot_rating.feedback, "the pilot is great!");
 
       // assert trip request has been deleted
       let tripSnapshot = await admin
@@ -2424,23 +2425,289 @@ describe("trip", () => {
       assert.equal(pastTrips[0].rating, undefined);
 
       // client rates the trip
-      const wrappedRateDriver = test.wrap(trip.rate_driver);
-      await wrappedRateDriver(
-        { score: 5, driver_id: pilotID1, cleanliness_went_well: true },
+      const wrappedRatePilot = test.wrap(trip.rate_pilot);
+      await wrappedRatePilot(
+        { score: 5, pilot_id: pilotID1, cleanliness_went_well: true },
         defaultCtx
       );
 
       // expect past trip to have been updated
       pastTrips = await ppt.getPastTrips();
-      assert.isDefined(pastTrips[0].driver_rating);
-      assert.equal(pastTrips[0].driver_rating.score, "5");
-      assert.equal(pastTrips[0].driver_rating.cleanliness_went_well, true);
-      assert.equal(pastTrips[0].driver_rating.safety_went_well, undefined);
+      assert.isDefined(pastTrips[0].pilot_rating);
+      assert.equal(pastTrips[0].pilot_rating.score, "5");
+      assert.equal(pastTrips[0].pilot_rating.cleanliness_went_well, true);
+      assert.equal(pastTrips[0].pilot_rating.safety_went_well, undefined);
       assert.equal(
-        pastTrips[0].driver_rating.waiting_time_went_well,
+        pastTrips[0].pilot_rating.waiting_time_went_well,
         undefined
       );
-      assert.equal(pastTrips[0].driver_rating.feedback, undefined);
+      assert.equal(pastTrips[0].pilot_rating.feedback, undefined);
+    });
+  });
+
+  describe("clientGetPastTrips", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(trip.client_get_past_trips);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+    after(async () => {
+      await admin.database().ref("trip-requests").remove();
+      await admin.database().ref("pilots").remove();
+      await admin.database().ref("clients").remove();
+      await admin.database().ref("past-trips").remove();
+    });
+
+    it("fails if user is not authenticated", async () => {
+      // run generic test without context
+      await genericTest(
+        {},
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if argument 'page_size' is not greater than 0", async () => {
+      await genericTest(
+        { page_size: 0 },
+        "invalid-argument",
+        "argument 'page_size' must greater than 0."
+      );
+
+      await genericTest(
+        { page_size: -1 },
+        "invalid-argument",
+        "argument 'page_size' must greater than 0."
+      );
+    });
+
+    it("fails if argument 'max_request_time' is not greater than 0", async () => {
+      await genericTest(
+        { max_request_time: 0 },
+        "invalid-argument",
+        "argument 'max_request_time' must greater than 0."
+      );
+
+      await genericTest(
+        { max_request_time: -1 },
+        "invalid-argument",
+        "argument 'max_request_time' must greater than 0."
+      );
+    });
+
+    it("returns list of client's past trips", async () => {
+      // clear database
+      await admin.database().ref("past-trips").remove();
+
+      // populate database with client's past trips
+      const cpt = new ClientPastTrips(defaultUID);
+      let pastTrip = {
+        uid: defaultUID,
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        trip_status: "completed",
+        origin_zone: "AA",
+        fare_price: 5,
+        distance_meters: 1000,
+        distance_text: "1000",
+        duration_seconds: 300,
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: "",
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        pilot_id: "pilotID",
+      };
+      let now = Date.now();
+      for (var i = 0; i < 3; i++) {
+        pastTrip.request_time = (now + i * 10000).toString();
+        await cpt.pushPastTrip(pastTrip);
+      }
+
+      const wrapped = test.wrap(trip.client_get_past_trips);
+
+      // request all client's past trips
+      let pastTrips = await wrapped({}, defaultCtx);
+
+      // expect client_get_past_trip to return 3 trips
+      assert.isNotEmpty(pastTrips);
+      assert.equal(pastTrips.length, 3);
+
+      // request client's most recent trip
+      pastTrips = await wrapped({ page_size: 1 }, defaultCtx);
+
+      // expect client_get_past_trip to return 3 trips
+      assert.isNotEmpty(pastTrips);
+      assert.equal(pastTrips.length, 1);
+
+      // request client's most remote trip
+      pastTrips = await wrapped({ max_request_time: now }, defaultCtx);
+
+      // expect client_get_past_trip to return 3 trips
+      assert.isNotEmpty(pastTrips);
+      assert.equal(pastTrips.length, 1);
+
+      // request client's past trips before very first trip
+      pastTrips = await wrapped({ max_request_time: now - 1 }, defaultCtx);
+
+      // expect client_get_past_trip to return nothing
+      assert.isEmpty(pastTrips);
+    });
+  });
+
+  describe("pilotGetTripRating", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(trip.pilot_get_trip_rating);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+    after(async () => {
+      await admin.database().ref("trip-requests").remove();
+      await admin.database().ref("pilots").remove();
+      await admin.database().ref("clients").remove();
+      await admin.database().ref("past-trips").remove();
+    });
+
+    it("fails if user is not authenticated", async () => {
+      // run generic test without context
+      await genericTest(
+        {},
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if argument 'pilot_id' is not present", async () => {
+      await genericTest(
+        { past_trip_ref_key: "past_trip_ref_key" },
+        "invalid-argument",
+        "missing expected argument 'pilot_id'."
+      );
+    });
+
+    it("fails if argument 'past_trip_ref_key' is not present", async () => {
+      await genericTest(
+        { pilot_id: "pilot_id" },
+        "invalid-argument",
+        "missing expected argument 'past_trip_ref_key'."
+      );
+    });
+
+    it("returns a rating of the pilot", async () => {
+      // clear database
+      await admin.database().ref("past-trips").remove();
+
+      // populate database with pilot past trip with rating 4.
+      const pilotID = "pilotID";
+      const ppt = new PilotPastTrips(pilotID);
+      let pastTrip = {
+        uid: defaultUID,
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        trip_status: "completed",
+        origin_zone: "AA",
+        fare_price: 5,
+        distance_meters: 1000,
+        distance_text: "1000",
+        duration_seconds: 300,
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: Date.now().toString(),
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        pilot_id: pilotID,
+      };
+      const refKey = await ppt.pushPastTrip(pastTrip);
+
+      const wrapped = test.wrap(trip.pilot_get_trip_rating);
+
+      // request all client's past trips
+      let result = await wrapped(
+        { pilot_id: pilotID, past_trip_ref_key: refKey },
+        defaultCtx
+      );
+      assert.isUndefined(result);
+    });
+
+    it("returns a rating of the pilot", async () => {
+      // clear database
+      await admin.database().ref("past-trips").remove();
+
+      // populate database with pilot past trip with rating 4.
+      const pilotID = "pilotID";
+      const ppt = new PilotPastTrips(pilotID);
+      let pastTrip = {
+        uid: defaultUID,
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        trip_status: "completed",
+        origin_zone: "AA",
+        fare_price: 5,
+        distance_meters: 1000,
+        distance_text: "1000",
+        duration_seconds: 300,
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: Date.now().toString(),
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        pilot_id: pilotID,
+        pilot_rating: {
+          score: "4.00",
+        },
+      };
+      const refKey = await ppt.pushPastTrip(pastTrip);
+
+      const wrapped = test.wrap(trip.pilot_get_trip_rating);
+
+      // request all client's past trips
+      let result = await wrapped(
+        { pilot_id: pilotID, past_trip_ref_key: refKey },
+        defaultCtx
+      );
+
+      assert.isDefined(result);
+      assert.equal(result.pilot_rating, "4.00");
     });
   });
 });

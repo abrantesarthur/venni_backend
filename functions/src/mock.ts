@@ -76,7 +76,7 @@ export const createMockPilots = async (amount: number) => {
     db.ref("pilots").child(pilot.uid).set(pilot);
 
     // upload mock profile image
-    storage.bucket().upload("./mock-driver.jpg", {
+    storage.bucket().upload("./mock-pilot.jpg", {
       destination: "pilot-photos/" + uid + "/profile.jpg",
     });
   }
@@ -98,7 +98,7 @@ const mockTripAccept = async (pilot: Pilot.Interface) => {
   // get a reference to user's trip request
   const tr = new TripRequest(pilot.current_client_uid);
 
-  // set trip's driver_id in a transaction only if it is null or empty. Otherwise,
+  // set trip's pilot_id in a transaction only if it is null or empty. Otherwise,
   // it means another pilot already picked the trip ahead of us. Throw error in that case.
   await transaction(
     tr.ref,
@@ -109,9 +109,9 @@ const mockTripAccept = async (pilot: Pilot.Interface) => {
       }
 
       // if trip has not been picked up by another pilot
-      if (tripRequest.driver_id == null || tripRequest.driver_id == "") {
-        // set trip's driver_id in a transaction only if it is null or empty.
-        tripRequest.driver_id = pilot.uid;
+      if (tripRequest.pilot_id == null || tripRequest.pilot_id == "") {
+        // set trip's pilot_id in a transaction only if it is null or empty.
+        tripRequest.pilot_id = pilot.uid;
         return tripRequest;
       }
 
@@ -265,7 +265,7 @@ const mockTripStart = async (pilot: Pilot.Interface) => {
   // get a reference to user's trip request
   const tr = new TripRequest(pilot.current_client_uid);
 
-  // update trip's status in a transaction only if is waiting for our driver.
+  // update trip's status in a transaction only if is waiting for our pilot.
   await transaction(
     tr.ref,
     (tripRequest: TripRequest.Interface) => {
@@ -274,10 +274,10 @@ const mockTripStart = async (pilot: Pilot.Interface) => {
         return {};
       }
 
-      // if trip is waiting for our driver
+      // if trip is waiting for our pilot
       if (
-        tripRequest.trip_status == "waiting-driver" &&
-        tripRequest.driver_id == pilot.uid
+        tripRequest.trip_status == "waiting-pilot" &&
+        tripRequest.pilot_id == pilot.uid
       ) {
         // set trip's status to inProgress
         tripRequest.trip_status = TripRequest.Status.inProgress;
@@ -424,8 +424,8 @@ const mockTripComplete = async (pilotID: string) => {
       "failed-precondition",
       "cannot complete trip in status '" + trip.trip_status + "'"
     );
-  } else if (trip.driver_id != pilotID) {
-    // it was aborted because it is not being handled by our driver_id
+  } else if (trip.pilot_id != pilotID) {
+    // it was aborted because it is not being handled by our pilot_id
     throw new functions.https.HttpsError(
       "failed-precondition",
       "pilot has not been designated to this trip"
@@ -469,7 +469,7 @@ const mockTripComplete = async (pilotID: string) => {
   }
   await c.pushPastTripAndRate(trip, 4);
 
-  // set trip's status to completed only if it is being handled by our driver
+  // set trip's status to completed only if it is being handled by our pilot
   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
     if (tripRequest == null) {
       // we always check for null in transactions.
@@ -481,7 +481,7 @@ const mockTripComplete = async (pilotID: string) => {
   });
 };
 
-// mock driver behaves as a driver accepting a trip request would behave
+// mock pilot behaves as a pilot accepting a trip request would behave
 // TODO: delete on production
 export const pilot_handling_trip = database
   .ref("pilots/{pilotID}")
