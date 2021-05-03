@@ -32,12 +32,12 @@ export namespace TripRequest {
   export enum Status {
     waitingConfirmation = "waiting-confirmation",
     waitingPayment = "waiting-payment",
-    waitingDriver = "waiting-driver",
-    lookingForDriver = "looking-for-driver",
-    noDriversAvailable = "no-drivers-available",
+    waitingPilot = "waiting-pilot",
+    lookingForPilot = "looking-for-pilot",
+    noPilotsAvailable = "no-pilots-available",
     inProgress = "in-progress",
     completed = "completed",
-    cancelledByDriver = "cancelled-by-driver",
+    cancelledByPilot = "cancelled-by-pilot",
     cancelledByClient = "cancelled-by-client",
     paymentFailed = "payment-failed",
   }
@@ -59,12 +59,12 @@ export namespace TripRequest {
     origin_address: string;
     destination_address: string;
     pilot_past_trip_ref_key?: string; // added when pilot completes the trip
-    driver_id?: string;
+    pilot_id?: string;
     client_rating?: string;
-    driver_rating?: DriverRating; // added to pilot's past trips when client rates the pilot
+    pilot_rating?: PilotRating; // added to pilot's past trips when client rates the pilot
   }
 
-  export interface DriverRating {
+  export interface PilotRating {
     score: string;
     cleanliness_went_well?: boolean;
     safety_went_well?: boolean;
@@ -72,8 +72,8 @@ export namespace TripRequest {
     feedback?: string;
   }
 
-  export namespace DriverRating {
-    export const is = (obj: any): obj is DriverRating => {
+  export namespace PilotRating {
+    export const is = (obj: any): obj is PilotRating => {
       if (obj == null || obj == undefined) {
         return false;
       }
@@ -97,7 +97,7 @@ export namespace TripRequest {
 
     export const fromObj = (obj: any) => {
       if (is(obj)) {
-        return obj as DriverRating;
+        return obj as PilotRating;
       }
       return;
     };
@@ -110,8 +110,8 @@ export namespace TripRequest {
       }
 
       if (
-        obj.driver_rating != undefined &&
-        !DriverRating.is(obj.driver_rating)
+        obj.pilot_rating != undefined &&
+        !PilotRating.is(obj.pilot_rating)
       ) {
         return false;
       }
@@ -138,8 +138,8 @@ export namespace TripRequest {
       if (is(obj)) {
         let result: LooseObject = {};
         result = obj;
-        if (obj.driver_rating != undefined) {
-          result.driver_rating = DriverRating.fromObj(obj.driver_rating);
+        if (obj.pilot_rating != undefined) {
+          result.pilot_rating = PilotRating.fromObj(obj.pilot_rating);
         }
         return result as TripRequest.Interface;
       }

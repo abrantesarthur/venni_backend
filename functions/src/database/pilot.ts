@@ -65,7 +65,7 @@ export class Pilot extends Database {
   };
 
   // rateObj has the following interface:
-  // driver_rating: {
+  // pilot_rating: {
   //   score: number;
   //   cleanliness_went_well?: bool;
   //   safety_went_well?: bool;
@@ -73,7 +73,7 @@ export class Pilot extends Database {
   //   feedback: string;
   // }
   rate = async (pastTripRefKey: string, rateObj: any) => {
-    // update driver's past trip
+    // update pilot's past trip
     const ppt = new PilotPastTrips(this.id);
     await ppt.updatePastTrip(pastTripRefKey, rateObj);
 
@@ -92,10 +92,10 @@ export class Pilot extends Database {
       let last200NumberOfRatings = 0;
       last200Trips.forEach((trip) => {
         if (
-          trip.driver_rating != undefined &&
-          trip.driver_rating.score != undefined
+          trip.pilot_rating != undefined &&
+          trip.pilot_rating.score != undefined
         ) {
-          last200TotalRating += Number(trip.driver_rating.score);
+          last200TotalRating += Number(trip.pilot_rating.score);
           last200NumberOfRatings += 1;
         }
       });
@@ -141,7 +141,7 @@ export namespace Pilot {
     vehicle: VehicleInterface;
     idle_since: string;
     rating: string; // based on last 200 trips
-    total_trips?: string; // incremented when driver completes a trip
+    total_trips?: string; // incremented when pilot completes a trip
     score?: number; // not stored in database
     // TODO: change name to route or somethign
     distance_to_client?: DistanceToClient; // not stored in database

@@ -62,7 +62,7 @@ describe("authEvents", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        driver_id: "pilotID",
+        pilot_id: "pilotID",
       };
     });
 
