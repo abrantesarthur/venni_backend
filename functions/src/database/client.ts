@@ -1,3 +1,4 @@
+import { namespace } from "firebase-functions/lib/providers/firestore";
 import { Database } from "./index";
 import { ClientPastTrips } from "./pastTrips";
 import { TripRequest } from "./tripRequest";
@@ -49,7 +50,9 @@ export class Client extends Database {
         last100Trips.length < 5
           ? 5
           : last100TotalRating / last100NumberOfRatings;
-      await this.ref.child("rating").set(((rating * 100) / 100).toFixed(2).toString());
+      await this.ref
+        .child("rating")
+        .set(((rating * 100) / 100).toFixed(2).toString());
     }
   };
 
@@ -68,10 +71,36 @@ export class Client extends Database {
     trip: TripRequest.Interface,
     rating: number
   ): Promise<string | null> => {
-    trip.client_rating = ((rating * 100)/100).toFixed(2).toString();
+    trip.client_rating = ((rating * 100) / 100).toFixed(2).toString();
     let pastTripRefKey = await this.pushPastTrip(trip);
     await this.rate();
     return pastTripRefKey;
+  };
+
+  addCard = async (card: Client.Interface.Card) => {
+    await this.ref.child("cards").child(card.id).set(card);
+  };
+
+  getCardByID = async (
+    cardID: string
+  ): Promise<Client.Interface.Card | undefined> => {
+    let snapshot = await this.ref.child("cards").child(cardID).once("value");
+    return Client.Interface.Card.fromObj(snapshot.val());
+  };
+
+  getCards = async (): Promise<Client.Interface.Card[]> => {
+    let snapshot = await this.ref.child("cards").once("value");
+    let cards: Client.Interface.Card[] = [];
+    if (snapshot.val() != null) {
+      let cardIDs = Object.keys(snapshot.val());
+      cardIDs.forEach((cardID: string) => {
+        let card = Client.Interface.Card.fromObj(snapshot.val()[cardID]);
+        if (card != undefined) {
+          cards.push(card);
+        }
+      });
+    }
+    return cards;
   };
 }
 
@@ -79,21 +108,22 @@ export namespace Client {
   export interface Interface {
     uid: string;
     rating: string; // average of the ratings of the last 100 trips
+    cards?: Client.Interface.Card[]; // is empty if customer has no cards
   }
 
   export namespace Interface {
-    export const is = (obj: any): obj is Client.Interface => {
+    export const is = (obj: any): boolean => {
       if (obj == null || obj == undefined) {
         return false;
       }
-      
-      let keys = Object.keys(obj);
-      for (var i = 0; i < keys.length; i++) {
-        if (
-          keys[i] != "uid" &&
-          keys[i] != "rating"
-        ) {
-          return false;
+
+      // if cards are present, make sure they are correctly typed
+      if (obj.cards != undefined) {
+        let cardIDs = Object.keys(obj.cards);
+        for (var j = 0; j < cardIDs.length; j++) {
+          if (!Client.Interface.Card.is(obj.cards[cardIDs[j]])) {
+            return false;
+          }
         }
       }
 
@@ -107,9 +137,104 @@ export namespace Client {
 
     export const fromObj = (obj: any): Client.Interface | undefined => {
       if (is(obj)) {
-        return obj as Client.Interface;
+        let cards: Client.Interface.Card[] = [];
+        if (obj.cards != undefined) {
+          let cardIDs = Object.keys(obj.cards);
+          for (var j = 0; j < cardIDs.length; j++) {
+            let card = Client.Interface.Card.fromObj(obj.cards[cardIDs[j]]);
+            if (card != undefined) {
+              cards.push(card);
+            }
+          }
+        }
+
+        return {
+          uid: obj.uid,
+          rating: obj.rating,
+          cards: cards,
+        };
       }
       return;
     };
+
+    export interface Card {
+      id: string;
+      pagarme_customer_id: number;
+      billing_address: Client.Interface.Address;
+    }
+
+    export namespace Card {
+      export const is = (obj: any): obj is Client.Interface.Card => {
+        if (obj == null || obj == undefined) {
+          return false;
+        }
+        return (
+          "id" in obj &&
+          "pagarme_customer_id" in obj &&
+          "billing_address" in obj &&
+          typeof obj.id == "string" &&
+          typeof obj.pagarme_customer_id == "number" &&
+          Client.Interface.Address.is(obj.billing_address)
+        );
+      };
+
+      export const fromObj = (obj: any): Client.Interface.Card | undefined => {
+        if (is(obj)) {
+          let address = Client.Interface.Address.fromObj(obj.billing_address);
+          if (address != undefined) {
+            return {
+              id: obj.id,
+              pagarme_customer_id: obj.pagarme_customer_id,
+              billing_address: address,
+            };
+          }
+        }
+        return;
+      };
+    }
+
+    export interface Address {
+      /** País. Duas letras minúsculas. Deve seguir o padrão `ISO 3166-1 alpha-2` */
+      country: string;
+      state: string;
+      city: string;
+      street: string;
+      street_number: string;
+      zipcode: string;
+      neighborhood?: string;
+      /** Complemento. **Não pode ser uma string vazia** nem null */
+      complementary?: string;
+    }
+
+    export namespace Address {
+      export const is = (obj: any): obj is Client.Interface.Address => {
+        if (obj == null || obj == undefined) {
+          return false;
+        }
+        return (
+          "country" in obj &&
+          "state" in obj &&
+          "city" in obj &&
+          "street" in obj &&
+          "street_number" in obj &&
+          "zipcode" in obj &&
+          typeof obj.country == "string" &&
+          typeof obj.state == "string" &&
+          typeof obj.city == "string" &&
+          typeof obj.street == "string" &&
+          typeof obj.street_number == "string" &&
+          typeof obj.zipcode == "string"
+        );
+      };
+
+      export const fromObj = (
+        obj: any
+      ): Client.Interface.Address | undefined => {
+        if (is(obj)) {
+          return obj as Address;
+        }
+        return;
+      };
+    }
   }
 }

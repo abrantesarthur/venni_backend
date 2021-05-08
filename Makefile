@@ -32,6 +32,9 @@ endif
 ifndef GOOGLE_MAPS_API_KEY
 	$(error GOOGLE_MAPS_API_KEY is undefined)
 endif
+ifndef PAGARME_API_KEY
+	$(error PAGARME_API_KEY is undefined)
+endif
 
 check-emulator-env:
 ifndef GOOGLE_MAPS_API_KEY
@@ -46,10 +49,16 @@ endif
 ifndef EMULATORS_UI_ENABLED
 	$(error EMULATORS_UI_ENABLED is undefined)
 endif
+ifndef PAGARME_API_KEY
+	$(error PAGARME_API_KEY is undefined)
+endif
 
 check-test-env:
 ifndef GOOGLE_MAPS_API_KEY
 	$(error GOOGLE_MAPS_API_KEY is undefined)
+endif
+ifndef PAGARME_API_KEY
+	$(error PAGARME_API_KEY is undefined)
 endif
 
 
@@ -73,6 +82,7 @@ deploy-config: check-deploy-env
 	@$(FIREBASESET) functions.predeploy=$(FUNCTIONS_PREDEPLOY) && \
 	$(FIREBASEGET) > firebase.json && \
 	$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 emulator-config: check-emulator-env
@@ -82,10 +92,12 @@ emulator-config: check-emulator-env
 	emulators.ui.enabled=$(EMULATORS_UI_ENABLED) && \
 	$(FIREBASEGET) > firebase.json && \
 	$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 test-config: check-test-env
 	@$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 
@@ -123,7 +135,7 @@ emulator: use-dev-project emulator-config build
 # GOOGLE_APPLICATION_CREDENTIALS and run $(NPMRUN) buid
 # test: use-dev-project test-dependencies test-config build
 # 	$(NPMTEST)
-test: build
+test:
 	$(NPMTEST)
 
 

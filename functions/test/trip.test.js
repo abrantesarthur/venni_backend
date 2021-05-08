@@ -23,7 +23,6 @@ const test = firebaseFunctionsTest(
       "https://venni-rider-development-8a3f8-default-rtdb.firebaseio.com/",
     projectId: "venni-rider-development-8a3f8",
     storageBucket: "venni-rider-development-8a3f8.appspot.com",
-    storageBucket: "venni-rider-development-8a3f8.appspot.com",
   },
   "./devAdminCredentials.json"
 );
@@ -777,12 +776,12 @@ describe("trip", () => {
 
       // assert confirm trip returned information about pilot 1
       const confirmResult = await confirmPromise;
-      assert.equal(confirmResult.uid, pilotID1);
-      assert.equal(confirmResult.status, "busy");
+      assert.equal(confirmResult.pilot_id, pilotID1);
+      assert.equal(confirmResult.pilot_status, "busy");
       assert.equal(confirmResult.current_client_uid, defaultUID);
       assert.equal(confirmResult.trip_status, "waiting-pilot");
       // pilot's total_trips is zero
-      assert.equal(confirmResult.total_trips, "0");
+      assert.equal(confirmResult.pilot_total_trips, "0");
 
       // assert trip has waiting-pilot status
       tripRequestSnapshot = await tripRequestRef.once("value");
@@ -2329,10 +2328,7 @@ describe("trip", () => {
       assert.equal(pastTrips[0].pilot_rating.score, "2");
       assert.equal(pastTrips[0].pilot_rating.cleanliness_went_well, true);
       assert.equal(pastTrips[0].pilot_rating.safety_went_well, false);
-      assert.equal(
-        pastTrips[0].pilot_rating.waiting_time_went_well,
-        undefined
-      );
+      assert.equal(pastTrips[0].pilot_rating.waiting_time_went_well, undefined);
       assert.equal(pastTrips[0].pilot_rating.feedback, "the pilot is great!");
 
       // assert trip request has been deleted
@@ -2437,10 +2433,7 @@ describe("trip", () => {
       assert.equal(pastTrips[0].pilot_rating.score, "5");
       assert.equal(pastTrips[0].pilot_rating.cleanliness_went_well, true);
       assert.equal(pastTrips[0].pilot_rating.safety_went_well, undefined);
-      assert.equal(
-        pastTrips[0].pilot_rating.waiting_time_went_well,
-        undefined
-      );
+      assert.equal(pastTrips[0].pilot_rating.waiting_time_went_well, undefined);
       assert.equal(pastTrips[0].pilot_rating.feedback, undefined);
     });
   });
