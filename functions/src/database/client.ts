@@ -108,6 +108,10 @@ export namespace Client {
   export interface Interface {
     uid: string;
     rating: string; // average of the ratings of the last 100 trips
+    payment_method: {
+      default: "cash" | "credit_card";
+      card_id?: string;
+    };
     cards?: Client.Interface.Card[]; // is empty if customer has no cards
   }
 
@@ -125,6 +129,27 @@ export namespace Client {
             return false;
           }
         }
+      }
+
+      // type check obj.payment_method
+      if (
+        obj.payment_method == undefined ||
+        typeof obj.payment_method != "object"
+      ) {
+        return false;
+      }
+      if (
+        obj.payment_method.default == undefined ||
+        (obj.payment_method.default != "cash" &&
+          obj.payment_method.default != "credit_card")
+      ) {
+        return false;
+      }
+      if (
+        obj.payment_method.deafult == "credit_card" &&
+        obj.payment_method.card_id == undefined
+      ) {
+        return false;
       }
 
       return (
@@ -151,6 +176,7 @@ export namespace Client {
         return {
           uid: obj.uid,
           rating: obj.rating,
+          payment_method: obj.payment_method,
           cards: cards,
         };
       }
