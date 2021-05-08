@@ -167,6 +167,7 @@ describe("authEvents", () => {
       assert.isNotNull(snapshot.val());
       assert.equal(snapshot.val().uid, defaultUID);
       assert.equal(snapshot.val().rating, "5");
+      assert.equal(snapshot.val().payment_method.default, "cash");
     });
   });
 });

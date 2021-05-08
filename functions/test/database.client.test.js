@@ -36,6 +36,9 @@ describe("Client", () => {
       };
       defaultClient = {
         uid: clientID,
+        payment_method: {
+          default: "cash",
+        },
         rating: "5",
       };
       defaultTrip = {
@@ -83,6 +86,9 @@ describe("Client", () => {
           .set({
             uid: clientID,
             rating: "5",
+            payment_method: {
+              default: "cash",
+            },
             cards: {
               card_id: defaultCard,
             },
@@ -305,6 +311,45 @@ describe("Client", () => {
         const obj = {
           uid: "clientUID",
           rating: "5",
+          payment_method: {
+            default: "cash",
+          },
+          cards: {
+            card_id: {
+              id: "card_id",
+              pagarme_customer_id: 12345,
+              billing_address: {},
+            },
+          },
+        };
+        assert.equal(Client.Client.Interface.is(obj), false);
+      });
+
+      it("returns false if 'payment_method' is credit_card without card_id", () => {
+        const obj = {
+          uid: "clientUID",
+          rating: "5",
+          payment_method: {
+            default: "credit_card",
+          },
+          cards: {
+            card_id: {
+              id: "card_id",
+              pagarme_customer_id: 12345,
+              billing_address: {},
+            },
+          },
+        };
+        assert.equal(Client.Client.Interface.is(obj), false);
+      });
+
+      it("returns false if 'payment_method.default' is neither 'cash' nor 'credit_card'", () => {
+        const obj = {
+          uid: "clientUID",
+          rating: "5",
+          payment_method: {
+            default: "invalid",
+          },
           cards: {
             card_id: {
               id: "card_id",
@@ -319,6 +364,10 @@ describe("Client", () => {
       it("returns true when all required fields are present", () => {
         const obj = {
           uid: "clientUID",
+          payment_method: {
+            default: "credit_card",
+            card_id: "card_id",
+          },
           rating: "5",
         };
         assert.equal(Client.Client.Interface.is(obj), true);
@@ -328,6 +377,9 @@ describe("Client", () => {
         const obj = {
           uid: "clientUID",
           rating: "5",
+          payment_method: {
+            default: "cash",
+          },
           cards: {
             card_id: {
               id: "card_id",
@@ -385,6 +437,9 @@ describe("Client", () => {
       it("returns Client.Interface if obj is Client.Interface I", () => {
         const obj = {
           uid: "clientUID",
+          payment_method: {
+            default: "cash",
+          },
           rating: "5",
         };
 
@@ -392,11 +447,17 @@ describe("Client", () => {
         assert.isDefined(response);
         assert.equal(response.uid, "clientUID");
         assert.equal(response.rating, "5");
+        assert.equal(response.payment_method.default, "cash");
+        assert.isUndefined(response.payment_method.card_id);
       });
 
       it("returns Client.Interface if obj is Client.Interface II", () => {
         const obj = {
           uid: "clientUID",
+          payment_method: {
+            default: "credit_card",
+            card_id: "card_id",
+          },
           rating: "5",
         };
 
@@ -406,12 +467,17 @@ describe("Client", () => {
         assert.equal(response.rating, "5");
         assert.isDefined(response.cards);
         assert.equal(response.cards.length, 0);
+        assert.equal(response.payment_method.default, "credit_card"),
+          assert.equal(response.payment_method.card_id, "card_id");
       });
 
-      it("returns Client.Interface if obj is Client.Interface II", () => {
+      it("returns Client.Interface if obj is Client.Interface III", () => {
         const obj = {
           uid: "clientUID",
           rating: "5",
+          payment_method: {
+            default: "cash",
+          },
           cards: {
             card_id: {
               id: "card_id",
@@ -435,6 +501,8 @@ describe("Client", () => {
         assert.isDefined(response.cards);
         assert.equal(response.cards.length, 1);
         assert.equal(response.cards[0].id, "card_id");
+        assert.equal(response.payment_method.default, "cash");
+        assert.isUndefined(response.payment_method.card_id);
       });
     });
 

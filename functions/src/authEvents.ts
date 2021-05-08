@@ -39,6 +39,9 @@ export const create_client = functions.auth
       // an average of their atual ratings.
       const client: Client.Interface = {
         uid: user.uid,
+        payment_method: {
+          default: "cash",
+        },
         rating: "5",
       };
 

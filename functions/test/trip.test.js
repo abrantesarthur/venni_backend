@@ -1882,6 +1882,9 @@ describe("trip", () => {
       const clientRef = admin.database().ref("clients").child(defaultUID);
       await clientRef.set({
         uid: defaultUID,
+        payment_method: {
+          default: "cash",
+        },
         rating: "0",
       });
 
@@ -2349,10 +2352,17 @@ describe("trip", () => {
       const pilotID1 = "pilotID1";
 
       //  add client entry to the database
-      await admin.database().ref("clients").child(defaultUID).set({
-        uid: defaultUID,
-        rating: "2",
-      });
+      await admin
+        .database()
+        .ref("clients")
+        .child(defaultUID)
+        .set({
+          uid: defaultUID,
+          payment_method: {
+            default: "cash",
+          },
+          rating: "2",
+        });
 
       // add an available pilot to the database
       await admin.database().ref("pilots").remove();
