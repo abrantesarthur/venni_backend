@@ -171,8 +171,9 @@ const createCard = async (
   }
 
   // user customer.id, card.id and billing_address to add Card to Client
-  let responseCard = {
+  let responseCard: Client.Interface.Card = {
     id: card.id,
+    last_digits: card.last_digits,
     pagarme_customer_id: customer.id,
     billing_address: data.billing_address,
   };
