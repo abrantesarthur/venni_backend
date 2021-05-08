@@ -108,15 +108,15 @@ describe("payment", () => {
       }
     };
 
-    // it("fails if user is not authenticated", async () => {
-    //   // pass empty context as a parameter
-    //   await genericTest(
-    //     {},
-    //     "failed-precondition",
-    //     "Missing authentication credentials.",
-    //     {}
-    //   );
-    // });
+    it("fails if user is not authenticated", async () => {
+      // pass empty context as a parameter
+      await genericTest(
+        {},
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
 
     const failIfNotPresent = async (argName) => {
       let invalidArg = validArg;
@@ -342,6 +342,7 @@ describe("payment", () => {
 
       assert.isDefined(response);
       assert.isDefined(response.id);
+      assert.isDefined(response.last_digits);
       assert.isDefined(response.pagarme_customer_id);
       assert.isDefined(response.billing_address);
 

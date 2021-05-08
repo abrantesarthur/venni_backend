@@ -185,6 +185,7 @@ export namespace Client {
 
     export interface Card {
       id: string;
+      last_digits: string,
       pagarme_customer_id: number;
       billing_address: Client.Interface.Address;
     }
@@ -194,6 +195,24 @@ export namespace Client {
         if (obj == null || obj == undefined) {
           return false;
         }
+        
+        // type check 'last_digits' field
+        if(obj.last_digits == undefined) {
+          return false;
+        }
+        if(typeof obj.last_digits != "string") {
+          return false;
+        }
+        if(obj.last_digits.length != 4) {
+          return false;
+        }
+        for(var i = 0; i < 4; i++) {
+          if(isNaN(Number.parseInt(obj.last_digits[i], 10))) {
+            return false;
+          }
+        }
+    
+
         return (
           "id" in obj &&
           "pagarme_customer_id" in obj &&
@@ -210,6 +229,7 @@ export namespace Client {
           if (address != undefined) {
             return {
               id: obj.id,
+              last_digits: obj.last_digits,
               pagarme_customer_id: obj.pagarme_customer_id,
               billing_address: address,
             };
