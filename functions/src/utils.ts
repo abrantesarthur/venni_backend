@@ -1,3 +1,5 @@
+import * as functions from "firebase-functions";
+
 // sleep returns a promise which resolves after ms milliseconds.
 // call await sleep(ms) to pause execution for ms milliseconds.
 export function sleep(ms: number) {
@@ -67,4 +69,96 @@ export class AsyncTimeout {
 
 export interface LooseObject {
   [key: string]: any;
+}
+
+export const validateArgument = (
+  obj: any,
+  validKeys: string[],
+  expectedTypes: string[],
+  mustBePresent: boolean[]
+) => {
+  if (obj == undefined || obj == null) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "missing expected argument."
+    );
+  }
+
+  if (
+    validKeys.length != expectedTypes.length ||
+    validKeys.length != mustBePresent.length ||
+    expectedTypes.length != mustBePresent.length
+  ) {
+    // TODO: should probably throw internal error
+    return;
+  }
+
+  // make sure that all mandatory keys are present in object
+  mustBePresent.forEach((value, index) => {
+    if (value == true) {
+      let mandatoryKey = validKeys[index];
+      let hasMandatoryKey = false;
+
+      Object.keys(obj).forEach((key) => {
+        if (key == mandatoryKey) {
+          hasMandatoryKey = true;
+        }
+      });
+
+      if (!hasMandatoryKey) {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "missing expected argument '" + mandatoryKey + "'."
+        );
+      }
+    }
+  });
+
+  // make sure taht all keys in object are valid and have the expected type
+  Object.keys(obj).forEach((key) => {
+    let isValidKey = false;
+    let hasValidType = false;
+    let expectedType = "";
+
+    // iterate over valid keys
+    for (var i = 0; i < validKeys.length; i++) {
+      // if object key is valid
+      if (key == validKeys[i]) {
+        isValidKey = true;
+
+        // check whether type of value is what we expected
+        if (typeof obj[key] == expectedTypes[i]) {
+          hasValidType = true;
+        }
+        expectedType = expectedTypes[i];
+        break;
+      }
+    }
+
+    if (!isValidKey) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "argument " + key + " shouldn't be present"
+      );
+    }
+
+    if (!hasValidType) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "argument '" +
+          key +
+          "' has invalid type. Expected '" +
+          expectedType +
+          "'. Received '" +
+          typeof obj[key] +
+          "'."
+      );
+    }
+  });
+};
+
+export function phoneHasE164Format(phoneNumber: string) {
+  const regEx = /^\+[1-9]\d{10,14}$/;
+
+  return regEx.test(phoneNumber);
 }

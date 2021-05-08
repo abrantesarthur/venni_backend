@@ -7,7 +7,7 @@ import {
 } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 import { HttpsError } from "firebase-functions/lib/providers/https";
-import { AsyncTimeout, sleep, LooseObject } from "./utils";
+import { AsyncTimeout, sleep, LooseObject, validateArgument } from "./utils";
 import { getZoneNameFromCoordinate } from "./zones";
 import { TripRequest } from "./database/tripRequest";
 import { Pilot } from "./database/pilot";
@@ -18,92 +18,6 @@ import { Pilots } from "./database/pilots";
 import { ClientPastTrips, PilotPastTrips } from "./database/pastTrips";
 // initialize google maps API client
 const googleMaps = new GoogleMapsClient({});
-
-export const validateArgument = (
-  obj: any,
-  validKeys: string[],
-  expectedTypes: string[],
-  mustBePresent: boolean[]
-) => {
-  if (obj == undefined || obj == null) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "missing expected argument."
-    );
-  }
-
-  if (
-    validKeys.length != expectedTypes.length ||
-    validKeys.length != mustBePresent.length ||
-    expectedTypes.length != mustBePresent.length
-  ) {
-    // TODO: should probably throw internal error
-    return;
-  }
-
-  // make sure that all mandatory keys are present in object
-  mustBePresent.forEach((value, index) => {
-    if (value == true) {
-      let mandatoryKey = validKeys[index];
-      let hasMandatoryKey = false;
-
-      Object.keys(obj).forEach((key) => {
-        if (key == mandatoryKey) {
-          hasMandatoryKey = true;
-        }
-      });
-
-      if (!hasMandatoryKey) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "missing expected argument '" + mandatoryKey + "'."
-        );
-      }
-    }
-  });
-
-  // make sure taht all keys in object are valid and have the expected type
-  Object.keys(obj).forEach((key) => {
-    let isValidKey = false;
-    let hasValidType = false;
-    let expectedType = "";
-
-    // iterate over valid keys
-    for (var i = 0; i < validKeys.length; i++) {
-      // if object key is valid
-      if (key == validKeys[i]) {
-        isValidKey = true;
-
-        // check whether type of value is what we expected
-        if (typeof obj[key] == expectedTypes[i]) {
-          hasValidType = true;
-        }
-        expectedType = expectedTypes[i];
-        break;
-      }
-    }
-
-    if (!isValidKey) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "argument " + key + " shouldn't be present"
-      );
-    }
-
-    if (!hasValidType) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "argument '" +
-          key +
-          "' has invalid type. Expected '" +
-          expectedType +
-          "'. Received '" +
-          typeof obj[key] +
-          "'."
-      );
-    }
-  });
-};
 
 function validateRequestTripArguments(obj: any) {
   validateArgument(

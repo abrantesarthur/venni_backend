@@ -10,8 +10,6 @@ const test = firebaseFunctionsTest(
       "https://venni-rider-development-8a3f8-default-rtdb.firebaseio.com/",
     storageBucket: "venni-rider-development-8a3f8.appspot.com",
     projectId: "venni-rider-development-8a3f8",
-    databaseURL:
-      "https://venni-rider-development-8a3f8-default-rtdb.firebaseio.com/",
   },
   "./devAdminCredentials.json"
 );

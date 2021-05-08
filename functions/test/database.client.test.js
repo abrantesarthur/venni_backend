@@ -18,9 +18,22 @@ describe("Client", () => {
     let pilotID;
     let defaultClient;
     let defaultTrip;
+    let defaultCard;
     before(async () => {
       clientID = "clientID";
       pilotID = "pilotID";
+      defaultCard = {
+        id: "card_id",
+        pagarme_customer_id: 12345,
+        billing_address: {
+          country: "country",
+          state: "state",
+          city: "city",
+          street: "street",
+          street_number: "street_number",
+          zipcode: "zipcode",
+        },
+      };
       defaultClient = {
         uid: clientID,
         rating: "5",
@@ -67,12 +80,22 @@ describe("Client", () => {
           .database()
           .ref("clients")
           .child(clientID)
-          .set(defaultClient);
+          .set({
+            uid: clientID,
+            rating: "5",
+            cards: {
+              card_id: defaultCard,
+            },
+          });
         // assert client was returned
         let result = await c.getClient();
         assert.isDefined(result);
         assert.equal(result.uid, clientID);
         assert.equal(result.rating, "5");
+        assert.equal(result.cards.length, 1);
+        assert.equal(result.cards[0].id, "card_id");
+        assert.equal(result.cards[0].pagarme_customer_id, 12345);
+        assert.isDefined(result.cards[0].billing_address);
         // clear database
         await admin.database().ref("clients").remove();
       });
@@ -134,6 +157,139 @@ describe("Client", () => {
         await admin.database().ref("past-trips").remove();
       });
     });
+
+    describe("addCard", () => {
+      it("adds card to the database", async () => {
+        // add client to the database
+        await c.addClient(defaultClient);
+        // assert client has no cards
+        let cards = await c.getCards();
+        assert.isEmpty(cards);
+        // add card to database
+        await c.addCard({
+          id: "card_id",
+          pagarme_customer_id: 12345,
+          billing_address: {
+            country: "country",
+            state: "state",
+            city: "city",
+            street: "street",
+            street_number: "street_number",
+            zipcode: "zipcode",
+          },
+        });
+        // assert client has a card
+        let card = await c.getCardByID("card_id");
+        assert.isDefined(card);
+        assert.equal(card.id, "card_id");
+        assert.equal(card.pagarme_customer_id, 12345);
+        assert.isDefined(card.billing_address);
+        assert.equal(card.billing_address.country, "country");
+        assert.equal(card.billing_address.state, "state");
+        assert.equal(card.billing_address.city, "city");
+        assert.equal(card.billing_address.street, "street");
+        assert.equal(card.billing_address.street_number, "street_number");
+        assert.equal(card.billing_address.zipcode, "zipcode");
+
+        // clear database
+        await admin.database().ref("clients").remove();
+      });
+    });
+
+    describe("getCardByID", () => {
+      it("returns undefined if client has no cards", async () => {
+        // add client to the database
+        await c.addClient(defaultClient);
+        // assert getCardByID returns undefined
+        let card = await c.getCardByID("card_id");
+        assert.isUndefined(card);
+        // clear database
+        await admin.database().ref("clients").remove();
+      });
+
+      it("returns card if client has a card", async () => {
+        // add client to the database
+        await c.addClient(defaultClient);
+        // add card to database
+        await c.addCard({
+          id: "card_id",
+          pagarme_customer_id: 12345,
+          billing_address: {
+            country: "country",
+            state: "state",
+            city: "city",
+            street: "street",
+            street_number: "street_number",
+            zipcode: "zipcode",
+          },
+        });
+        // assert client has a card
+        let card = await c.getCardByID("card_id");
+        assert.isDefined(card);
+        assert.equal(card.id, "card_id");
+        assert.equal(card.pagarme_customer_id, 12345);
+        assert.isDefined(card.billing_address);
+        assert.equal(card.billing_address.country, "country");
+        assert.equal(card.billing_address.state, "state");
+        assert.equal(card.billing_address.city, "city");
+        assert.equal(card.billing_address.street, "street");
+        assert.equal(card.billing_address.street_number, "street_number");
+        assert.equal(card.billing_address.zipcode, "zipcode");
+
+        // clear database
+        await admin.database().ref("clients").remove();
+      });
+    });
+
+    describe("getCards", () => {
+      it("returns empty list if client has no cards", async () => {
+        // add client to the database
+        await c.addClient(defaultClient);
+        // assert getCardByID returns undefined
+        let card = await c.getCards("card_id");
+        assert.isEmpty(card);
+        // clear database
+        await admin.database().ref("clients").remove();
+      });
+
+      it("returns list of cards if client has cards", async () => {
+        // add client to the database
+        await c.addClient(defaultClient);
+        // add two cards to database
+        let defaultCard = {
+          id: "card_id",
+          pagarme_customer_id: 12345,
+          billing_address: {
+            country: "country",
+            state: "state",
+            city: "city",
+            street: "street",
+            street_number: "street_number",
+            zipcode: "zipcode",
+          },
+        };
+        await c.addCard(defaultCard);
+        defaultCard.id = "card_id_2";
+        await c.addCard(defaultCard);
+
+        // assert client has two a card
+        let card = await c.getCards();
+        assert.equal(card.length, 2);
+        assert.equal(card[0].id, "card_id");
+        assert.equal(card[1].id, "card_id_2");
+        assert.equal(card[0].pagarme_customer_id, 12345);
+        assert.isDefined(card[0].billing_address);
+        assert.equal(card[0].billing_address.country, "country");
+        assert.equal(card[0].billing_address.state, "state");
+        assert.equal(card[0].billing_address.city, "city");
+        assert.equal(card[0].billing_address.street, "street");
+        assert.equal(card[0].billing_address.street_number, "street_number");
+        assert.equal(card[0].billing_address.zipcode, "zipcode");
+
+        // clear database
+        await admin.database().ref("clients").remove();
+      });
+    });
   });
 
   describe("Interface", () => {
@@ -145,11 +301,17 @@ describe("Client", () => {
         assert.equal(Client.Client.Interface.is(null), false);
       });
 
-      it("returns false if contains an invalid field", () => {
+      it("returns false if 'cards' field is present and incorrect", () => {
         const obj = {
           uid: "clientUID",
           rating: "5",
-          invalid_field: "invalid_field",
+          cards: {
+            card_id: {
+              id: "card_id",
+              pagarme_customer_id: 12345,
+              billing_address: {},
+            },
+          },
         };
         assert.equal(Client.Client.Interface.is(obj), false);
       });
@@ -158,6 +320,28 @@ describe("Client", () => {
         const obj = {
           uid: "clientUID",
           rating: "5",
+        };
+        assert.equal(Client.Client.Interface.is(obj), true);
+      });
+
+      it("returns true if all possible fields are present and valid", () => {
+        const obj = {
+          uid: "clientUID",
+          rating: "5",
+          cards: {
+            card_id: {
+              id: "card_id",
+              pagarme_customer_id: 12345,
+              billing_address: {
+                country: "country",
+                state: "state",
+                city: "city",
+                street: "street",
+                street_number: "street_number",
+                zipcode: "zipcode",
+              },
+            },
+          },
         };
         assert.equal(Client.Client.Interface.is(obj), true);
       });
@@ -185,6 +369,19 @@ describe("Client", () => {
         assert.equal(Client.Client.Interface.fromObj(obj), undefined);
       });
 
+      it("returns undefined if obj is not Client.Interface II", () => {
+        const obj = {
+          uid: "clientUID",
+          rating: "5",
+          cards: {
+            card_id: {
+              id: "card_id",
+            },
+          },
+        };
+        assert.equal(Client.Client.Interface.fromObj(obj), undefined);
+      });
+
       it("returns Client.Interface if obj is Client.Interface I", () => {
         const obj = {
           uid: "clientUID",
@@ -207,6 +404,159 @@ describe("Client", () => {
         assert.isDefined(response);
         assert.equal(response.uid, "clientUID");
         assert.equal(response.rating, "5");
+        assert.isDefined(response.cards);
+        assert.equal(response.cards.length, 0);
+      });
+
+      it("returns Client.Interface if obj is Client.Interface II", () => {
+        const obj = {
+          uid: "clientUID",
+          rating: "5",
+          cards: {
+            card_id: {
+              id: "card_id",
+              pagarme_customer_id: 12345,
+              billing_address: {
+                country: "country",
+                state: "state",
+                city: "city",
+                street: "street",
+                street_number: "street_number",
+                zipcode: "zipcode",
+              },
+            },
+          },
+        };
+
+        const response = Client.Client.Interface.fromObj(obj);
+        assert.isDefined(response);
+        assert.equal(response.uid, "clientUID");
+        assert.equal(response.rating, "5");
+        assert.isDefined(response.cards);
+        assert.equal(response.cards.length, 1);
+        assert.equal(response.cards[0].id, "card_id");
+      });
+    });
+
+    describe("Card", () => {
+      describe("is", () => {
+        it("returns false when object is undefined", () => {
+          assert.equal(Client.Client.Interface.Card.is(undefined), false);
+        });
+        it("returns false when object is null", () => {
+          assert.equal(Client.Client.Interface.Card.is(null), false);
+        });
+        it("returns false if 'billing_address' is incorrect", () => {
+          const obj = {
+            id: "card_id",
+            pagarme_customer_id: 12345,
+            billing_address: {},
+          };
+          assert.equal(Client.Client.Interface.Card.is(obj), false);
+        });
+        it("returns true if all fields are valid", () => {
+          const obj = {
+            id: "card_id",
+            pagarme_customer_id: 12345,
+            billing_address: {
+              country: "country",
+              state: "state",
+              city: "city",
+              street: "street",
+              street_number: "street_number",
+              zipcode: "zipcode",
+            },
+          };
+          assert.equal(Client.Client.Interface.Card.is(obj), true);
+        });
+      });
+      describe("fromJson", () => {
+        it("returns undefined if obj is null", () => {
+          assert.equal(Client.Client.Interface.Card.fromObj(null), undefined);
+        });
+        it("returns undefined if obj is undefined", () => {
+          assert.equal(
+            Client.Client.Interface.Card.fromObj(undefined),
+            undefined
+          );
+        });
+        it("returns Card if obj is valid", () => {
+          const obj = {
+            id: "card_id",
+            pagarme_customer_id: 12345,
+            billing_address: {
+              country: "country",
+              state: "state",
+              city: "city",
+              street: "street",
+              street_number: "street_number",
+              zipcode: "zipcode",
+            },
+          };
+          let card = Client.Client.Interface.Card.fromObj(obj);
+          assert.isDefined(card);
+          assert.equal(card.id, "card_id");
+          assert.equal(card.pagarme_customer_id, 12345);
+          assert.isDefined(card.billing_address);
+        });
+      });
+    });
+
+    describe("Address", () => {
+      describe("is", () => {
+        it("returns false when object is undefined", () => {
+          assert.equal(Client.Client.Interface.Address.is(undefined), false);
+        });
+        it("returns false when object is null", () => {
+          assert.equal(Client.Client.Interface.Address.is(null), false);
+        });
+        it("returns false if object is empty", () => {
+          const obj = {};
+          assert.equal(Client.Client.Interface.Address.is(obj), false);
+        });
+        it("returns true if all fields are valid", () => {
+          const obj = {
+            country: "country",
+            state: "state",
+            city: "city",
+            street: "street",
+            street_number: "street_number",
+            zipcode: "zipcode",
+          };
+          assert.equal(Client.Client.Interface.Address.is(obj), true);
+        });
+      });
+      describe("fromJson", () => {
+        it("returns undefined if obj is null", () => {
+          assert.equal(
+            Client.Client.Interface.Address.fromObj(null),
+            undefined
+          );
+        });
+        it("returns undefined if obj is undefined", () => {
+          assert.equal(
+            Client.Client.Interface.Address.fromObj(undefined),
+            undefined
+          );
+        });
+        it("returns Address if obj is valid", () => {
+          const obj = {
+            country: "country",
+            state: "state",
+            city: "city",
+            street: "street",
+            street_number: "street_number",
+            zipcode: "zipcode",
+          };
+          let address = Client.Client.Interface.Address.fromObj(obj);
+          assert.isDefined(address);
+          assert.equal(address.country, "country");
+          assert.equal(address.state, "state");
+          assert.equal(address.city, "city");
+          assert.equal(address.street, "street");
+          assert.equal(address.street_number, "street_number");
+          assert.equal(address.zipcode, "zipcode");
+        });
       });
     });
   });
