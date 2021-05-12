@@ -52,10 +52,10 @@ describe("payment", () => {
       });
       // initialize defaultCard
       defaultCard = {
-        card_number: "1234123412341234",
-        card_expiration_date: "0199",
+        card_number: "5234213829598909",
+        card_expiration_date: "0235",
         card_holder_name: "Joao das Neves",
-        card_cvv: "111",
+        card_cvv: "500",
       };
 
       // calculate defaultCardHash
@@ -71,13 +71,15 @@ describe("payment", () => {
         card_expiration_date: defaultCard.card_expiration_date,
         card_holder_name: defaultCard.card_holder_name,
         card_hash: defaultCardHash,
-        cpf_number: "11111111111",
+        cpf_number: "58229366365",
+        email: "fulano@venni.app",
+        phone_number: "+5538998601275",
         billing_address: {
           country: "br",
           state: "mg",
           city: "Paracatu",
-          street: "street",
-          street_number: "100",
+          street: "Rua i",
+          street_number: "151",
           zipcode: "38600000",
         },
       };
@@ -184,6 +186,22 @@ describe("payment", () => {
       await failIfNotRightType("cpf_number", "string", 123);
     });
 
+    it("fails if 'phone_number' is not present", async () => {
+      await failIfNotPresent("phone_number");
+    });
+
+    it("fails if 'phone_number' is not a string", async () => {
+      await failIfNotRightType("phone_number", "string", 123);
+    });
+
+    it("fails if 'email' is not present", async () => {
+      await failIfNotPresent("email");
+    });
+
+    it("fails if 'email' is not a string", async () => {
+      await failIfNotRightType("email", "string", 123);
+    });
+
     it("fails if 'billing_address' is not present", async () => {
       await failIfNotPresent("billing_address");
     });
@@ -282,54 +300,12 @@ describe("payment", () => {
       );
     });
 
-    it("fail if client has no email address", async () => {
-      // create user without email
-      await admin.auth().createUser({ uid: defaultUID });
-
-      // assert createCard fails
-      await genericTest(
-        validArg,
-        "failed-precondition",
-        "Client with id '" + defaultUID + "' has no registered email."
-      );
-
-      // delete all clients from firebase auth
-      await admin.auth().deleteUser(defaultUID);
-    });
-
-    it("fail if client has no phone number", async () => {
-      // create user
-      await admin.auth().createUser({ uid: defaultUID });
-      // add email, but not phoneNumber
-      await admin
-        .auth()
-        .updateUser(defaultUID, { email: "client@example.com" });
-
-      // assert createCard fails
-      await genericTest(
-        validArg,
-        "failed-precondition",
-        "Client with id '" + defaultUID + "' has no registered phone number."
-      );
-
-      // delete all clients from firebase auth
-      await admin.auth().deleteUser(defaultUID);
-    });
-
     it("succeeds at creating card if all fields are valid", async () => {
       // create client in database
       const c = new Client(defaultUID);
       await c.addClient({
         uid: defaultUID,
         rating: "5",
-      });
-
-      // create client in authentication
-      await admin.auth().createUser({ uid: defaultUID });
-      // add email and phoneNumber
-      await admin.auth().updateUser(defaultUID, {
-        email: "client@example.com",
-        phoneNumber: "+5538777777777",
       });
 
       // before creating card, assert client has no cards
@@ -342,6 +318,7 @@ describe("payment", () => {
 
       assert.isDefined(response);
       assert.isDefined(response.id);
+      assert.isDefined(response.brand);
       assert.isDefined(response.last_digits);
       assert.isDefined(response.pagarme_customer_id);
       assert.isDefined(response.billing_address);
@@ -353,7 +330,6 @@ describe("payment", () => {
 
       // delete client from firebase database and auth
       await admin.database().ref("clients").remove();
-      await admin.auth().deleteUser(defaultUID);
     });
   });
 });

@@ -5,6 +5,7 @@ import { validateArgument, phoneHasE164Format } from "./utils";
 import { pagarme } from "./vendors/pagarme";
 import { Customer } from "pagarme-js-types/src/client/customers/responses";
 import { Card } from "pagarme-js-types/src/client/cards/responses";
+import { Transaction } from "pagarme-js-types/src/client/transactions/responses";
 
 const validateCreateCardArguments = (args: any) => {
   validateArgument(
@@ -16,9 +17,20 @@ const validateCreateCardArguments = (args: any) => {
       "card_hash",
       "cpf_number",
       "billing_address",
+      "email",
+      "phone_number",
     ],
-    ["string", "string", "string", "string", "string", "object"],
-    [true, true, true, true, true, true]
+    [
+      "string",
+      "string",
+      "string",
+      "string",
+      "string",
+      "object",
+      "string",
+      "string",
+    ],
+    [true, true, true, true, true, true, true, true]
   );
 
   const validDigits = (digits: string, expectedLength: number) => {
@@ -96,34 +108,14 @@ const createCard = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
-  // validate authentication
+  // validations
   if (context.auth == null) {
     throw new functions.https.HttpsError(
       "failed-precondition",
       "Missing authentication credentials."
     );
   }
-
-  // validate arguments
   validateCreateCardArguments(data);
-
-  // get client data
-  const clientID = context.auth.uid;
-  const userRecord = await firebaseAdmin.auth().getUser(clientID);
-  if (userRecord.email == undefined) {
-    // this should never happen
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Client with id '" + userRecord.uid + "' has no registered email."
-    );
-  }
-  if (userRecord.phoneNumber == undefined) {
-    // this should never happen
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Client with id '" + userRecord.uid + "' has no registered phone number."
-    );
-  }
 
   // create a pagarme customer
   const p = new pagarme();
@@ -135,20 +127,20 @@ const createCard = async (
       name: data.card_holder_name,
       type: "individual",
       country: "br",
-      email: userRecord.email,
+      email: data.email,
       documents: [
         {
           type: "cpf",
           number: data.cpf_number,
         },
       ],
-      phone_numbers: [userRecord.phoneNumber],
+      phone_numbers: [data.phone_number],
     });
   } catch (e) {
     throw new functions.https.HttpsError(
-      "unknown",
+      "invalid-argument",
       "Falha ao criar cliente no pagarme.",
-      e
+      e.response.errors[0]
     );
   }
 
@@ -164,23 +156,76 @@ const createCard = async (
     });
   } catch (e) {
     throw new functions.https.HttpsError(
-      "unknown",
+      "invalid-argument",
       "Falha ao criar cartão para o cliente.",
       e.response.errors[0]
     );
   }
 
-  // user customer.id, card.id and billing_address to add Card to Client
+  // do pre-authorization of R$1,00 to make sure credit card is valid
+  let transaction: Transaction;
+  try {
+    transaction = await p.createTransactionByCardID(
+      card.id,
+      100,
+      { id: customer.id, name: customer.name },
+      data.billing_address
+    );
+  } catch (e) {
+    throw new functions.https.HttpsError(
+      "unknown",
+      "Falha ao fazer pré-autorização do cartão."
+    );
+  }
+
+  // throw error if pre-approval failed
+  if (transaction.status != "paid") {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "pre-approval " + transaction.status + ": " + transaction.status_reason
+    );
+  }
+
+  // refund transaction if pre-approval was successfull
+  let refundPromise = p.refund(transaction.id);
+
+  // add new Card to Client's cards
   let responseCard: Client.Interface.Card = {
     id: card.id,
+    brand: card.brand,
     last_digits: card.last_digits,
     pagarme_customer_id: customer.id,
     billing_address: data.billing_address,
   };
-  const c = new Client(clientID);
-  await c.addCard(responseCard);
+  const c = new Client(context.auth.uid);
+  let addCardPromise = c.addCard(responseCard);
 
+  try {
+    await Promise.all([refundPromise, addCardPromise]);
+  } catch (e) {
+    throw new functions.https.HttpsError("unknown", "Algo deu errado!");
+  }
+
+  // return added card
   return responseCard;
 };
 
+const getCardHashKey = async (
+  _: any,
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  const p = new pagarme();
+  await p.ensureInitialized();
+  return await p.getCardHashKey();
+};
+
 export const create_card = functions.https.onCall(createCard);
+export const get_card_hash_key = functions.https.onCall(getCardHashKey);

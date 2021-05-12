@@ -8,12 +8,12 @@ import {
 import { Card } from "pagarme-js-types/src/client/cards/responses";
 import { CustomerCreateOptions } from "pagarme-js-types/src/client/customers/options";
 import { Customer } from "pagarme-js-types/src/client/customers/responses";
-import { TransactionCaptureOptions } from "pagarme-js-types/src/client/transactions/options";
 import {
   CardHashKey,
   Transaction,
 } from "pagarme-js-types/src/client/transactions/responses";
 import { Address } from "pagarme-js-types/src/common";
+import { SplitRuleArg } from "pagarme-js-types/src/client/transactions/options";
 
 export class pagarme {
   private _clientPromise: Promise<typeof client>;
@@ -34,55 +34,65 @@ export class pagarme {
   // use customer's document_number '11111111111' to simulate antifraud failure
   // use cardID of card with cvv starting with a 6 to simulate refused transactions
 
-  // TODO: add our recipient_id as environment variable
   createTransactionByCardID = async (
     cardID: string,
     amount: number,
-    customer: CustomerCreateOptions,
+    customer: { id: number; name: string },
     billingAddress: Address,
-    recipientID: string
+    recipientID?: string
   ): Promise<Transaction> => {
+    let splitRules: SplitRuleArg[] = [
+      // venni receives 20% - fees and is liable to chargebacks if there is no other recipient
+      {
+        liable: recipientID == undefined,
+        charge_processing_fee: true,
+        percentage: recipientID == undefined ? 100 : 20,
+        recipient_id: functions.config().pagarmeapi.recipient_id,
+      },
+    ];
+
+    if (recipientID != undefined) {
+      // collaborator receives 80% and is liable to chargebacks
+      splitRules.push({
+        liable: true,
+        charge_processing_fee: false,
+        percentage: 80,
+        recipient_id: recipientID,
+      });
+    }
+
     return await this._client.transactions.create({
       amount: amount,
       payment_method: "credit_card",
       card_id: cardID,
-      customer: customer, // mandatory (because of documents) for antifraud
+      customer: {
+        // mandatory (because of documents) for antifraud
+        id: customer.id,
+      },
       billing: {
-        // mandatory for antifraud
         name: customer.name,
-        address: billingAddress,
+        address: billingAddress, // mandatory for antifraud
       },
       items: [
         // mandatory for antifraud
         {
-          id: "corrida-moto",
-          title: "corrida de moto",
+          id: "corrida-moto-taxi",
+          title: "corrida de moto-taxi",
           unit_price: amount,
           quantity: 1,
           tangible: false,
         },
       ],
-      split_rules: [
-        // venni receives 20% - fees
-        {
-          liable: false,
-          charge_processing_fee: true,
-          amount: 0.2 * amount,
-          recipient_id: "https://docs.pagar.me/docs/split-rules",
-        },
-        // collaborator receives 80% and is liable to chargebacks
-        {
-          liable: true,
-          charge_processing_fee: false,
-          amount: 0.8 * amount,
-          recipient_id: recipientID,
-        },
-      ],
+      split_rules: splitRules,
     });
   };
 
-  getCardHashKey = async (): Promise<string> => {
-    return (await this._client.transactions.cardHashKey({})).public_key;
+  refund = async (trasactionID: number): Promise<Transaction> => {
+    return await this._client.transactions.refund({ id: trasactionID });
+  };
+
+  getCardHashKey = async (): Promise<CardHashKey> => {
+    return await this._client.transactions.cardHashKey({});
   };
 
   // CARDS
