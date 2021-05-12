@@ -1,4 +1,3 @@
-import { namespace } from "firebase-functions/lib/providers/firestore";
 import { Database } from "./index";
 import { ClientPastTrips } from "./pastTrips";
 import { TripRequest } from "./tripRequest";
@@ -78,7 +77,11 @@ export class Client extends Database {
   };
 
   addCard = async (card: Client.Interface.Card) => {
-    await this.ref.child("cards").child(card.id).set(card);
+    return await this.ref.child("cards").child(card.id).set(card);
+  };
+
+  removeCardByID = async (cardID: string) => {
+    return await this.ref.child("cards").child(cardID).remove();
   };
 
   getCardByID = async (
@@ -183,12 +186,32 @@ export namespace Client {
       return;
     };
 
-    type Brand = "mastercard" | "visa" | "elo" | "amex" | "discover" | "aura" | "jcb" | "hipercard" | "diners";
+    type Brand =
+      | "mastercard"
+      | "visa"
+      | "elo"
+      | "amex"
+      | "discover"
+      | "aura"
+      | "jcb"
+      | "hipercard"
+      | "diners";
     export interface Card {
+      /** id do cartão no pagar.me */
       id: string;
-      last_digits: string,
-      brand: Brand,
+      /** Nome do portador do cartão. */
+      holder_name: String;
+      /** 6 primeiros dígitos do cartão. */
+      first_digits: String;
+      /** 4 primeiros dígitos do cartão. */
+      last_digits: string;
+      /** Data de expiração do cartão. */
+      expiration_date: string;
+      /** Emissor do cartão. */
+      brand: Brand;
+      /** id do customer no pagar.me. */
       pagarme_customer_id: number;
+      /** endereço de cobrança do cartão. */
       billing_address: Client.Interface.Address;
     }
 
@@ -197,30 +220,47 @@ export namespace Client {
         if (obj == null || obj == undefined) {
           return false;
         }
-        
-        // type check 'last_digits' field
-        if(obj.last_digits == undefined) {
-          return false;
-        }
-        if(typeof obj.last_digits != "string") {
-          return false;
-        }
-        if(obj.last_digits.length != 4) {
-          return false;
-        }
-        for(var i = 0; i < 4; i++) {
-          if(isNaN(Number.parseInt(obj.last_digits[i], 10))) {
+
+        const typeCheckNumericField = (
+          fieldName: string,
+          fieldLength: number
+        ): boolean => {
+          if (
+            obj[fieldName] == undefined ||
+            typeof obj[fieldName] != "string" ||
+            obj[fieldName].length != fieldLength
+          ) {
             return false;
           }
+          for (var i = 0; i < fieldLength; i++) {
+            if (isNaN(Number.parseInt(obj[fieldName][i], 10))) {
+              return false;
+            }
+          }
+          return true;
+        };
+
+        // type check 'last_digits' field
+        if (!typeCheckNumericField("last_digits", 4)) {
+          return false;
         }
-    
+        // type check 'first_digits' field
+        if (!typeCheckNumericField("first_digits", 6)) {
+          return false;
+        }
+        // type check 'expiration_date' field
+        if (!typeCheckNumericField("expiration_date", 4)) {
+          return false;
+        }
 
         return (
           "id" in obj &&
+          "holder_name" in obj &&
           "brand" in obj &&
           "pagarme_customer_id" in obj &&
           "billing_address" in obj &&
           typeof obj.id == "string" &&
+          typeof obj.holder_name == "string" &&
           typeof obj.pagarme_customer_id == "number" &&
           Client.Interface.Address.is(obj.billing_address)
         );
@@ -232,7 +272,10 @@ export namespace Client {
           if (address != undefined) {
             return {
               id: obj.id,
+              holder_name: obj.holder_name,
+              first_digits: obj.first_digits,
               last_digits: obj.last_digits,
+              expiration_date: obj.expiration_date,
               brand: obj.brand,
               pagarme_customer_id: obj.pagarme_customer_id,
               billing_address: address,

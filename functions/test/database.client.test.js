@@ -24,7 +24,10 @@ describe("Client", () => {
       pilotID = "pilotID";
       defaultCard = {
         id: "card_id",
+        holder_name: "Fulano de Tal",
+        first_digits: "523469",
         last_digits: "1234",
+        expiration_date: "1131",
         brand: "visa",
         pagarme_customer_id: 12345,
         billing_address: {
@@ -178,7 +181,10 @@ describe("Client", () => {
         // add card to database
         await c.addCard({
           id: "card_id",
+          holder_name: "Fulano de Tal",
+          first_digits: "523445",
           last_digits: "1234",
+          expiration_date: "1131",
           brand: "mastercard",
           pagarme_customer_id: 12345,
           billing_address: {
@@ -196,6 +202,10 @@ describe("Client", () => {
         assert.equal(card.id, "card_id");
         assert.equal(card.brand, "mastercard");
         assert.equal(card.last_digits, "1234");
+        assert.equal(card.last_digits, "1234");
+        assert.equal(card.holder_name, "Fulano de Tal");
+        assert.equal(card.first_digits, "523445");
+        assert.equal(card.expiration_date, "1131");
         assert.equal(card.pagarme_customer_id, 12345);
         assert.isDefined(card.billing_address);
         assert.equal(card.billing_address.country, "country");
@@ -228,6 +238,9 @@ describe("Client", () => {
         await c.addCard({
           id: "card_id",
           brand: "elo",
+          holder_name: "Fulano de Tal",
+          first_digits: "523445",
+          expiration_date: "1131",
           last_digits: "1234",
           pagarme_customer_id: 12345,
           billing_address: {
@@ -245,6 +258,9 @@ describe("Client", () => {
         assert.equal(card.id, "card_id");
         assert.equal(card.brand, "elo");
         assert.equal(card.last_digits, "1234");
+        assert.equal(card.holder_name, "Fulano de Tal");
+        assert.equal(card.first_digits, "523445");
+        assert.equal(card.expiration_date, "1131");
         assert.equal(card.pagarme_customer_id, 12345);
         assert.isDefined(card.billing_address);
         assert.equal(card.billing_address.country, "country");
@@ -277,6 +293,9 @@ describe("Client", () => {
         let defaultCard = {
           id: "card_id",
           brand: "visa",
+          holder_name: "Fulano de Tal",
+          first_digits: "523445",
+          expiration_date: "1131",
           last_digits: "1234",
           pagarme_customer_id: 12345,
           billing_address: {
@@ -298,6 +317,9 @@ describe("Client", () => {
         assert.equal(card[0].id, "card_id");
         assert.equal(card[1].id, "card_id_2");
         assert.equal(card[0].last_digits, "1234");
+        assert.equal(card[0].holder_name, "Fulano de Tal");
+        assert.equal(card[0].first_digits, "523445");
+        assert.equal(card[0].expiration_date, "1131");
         assert.equal(card[0].brand, "visa");
         assert.equal(card[0].pagarme_customer_id, 12345);
         assert.isDefined(card[0].billing_address);
@@ -353,6 +375,7 @@ describe("Client", () => {
           cards: {
             card_id: {
               id: "card_id",
+
               pagarme_customer_id: 12345,
               billing_address: {},
             },
@@ -404,6 +427,9 @@ describe("Client", () => {
             card_id: {
               id: "card_id",
               brand: "visa",
+              holder_name: "Fulano de Tal",
+              first_digits: "523445",
+              expiration_date: "1131",
               last_digits: "1234",
               pagarme_customer_id: 12345,
               billing_address: {
@@ -504,6 +530,9 @@ describe("Client", () => {
             card_id: {
               id: "card_id",
               brand: "visa",
+              holder_name: "Fulano de Tal",
+              first_digits: "523445",
+              expiration_date: "1131",
               last_digits: "1234",
               pagarme_customer_id: 12345,
               billing_address: {
@@ -533,6 +562,28 @@ describe("Client", () => {
 
     describe("Card", () => {
       describe("is", () => {
+        let validCard;
+
+        beforeEach(() => {
+          validCard = {
+            id: "card_id",
+            brand: "visa",
+            holder_name: "Fulano de Tal",
+            first_digits: "523445",
+            expiration_date: "1131",
+            last_digits: "1234",
+            pagarme_customer_id: 12345,
+            billing_address: {
+              country: "country",
+              state: "state",
+              city: "city",
+              street: "street",
+              street_number: "street_number",
+              zipcode: "zipcode",
+            },
+          };
+        });
+
         it("returns false when object is undefined", () => {
           assert.equal(Client.Client.Interface.Card.is(undefined), false);
         });
@@ -544,74 +595,80 @@ describe("Client", () => {
           assert.equal(Client.Client.Interface.Card.is({}), false);
         });
 
+        const falseIfMissingField = (field) => {
+          it("returns false if '" + field + "' is missing", () => {
+            let invalidCard = validCard;
+            delete invalidCard[field];
+            assert.equal(Client.Client.Interface.Card.is(invalidCard), false);
+          });
+        };
+
+        falseIfMissingField("id");
+        falseIfMissingField("brand");
+        falseIfMissingField("holder_name");
+        falseIfMissingField("first_digits");
+        falseIfMissingField("last_digits");
+        falseIfMissingField("expiration_date");
+        falseIfMissingField("pagarme_customer_id");
+        falseIfMissingField("billing_address");
+
+        it("returns false if 'first_digits' field doesn't have length 6", () => {
+          let invalidCard = validCard;
+          (invalidCard["first_digits"] = "12345"),
+            assert.equal(Client.Client.Interface.Card.is(invalidCard), false);
+        });
+
+        it("returns false if 'first_digits' is not all numbers", () => {
+          let invalidCard = validCard;
+          (invalidCard["first_digits"] = "12345a"),
+            assert.equal(Client.Client.Interface.Card.is(invalidCard), false);
+        });
+
         it("returns false if 'last_digits' field doesn't have length 4", () => {
-          const obj = {
-            id: "card_id",
-            brand: "visa",
-            last_digits: "12345",
-            pagarme_customer_id: 12345,
-            billing_address: {
-              country: "country",
-              state: "state",
-              city: "city",
-              street: "street",
-              street_number: "street_number",
-              zipcode: "zipcode",
-            },
-          };
-          assert.equal(Client.Client.Interface.Card.is(obj), false);
+          let invalidCard = validCard;
+          (invalidCard["last_digits"] = "123"),
+            assert.equal(Client.Client.Interface.Card.is(invalidCard), false);
         });
 
         it("returns false if 'last_digits' is not all numbers", () => {
-          const obj = {
-            id: "card_id",
-            brand: "visa",
-            last_digits: "123a",
-            pagarme_customer_id: 12345,
-            billing_address: {
-              country: "country",
-              state: "state",
-              city: "city",
-              street: "street",
-              street_number: "street_number",
-              zipcode: "zipcode",
-            },
-          };
-          assert.equal(Client.Client.Interface.Card.is(obj), false);
+          let invalidCard = validCard;
+          (invalidCard["last_digits"] = "123a"),
+            assert.equal(Client.Client.Interface.Card.is(invalidCard), false);
+        });
+
+        it("returns false if 'expiration_date' field doesn't have length 4", () => {
+          let invalidCard = validCard;
+          (invalidCard["expiration_date"] = "123"),
+            assert.equal(Client.Client.Interface.Card.is(invalidCard), false);
+        });
+
+        it("returns false if 'expiration_date' is not all numbers", () => {
+          let invalidCard = validCard;
+          (invalidCard["expiration_date"] = "123a"),
+            assert.equal(Client.Client.Interface.Card.is(invalidCard), false);
         });
 
         it("returns false if 'billing_address' is incorrect", () => {
-          const obj = {
-            id: "card_id",
-            brand: "visa",
-            last_digits: "1234",
-            pagarme_customer_id: 12345,
-            billing_address: {},
-          };
-          assert.equal(Client.Client.Interface.Card.is(obj), false);
-        });
-
-        it("returns false if all 'brand' is missing", () => {
-          const obj = {
-            id: "card_id",
-            last_digits: "1234",
-            pagarme_customer_id: 12345,
-            billing_address: {
-              country: "country",
-              state: "state",
-              city: "city",
-              street: "street",
-              street_number: "street_number",
-              zipcode: "zipcode",
-            },
-          };
-          assert.equal(Client.Client.Interface.Card.is(obj), false);
+          let invalidCard = validCard;
+          (invalidCard["billing_address"] = {}),
+            assert.equal(Client.Client.Interface.Card.is(invalidCard), false);
         });
 
         it("returns true if all fields are valid", () => {
-          const obj = {
+          assert.equal(Client.Client.Interface.Card.is(validCard), true);
+        });
+      });
+
+      describe("fromJson", () => {
+        let validCard;
+
+        beforeEach(() => {
+          validCard = {
             id: "card_id",
             brand: "visa",
+            holder_name: "Fulano de Tal",
+            first_digits: "523445",
+            expiration_date: "1131",
             last_digits: "1234",
             pagarme_customer_id: 12345,
             billing_address: {
@@ -623,10 +680,8 @@ describe("Client", () => {
               zipcode: "zipcode",
             },
           };
-          assert.equal(Client.Client.Interface.Card.is(obj), true);
         });
-      });
-      describe("fromJson", () => {
+
         it("returns undefined if obj is null", () => {
           assert.equal(Client.Client.Interface.Card.fromObj(null), undefined);
         });
@@ -636,22 +691,13 @@ describe("Client", () => {
             undefined
           );
         });
+
+        it("returns undefined if obj is empty", () => {
+          assert.equal(Client.Client.Interface.Card.fromObj({}), undefined);
+        });
+
         it("returns Card if obj is valid", () => {
-          const obj = {
-            id: "card_id",
-            brand: "visa",
-            last_digits: "1234",
-            pagarme_customer_id: 12345,
-            billing_address: {
-              country: "country",
-              state: "state",
-              city: "city",
-              street: "street",
-              street_number: "street_number",
-              zipcode: "zipcode",
-            },
-          };
-          let card = Client.Client.Interface.Card.fromObj(obj);
+          let card = Client.Client.Interface.Card.fromObj(validCard);
           assert.isDefined(card);
           assert.equal(card.id, "card_id");
           assert.equal(card.brand, "visa");

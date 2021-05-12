@@ -192,8 +192,11 @@ const createCard = async (
   // add new Card to Client's cards
   let responseCard: Client.Interface.Card = {
     id: card.id,
+    holder_name: card.holder_name,
     brand: card.brand,
     last_digits: card.last_digits,
+    first_digits: card.first_digits,
+    expiration_date: card.expiration_date,
     pagarme_customer_id: customer.id,
     billing_address: data.billing_address,
   };
@@ -208,6 +211,23 @@ const createCard = async (
 
   // return added card
   return responseCard;
+};
+
+const deleteCard = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateArgument(data, ["card_id"], ["string"], [true]);
+
+  const c = new Client(context.auth.uid);
+  return await c.removeCardByID(data.card_id);
 };
 
 const getCardHashKey = async (
@@ -228,4 +248,5 @@ const getCardHashKey = async (
 };
 
 export const create_card = functions.https.onCall(createCard);
+export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
