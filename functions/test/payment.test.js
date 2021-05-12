@@ -332,4 +332,115 @@ describe("payment", () => {
       await admin.database().ref("clients").remove();
     });
   });
+
+  describe("createCard", () => {
+    let validArg;
+    let defaultCard;
+    let defaultCardHash;
+
+    before(async () => {
+      // add default client without cards to the database
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+      });
+      // initialize defaultCard
+      defaultCard = {
+        card_number: "5234213829598909",
+        card_expiration_date: "0235",
+        card_holder_name: "Joao das Neves",
+        card_cvv: "500",
+      };
+
+      // calculate defaultCardHash
+      defaultCardHash = await pagarmeClient.encrypt(defaultCard);
+    });
+
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(payment.delete_card);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+
+    it("fails if user is not authenticated", async () => {
+      // pass empty context as a parameter
+      await genericTest(
+        {},
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if 'card_id' is not present", async () => {
+      await genericTest(
+        {},
+        "invalid-argument",
+        "missing expected argument 'card_id'."
+      );
+    });
+
+    it("succeeds at deleting card if all", async () => {
+      // create client in database
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+      });
+
+      await c.addCard({
+        id: "card_id",
+        holder_name: "Fulano de Tal",
+        first_digits: "523445",
+        last_digits: "8209",
+        expiration_date: "1131",
+        brand: "visa",
+        pagarme_customer_id: 12345,
+        billing_address: {
+          country: "br",
+          state: "mg",
+          city: "Paracatu",
+          street: "Rua i",
+          street_number: "151",
+          zipcode: "38600000",
+        },
+      });
+
+      // before delete card, assert client has card
+      let cards = await c.getCards();
+      assert.equal(cards.length, 1);
+      assert.equal(cards[0].id, "card_id");
+
+      // delete card
+      const wrapped = test.wrap(payment.delete_card);
+      const response = await wrapped({ card_id: "card_id" }, defaultCtx);
+
+      // after deleting card, assert client has no cards
+      cards = await c.getCards();
+      assert.isEmpty(cards);
+
+      // delete client from firebase database and auth
+      await admin.database().ref("clients").remove();
+    });
+  });
 });
