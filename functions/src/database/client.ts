@@ -183,9 +183,11 @@ export namespace Client {
       return;
     };
 
+    type Brand = "mastercard" | "visa" | "elo" | "amex" | "discover" | "aura" | "jcb" | "hipercard" | "diners";
     export interface Card {
       id: string;
       last_digits: string,
+      brand: Brand,
       pagarme_customer_id: number;
       billing_address: Client.Interface.Address;
     }
@@ -215,6 +217,7 @@ export namespace Client {
 
         return (
           "id" in obj &&
+          "brand" in obj &&
           "pagarme_customer_id" in obj &&
           "billing_address" in obj &&
           typeof obj.id == "string" &&
@@ -230,6 +233,7 @@ export namespace Client {
             return {
               id: obj.id,
               last_digits: obj.last_digits,
+              brand: obj.brand,
               pagarme_customer_id: obj.pagarme_customer_id,
               billing_address: address,
             };

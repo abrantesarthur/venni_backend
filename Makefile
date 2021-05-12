@@ -35,6 +35,9 @@ endif
 ifndef PAGARME_API_KEY
 	$(error PAGARME_API_KEY is undefined)
 endif
+ifndef PAGARME_API_RECIPIENT_ID
+	$(error PAGARME_API_RECIPIENT_ID is undefined)
+endif
 
 check-emulator-env:
 ifndef GOOGLE_MAPS_API_KEY
@@ -52,6 +55,9 @@ endif
 ifndef PAGARME_API_KEY
 	$(error PAGARME_API_KEY is undefined)
 endif
+ifndef PAGARME_API_RECIPIENT_ID
+	$(error PAGARME_API_RECIPIENT_ID is undefined)
+endif
 
 check-test-env:
 ifndef GOOGLE_MAPS_API_KEY
@@ -59,6 +65,9 @@ ifndef GOOGLE_MAPS_API_KEY
 endif
 ifndef PAGARME_API_KEY
 	$(error PAGARME_API_KEY is undefined)
+endif
+ifndef PAGARME_API_RECIPIENT_ID
+	$(error PAGARME_API_RECIPIENT_ID is undefined)
 endif
 
 
@@ -83,6 +92,7 @@ deploy-config: check-deploy-env
 	$(FIREBASEGET) > firebase.json && \
 	$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.recipient_id=$(PAGARME_API_RECIPIENT_ID) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 emulator-config: check-emulator-env
@@ -93,11 +103,13 @@ emulator-config: check-emulator-env
 	$(FIREBASEGET) > firebase.json && \
 	$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.recipient_id=$(PAGARME_API_RECIPIENT_ID) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 test-config: check-test-env
 	@$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.recipient_id=$(PAGARME_API_RECIPIENT_ID) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 
@@ -135,7 +147,7 @@ emulator: use-dev-project emulator-config build
 # GOOGLE_APPLICATION_CREDENTIALS and run $(NPMRUN) buid
 # test: use-dev-project test-dependencies test-config build
 # 	$(NPMTEST)
-test:  build
+test:
 	$(NPMTEST)
 
 
@@ -160,6 +172,3 @@ deploy-dev: use-dev-project deploy-config deploy
 deploy-stag: use-stag-project deploy-config deploy
 
 deploy-prod: use-prod-project deploy-config deploy
-
-
-
