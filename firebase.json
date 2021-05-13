@@ -1,9 +1,9 @@
 {
-  "functions": {
-    "predeploy": "npm --prefix \"functions\" run build"
-  },
   "googleapi": {
     "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+  },
+  "functions": {
+    "predeploy": "npm --prefix \"functions\" run build"
   },
   "emulators": {
     "ui": {
@@ -15,7 +15,7 @@
     }
   },
   "pagarmeapi": {
-    "key": "ak_test_ab6YeGzWk37ySROFYPaTVN0J5uzBlh",
-    "recipient_id": "re_cko91zvv600b60i9tv2qvf24o"
+    "recipient_id": "re_cko91zvv600b60i9tv2qvf24o",
+    "key": "ak_test_ab6YeGzWk37ySROFYPaTVN0J5uzBlh"
   }
 }

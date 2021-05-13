@@ -105,6 +105,16 @@ export class Client extends Database {
     }
     return cards;
   };
+
+  // TODO: test
+  setPaymentMethod = async (
+    defaultMethod: "cash" | "credit_card",
+    cardID?: string
+  ) => {
+    return await this.ref
+      .child("payment_method")
+      .set({ default: defaultMethod, card_id: cardID });
+  };
 }
 
 export namespace Client {

@@ -227,6 +227,15 @@ const deleteCard = async (
   validateArgument(data, ["card_id"], ["string"], [true]);
 
   const c = new Client(context.auth.uid);
+
+  // update payment method if card is the default
+  const client = await c.getClient();
+  if (
+    client?.payment_method.default == "credit_card" &&
+    client.payment_method.card_id == data.card_id
+  ) {
+  }
+
   return await c.removeCardByID(data.card_id);
 };
 
