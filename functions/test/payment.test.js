@@ -400,12 +400,16 @@ describe("payment", () => {
       );
     });
 
-    it("succeeds at deleting card if all", async () => {
-      // create client in database
+    it("updates client's default payment method if deleted card is default", async () => {
+      // create client in database with card to be deleted as default payment method
       const c = new Client(defaultUID);
       await c.addClient({
         uid: defaultUID,
         rating: "5",
+        payment_method: {
+          default: "credit_card",
+          card_id: "card_id",
+        },
       });
 
       await c.addCard({
@@ -426,18 +430,75 @@ describe("payment", () => {
         },
       });
 
-      // before delete card, assert client has card
-      let cards = await c.getCards();
-      assert.equal(cards.length, 1);
-      assert.equal(cards[0].id, "card_id");
+      // before delete card, assert default payment method is the card
+      let client = await c.getClient();
+      assert.isDefined(client);
+      assert.equal(client.payment_method.default, "credit_card");
+      assert.equal(client.payment_method.card_id, "card_id");
 
       // delete card
       const wrapped = test.wrap(payment.delete_card);
       const response = await wrapped({ card_id: "card_id" }, defaultCtx);
 
-      // after deleting card, assert client has no cards
-      cards = await c.getCards();
-      assert.isEmpty(cards);
+      // after deleting card, assert default payment method changed to cash
+      client = await c.getClient();
+      assert.isDefined(client);
+      assert.equal(client.payment_method.default, "cash");
+      assert.isUndefined(client.payment_method.card_id);
+
+      // delete client from firebase database and auth
+      await admin.database().ref("clients").remove();
+    });
+
+    it("does not update client's default payment method if deleted card is not default", async () => {
+      // create client in database
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "credit_card",
+          card_id: "some_other_card",
+        },
+      });
+
+      await c.addCard({
+        id: "card_id",
+        holder_name: "Fulano de Tal",
+        first_digits: "523445",
+        last_digits: "8209",
+        expiration_date: "1131",
+        brand: "visa",
+        pagarme_customer_id: 12345,
+        billing_address: {
+          country: "br",
+          state: "mg",
+          city: "Paracatu",
+          street: "Rua i",
+          street_number: "151",
+          zipcode: "38600000",
+        },
+      });
+
+      // before delete card, assert client has card and default payment method
+      let client = await c.getClient();
+      assert.isDefined(client);
+      assert.equal(client.payment_method.default, "credit_card");
+      assert.equal(client.payment_method.card_id, "some_other_card");
+      assert.isNotEmpty(client.cards);
+      assert.equal(client.cards.length, 1);
+      assert.equal(client.cards[0].id, "card_id");
+
+      // delete card
+      const wrapped = test.wrap(payment.delete_card);
+      const response = await wrapped({ card_id: "card_id" }, defaultCtx);
+
+      // after deleting card, assert client has no cards and payment method didn't change
+      client = await c.getClient();
+      assert.isDefined(client);
+      assert.equal(client.payment_method.default, "credit_card");
+      assert.equal(client.payment_method.card_id, "some_other_card");
+      assert.isEmpty(client.cards);
 
       // delete client from firebase database and auth
       await admin.database().ref("clients").remove();

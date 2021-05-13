@@ -227,16 +227,20 @@ const deleteCard = async (
   validateArgument(data, ["card_id"], ["string"], [true]);
 
   const c = new Client(context.auth.uid);
-
-  // update payment method if card is the default
   const client = await c.getClient();
+
+  // update payment method to 'cash' if the card is the default
+  let setPaymentMethodPromise;
   if (
     client?.payment_method.default == "credit_card" &&
     client.payment_method.card_id == data.card_id
   ) {
+    setPaymentMethodPromise = c.setPaymentMethod("cash");
   }
 
-  return await c.removeCardByID(data.card_id);
+  let deleteCardPromise = c.removeCardByID(data.card_id);
+
+  return await Promise.all([setPaymentMethodPromise, deleteCardPromise]);
 };
 
 const getCardHashKey = async (

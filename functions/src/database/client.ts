@@ -1,3 +1,4 @@
+import { LooseObject } from "../utils";
 import { Database } from "./index";
 import { ClientPastTrips } from "./pastTrips";
 import { TripRequest } from "./tripRequest";
@@ -111,9 +112,13 @@ export class Client extends Database {
     defaultMethod: "cash" | "credit_card",
     cardID?: string
   ) => {
-    return await this.ref
-      .child("payment_method")
-      .set({ default: defaultMethod, card_id: cardID });
+    let paymentMethod: LooseObject = {
+      default: defaultMethod,
+    };
+    if (cardID != undefined) {
+      paymentMethod["card_id"] = cardID;
+    }
+    return await this.ref.child("payment_method").set(paymentMethod);
   };
 }
 
