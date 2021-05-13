@@ -260,6 +260,29 @@ const getCardHashKey = async (
   return await p.getCardHashKey();
 };
 
+const setDefaultPaymentMethod = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateArgument(data, ["card_id"], ["string"], [false]);
+
+  const c = new Client(context.auth.uid);
+  return await c.setPaymentMethod(
+    data.card_id == undefined ? "cash" : "credit_card",
+    data.card_id
+  );
+};
+
 export const create_card = functions.https.onCall(createCard);
 export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
+export const set_default_payment_method = functions.https.onCall(
+  setDefaultPaymentMethod
+);
