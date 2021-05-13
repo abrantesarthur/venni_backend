@@ -333,8 +333,7 @@ describe("payment", () => {
     });
   });
 
-  describe("createCard", () => {
-    let validArg;
+  describe("delete_card", () => {
     let defaultCard;
     let defaultCardHash;
 
@@ -499,6 +498,140 @@ describe("payment", () => {
       assert.equal(client.payment_method.default, "credit_card");
       assert.equal(client.payment_method.card_id, "some_other_card");
       assert.isEmpty(client.cards);
+
+      // delete client from firebase database and auth
+      await admin.database().ref("clients").remove();
+    });
+  });
+
+  describe("set_default_payment_method", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(payment.set_default_payment_method);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+
+    it("fails if user is not authenticated", async () => {
+      // pass empty context as a parameter
+      await genericTest(
+        {},
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if 'card_id' is not a string", async () => {
+      await genericTest(
+        { card_id: 1234 },
+        "invalid-argument",
+        "argument 'card_id' has invalid type. Expected 'string'. Received 'number'."
+      );
+    });
+
+    it("updates payment method to 'cash' if 'card_id' is not present", async () => {
+      // add client with credit card payment method
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "credit_card",
+          card_id: "card_id",
+        },
+      });
+
+      // before calling update, pament method is 'credit_card'
+      let client = await c.getClient();
+      assert.equal(client.payment_method.default, "credit_card");
+      assert.equal(client.payment_method.card_id, "card_id");
+
+      // call set_default_payment_method without 'card_id'
+      const wrapped = test.wrap(payment.set_default_payment_method);
+      await wrapped({}, defaultCtx);
+
+      // after updating, payment method is 'cash'
+      client = await c.getClient();
+      assert.equal(client.payment_method.default, "cash");
+      assert.isUndefined(client.payment_method.card_id);
+
+      // delete client from firebase database and auth
+      await admin.database().ref("clients").remove();
+    });
+
+    it("updates payment method to 'credit_card' if 'card_id' is present", async () => {
+      // add client with 'cash' payment method
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "cash",
+        },
+      });
+
+      // before calling update, pament method is 'cash'
+      let client = await c.getClient();
+      assert.equal(client.payment_method.default, "cash");
+      assert.isUndefined(client.payment_method.card_id);
+
+      // call set_default_payment_method with 'card_id'
+      const wrapped = test.wrap(payment.set_default_payment_method);
+      await wrapped({ card_id: "card_id" }, defaultCtx);
+
+      // after updating, payment method is 'credit_card'
+      client = await c.getClient();
+      assert.equal(client.payment_method.default, "credit_card");
+      assert.equal(client.payment_method.card_id, "card_id");
+
+      // delete client from firebase database and auth
+      await admin.database().ref("clients").remove();
+    });
+
+    it("updates payment method's 'card_id' if 'card_id' is present", async () => {
+      // add client with 'cash' payment method
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "credit_card",
+          card_id: "some_card_id",
+        },
+      });
+
+      // before calling update, card_id is 'some_card_id'
+      let client = await c.getClient();
+      assert.equal(client.payment_method.default, "credit_card");
+      assert.equal(client.payment_method.card_id, "some_card_id");
+
+      // call set_default_payment_method with 'card_id'
+      const wrapped = test.wrap(payment.set_default_payment_method);
+      await wrapped({ card_id: "card_id" }, defaultCtx);
+
+      // after updating, card_id is 'card_id'
+      client = await c.getClient();
+      assert.equal(client.payment_method.default, "credit_card");
+      assert.equal(client.payment_method.card_id, "card_id");
 
       // delete client from firebase database and auth
       await admin.database().ref("clients").remove();
