@@ -273,6 +273,7 @@ const confirmTrip = async (
 ) => {
   // validate authentication
   if (context.auth == null) {
+    console.log("authentication is null");
     throw new functions.https.HttpsError(
       "failed-precondition",
       "Missing authentication credentials."
@@ -348,7 +349,6 @@ const confirmTrip = async (
     }
   }
 
-  // TODO: write tests
   let paymentFailed = false;
   let pagarmeError;
   if (creditCard == undefined) {
@@ -376,7 +376,7 @@ const confirmTrip = async (
       } else {
         // if authorization succeded, save transaction info to capture later
         tripRequest.payment_method = "credit_card";
-        tripRequest.card_id = creditCard.id;
+        tripRequest.credit_card = creditCard;
         tripRequest.transaction_id = transaction.tid.toString();
         promises.push(tr.ref.set(tripRequest));
       }

@@ -1,5 +1,6 @@
 import { LooseObject } from "../utils";
 import { ZoneName } from "../zones";
+import { Client } from "./client";
 import { Database } from "./index";
 
 export class TripRequest extends Database {
@@ -74,7 +75,7 @@ export namespace TripRequest {
     client_rating?: string;
     pilot_rating?: PilotRating; // added to pilot's past trips when client rates the pilot
     payment_method?: "cash" | "credit_card"; // added when the client confirms the trip
-    card_id?: string; // added when the client confirms the trip and if paying with credit card
+    credit_card?: Client.Interface.Card; // added when the client confirms the trip and if paying with credit card
     transaction_id?: string; // added when the client confirms the trip and if paying with credit card to allow capturing transaction later
   }
 
@@ -178,6 +179,11 @@ export namespace TripRequest {
         return false;
       }
 
+      // type check optional credit_card
+      if(obj.credit_card != undefined && !Client.Interface.Card.is(obj.credit_card)) {
+        return false;
+      }
+
       // type check remaining optional fields
       const typeCheckOptionalField = (field: string, expectedType: string) => {
         if (obj[field] != undefined && typeof obj[field] != expectedType) {
@@ -189,7 +195,6 @@ export namespace TripRequest {
         !typeCheckOptionalField("pilot_past_trip_ref_key", "string") ||
         !typeCheckOptionalField("pilot_id", "string") ||
         !typeCheckOptionalField("client_rating", "string") ||
-        !typeCheckOptionalField("card_id", "string") ||
         !typeCheckOptionalField("transaction_id", "string")
       ) {
         return false;

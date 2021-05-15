@@ -902,7 +902,8 @@ describe("trip", () => {
       assert.isNotNull(tripRequest);
 
       assert.equal(tripRequest.payment_method, "credit_card");
-      assert.equal(tripRequest.card_id, createCardResult.id);
+      assert.isDefined(tripRequest.credit_card);
+      assert.equal(tripRequest.credit_card.id, createCardResult.id);
       assert.isDefined(tripRequest.transaction_id);
 
       // clean database

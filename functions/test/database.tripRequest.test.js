@@ -86,7 +86,7 @@ describe("TripRequest.Interface", () => {
 
     // test optional fields types
     const falseIfOptionalWronglyTyped = (field, wrongValue) => {
-      it("returns false if, '" + field + "', is and has wrong type", () => {
+      it("returns false if, '" + field + "', is present and has wrong type", () => {
         let invalidArg = validArg;
         invalidArg[field] = wrongValue;
         assert.equal(tr.TripRequest.Interface.is(invalidArg), false);
@@ -95,7 +95,7 @@ describe("TripRequest.Interface", () => {
     falseIfOptionalWronglyTyped("pilot_id", 123);
     falseIfOptionalWronglyTyped("client_rating", "not numeric");
     falseIfOptionalWronglyTyped("payment_method", "invalid");
-    falseIfOptionalWronglyTyped("card_id", 123);
+    falseIfOptionalWronglyTyped("credit_card", {id: "card_id"});
     falseIfOptionalWronglyTyped("transaction_id", 123);
 
     it("returns false if, pilot_rating, if present, is not an object", () => {
@@ -129,6 +129,7 @@ describe("TripRequest.Interface", () => {
   describe("fromObj", () => {
     let validArg;
 
+  
     beforeEach(() => {
       validArg = {
         uid: "uid",
@@ -149,7 +150,23 @@ describe("TripRequest.Interface", () => {
         pilot_id: "pilot_id",
         client_rating: "4.0",
         payment_method: "credit_card",
-        card_id: "card_id",
+        credit_card: {
+          id: "card_id",
+          holder_name: "Fulano de Tal",
+          first_digits: "524345",
+          last_digits: "8907",
+          expiration_date: "1123",
+          brand: "visa",
+          pagarme_customer_id: 12345,
+          billing_address:{
+            country: "br",
+            state: "mg",
+            city: "paracatu",
+            street: "rua i",
+            street_number: "31",
+            zipcode: "38600000",
+          },
+        },
         transaction_id: "transaction_id",
         pilot_rating: {
           score: "2",
@@ -159,6 +176,8 @@ describe("TripRequest.Interface", () => {
         },
       };
     });
+
+
 
     it("returns undefined if obj is null", () => {
       assert.isUndefined(tr.TripRequest.Interface.fromObj(null));
@@ -194,7 +213,7 @@ describe("TripRequest.Interface", () => {
       assert.equal(response.pilot_id, "pilot_id");
       assert.equal(response.payment_method, "credit_card");
       assert.equal(response.client_rating, "4.0");
-      assert.equal(response.card_id, "card_id");
+      assert.isDefined(response.credit_card);
       assert.equal(response.transaction_id, "transaction_id");
     });
   });

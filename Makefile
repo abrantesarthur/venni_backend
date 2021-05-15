@@ -147,7 +147,7 @@ emulator: use-dev-project emulator-config build
 # GOOGLE_APPLICATION_CREDENTIALS and run $(NPMRUN) buid
 # test: use-dev-project test-dependencies test-config build
 # 	$(NPMTEST)
-test:
+test: 
 	$(NPMTEST)
 
 
