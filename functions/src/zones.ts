@@ -5,6 +5,8 @@ to the system every time they move 100 meters.
 The system places them in the square to which they belong.
 */
 
+import { namespace } from "firebase-functions/lib/providers/firestore";
+
 export enum LatLimit {
   highest = -17.200874,
   secondHighest = -17.20777,
@@ -64,6 +66,49 @@ export enum ZoneName {
   SE = "SE",
   SW = "SW",
   UNDEFINED = "UNDEFINED",
+}
+
+export namespace ZoneName {
+  export const is = (zn: string) => {
+    return (
+      zn == "AA" ||
+      zn == "AB" ||
+      zn == "AC" ||
+      zn == "AD" ||
+      zn == "BA" ||
+      zn == "BB" ||
+      zn == "BC" ||
+      zn == "BD" ||
+      zn == "CA" ||
+      zn == "CB" ||
+      zn == "CC" ||
+      zn == "CD" ||
+      zn == "DA" ||
+      zn == "DB" ||
+      zn == "DC" ||
+      zn == "DD" ||
+      zn == "EA" ||
+      zn == "EB" ||
+      zn == "EC" ||
+      zn == "ED" ||
+      zn == "FA" ||
+      zn == "FB" ||
+      zn == "FC" ||
+      zn == "FD" ||
+      zn == "GA" ||
+      zn == "GB" ||
+      zn == "GC" ||
+      zn == "GD" ||
+      zn == "HA" ||
+      zn == "HB" ||
+      zn == "HC" ||
+      zn == "HD" ||
+      zn == "NE" ||
+      zn == "NW" ||
+      zn == "SE" ||
+      zn == "SW"
+    );
+  };
 }
 
 const zoneNameFromString = (name: string): ZoneName => {

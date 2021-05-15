@@ -19,20 +19,19 @@ describe("PastTrips", () => {
     p = new pt.PastTrips("clients", clientID);
     defaultTrip = {
       uid: clientID,
-      trip_status: "completed",
+      trip_status: "waiting-confirmation",
       origin_place_id: "origin_place_id",
       destination_place_id: "destination_place_id",
       origin_zone: "AA",
-      fare_price: 5,
-      distance_meters: 100,
-      distance_text: "100 metes",
-      duration_seconds: 300,
+      fare_price: 500,
+      distance_meters: "123",
+      distance_text: "123 meters",
+      duration_seconds: "300",
       duration_text: "5 minutes",
       encoded_points: "encoded_points",
-      request_time: Date.now().toString(),
+      request_time: "124759",
       origin_address: "origin_address",
       destination_address: "destination_address",
-      pilot_id: pilotID,
     };
     // clear database
     await admin.database().ref("past-trips").remove();
@@ -248,25 +247,23 @@ describe("PastTrips", () => {
       const obj = {
         first_trip: {
           uid: "uid",
-          trip_status: "trip_status",
+          pilot_id: "pilot_id",
+          trip_status: "waiting-confirmation",
           origin_place_id: "origin_place_id",
           destination_place_id: "destination_place_id",
-          origin_zone: "origin_zone",
-          fare_price: "fare_price",
-          distance_meters: "distance_meters",
-          distance_text: "distance_text",
-          duration_seconds: "duration_seconds",
-          duration_text: "duration_text",
+          origin_zone: "AA",
+          fare_price: 500,
+          distance_meters: "123",
+          distance_text: "123 meters",
+          duration_seconds: "300",
+          duration_text: "5 minutes",
           encoded_points: "encoded_points",
-          request_time: "request_time",
+          request_time: "124759",
           origin_address: "origin_address",
           destination_address: "destination_address",
-          pilot_id: "pilot_id",
-          client_rating: "client_rating",
           pilot_rating: {
             score: "4",
           },
-          pilot_past_trip_ref_key: "pilot_past_trip_ref_key",
         },
       };
 

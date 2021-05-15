@@ -16,6 +16,7 @@ import "./database/index";
 import { transaction } from "./database/index";
 import { Pilots } from "./database/pilots";
 import { ClientPastTrips, PilotPastTrips } from "./database/pastTrips";
+import { Pagarme } from "./vendors/pagarme";
 // initialize google maps API client
 const googleMaps = new GoogleMapsClient({});
 
@@ -121,6 +122,7 @@ export interface RequestTripInterface {
 }
 
 // TODO: only accept requests departing from Paracatu
+// TODO: check that client doesn't have pending payments. If so, return cancelled status
 const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
@@ -266,7 +268,7 @@ const clientCancelTrip = async (
 };
 
 const confirmTrip = async (
-  _: any,
+  data: any,
   context: functions.https.CallableContext
 ) => {
   // validate authentication
@@ -276,6 +278,7 @@ const confirmTrip = async (
       "Missing authentication credentials."
     );
   }
+  validateArgument(data, ["card_id"], ["string"], [false]);
 
   // get a reference to the user's trip request and pilot_id
   const tr = new TripRequest(context.auth.uid);
@@ -308,34 +311,95 @@ const confirmTrip = async (
     );
   }
 
+  // variable that will store promises to await all before returning
+  let promises: Promise<any>[] = [];
+
   // change trip-request status to waiting-payment
   // important: only use set to modify trip request values befores sending
   // requests to pilots. Use only transactions after that, because pilots
   // use transactions to modify trip request, and us using set would
   // cancel their transactions.
   tripRequest.trip_status = TripRequest.Status.waitingPayment;
-  tr.ref.set(tripRequest);
+  promises.push(tr.ref.set(tripRequest));
 
-  // start processing payment
-  // TODO: substitute this for actual payment processing
-  await sleep(1);
-  let paymentSucceeded = true;
-
-  // if payment failed
-  if (!paymentSucceeded) {
-    // set trip-request status to payment-failed
-    tripRequest.trip_status = TripRequest.Status.paymentFailed;
-    await tr.ref.set(tripRequest);
-    // TODO: give more context in the message.
-    throw new functions.https.HttpsError(
-      "cancelled",
-      "Failed to process payment."
-    );
+  // make sure that 'card_id', if specified, corresponds to existing card
+  const c = new Client(context.auth.uid);
+  let client = await c.getClient();
+  let creditCard: Client.Interface.Card | undefined;
+  if (
+    data.card_id != undefined &&
+    client != undefined &&
+    client.cards != undefined
+  ) {
+    for (var i = 0; i < client.cards.length; i++) {
+      if (data.card_id === client.cards[i].id) {
+        creditCard = client.cards[i];
+        break;
+      }
+    }
+    if (creditCard === undefined) {
+      tripRequest.trip_status = TripRequest.Status.paymentFailed;
+      promises.push(tr.ref.set(tripRequest));
+      await Promise.all(promises);
+      throw new functions.https.HttpsError(
+        "failed-precondition",
+        "Could not find card with id '" + data.card_id + "'."
+      );
+    }
   }
 
+  // TODO: write tests
+  let paymentFailed = false;
+  let pagarmeError;
+  if (creditCard == undefined) {
+    // if paying with cash, update trip request's payment method
+    tripRequest.payment_method = "cash";
+    promises.push(tr.ref.set(tripRequest));
+  } else {
+    // if paying with credit card
+    const p = new Pagarme();
+    await p.ensureInitialized();
+    try {
+      // create a transaction to be captured later
+      let transaction = await p.createTransaction(
+        creditCard.id,
+        tripRequest.fare_price,
+        {
+          id: creditCard.pagarme_customer_id,
+          name: creditCard.holder_name,
+        },
+        creditCard.billing_address
+      );
+
+      if (transaction.status !== "authorized") {
+        paymentFailed = true;
+      } else {
+        // if authorization succeded, save transaction info to capture later
+        tripRequest.payment_method = "credit_card";
+        tripRequest.card_id = creditCard.id;
+        tripRequest.transaction_id = transaction.tid.toString();
+        promises.push(tr.ref.set(tripRequest));
+      }
+    } catch (e) {
+      paymentFailed = true;
+      pagarmeError = e;
+    }
+  }
+
+  // if transaction was not authorized, update trip status and throw error
+  if (paymentFailed) {
+    tripRequest.trip_status = TripRequest.Status.paymentFailed;
+    promises.push(tr.ref.set(tripRequest));
+    await Promise.all(promises);
+    throw new functions.https.HttpsError(
+      "cancelled",
+      "Payment was not authorized.",
+      pagarmeError?.response.errors[0]
+    );
+  }
   // change trip-request status to lookingForPilot
   tripRequest.trip_status = TripRequest.Status.lookingForPilot;
-  tr.ref.set(tripRequest);
+  promises.push(tr.ref.set(tripRequest));
 
   // search available pilots nearby client
   let nearbyPilots: Pilot.Interface[];
@@ -346,14 +410,16 @@ const confirmTrip = async (
     let error: HttpsError = e as HttpsError;
     // if failed to find pilots, update trip-request status to no-pilots-available
     tripRequest.trip_status = TripRequest.Status.noPilotsAvailable;
-    await tr.ref.set(tripRequest);
+    promises.push(tr.ref.set(tripRequest));
+    await Promise.all(promises);
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
   // if didn't find pilots, update trip-reqeust status to noPilotsAvailable and throw exception
   if (nearbyPilots.length == 0) {
     tripRequest.trip_status = TripRequest.Status.noPilotsAvailable;
-    await tr.ref.set(tripRequest);
+    promises.push(tr.ref.set(tripRequest));
+    await Promise.all(promises);
     throw new functions.https.HttpsError(
       "failed-precondition",
       "There are no available pilots. Try again later."
@@ -370,6 +436,7 @@ const confirmTrip = async (
   // it tires to set availablePilot's status to 'requested' and current_client_id to client's uid
   const requestPilot = (pilot: Pilot.Interface) => {
     if (pilot == null) {
+      // this will run in a transaction. When running a function in a transaction,
       // we should always check for null even if there is data at this reference in the server.
       // If there is no cached data for this node, the SDK will 'guess' its value as 'null'.
       // The server lets the SDK know the actual value it stores. If it is not null, the transaction
@@ -456,9 +523,10 @@ const confirmTrip = async (
   let asyncTimeout = new AsyncTimeout();
   let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
   let confirmTripResponse: LooseObject = {};
-  tr.ref.on("value", (snapshot) => {
+  tr.ref.on("value", async (snapshot) => {
     if (snapshot.val() == null) {
       // this should never happen! If it does, something is very broken!
+      await Promise.all(promises);
       throw new functions.https.HttpsError(
         "internal",
         "Something wrong happend. Try again later."
@@ -477,13 +545,15 @@ const confirmTrip = async (
       });
       if (!isValidPilotID) {
         // clear pilot_id so other pilots have the chance of claiming the trip
-        tr.ref.transaction((tripRequest: TripRequest.Interface) => {
-          if (tripRequest == null) {
-            return {};
-          }
-          tripRequest.pilot_id = "";
-          return tripRequest;
-        });
+        promises.push(
+          tr.ref.transaction((tripRequest: TripRequest.Interface) => {
+            if (tripRequest == null) {
+              return {};
+            }
+            tripRequest.pilot_id = "";
+            return tripRequest;
+          })
+        );
         // abort and continue listening for changes
         return;
       }
@@ -499,45 +569,50 @@ const confirmTrip = async (
       tr.ref.off("value");
 
       // set status of pilot who successfully picked the ride to busy.
-      // and current_client_id to the id of requesting client. Also, set confirmTripResponse.
-      pilotsRef.child(trip.pilot_id).transaction((pilot: Pilot.Interface) => {
-        if (pilot == null) {
-          // always check for null on transactoins
-          return {};
-        }
+      // and current_client_id to the id of requesting client. Also, set
+      // confirmTripResponse, which will be returned to the client later.
+      promises.push(
+        pilotsRef.child(trip.pilot_id).transaction((pilot: Pilot.Interface) => {
+          if (pilot == null) {
+            // always check for null on transactoins
+            return {};
+          }
 
-        pilot.status = Pilot.Status.busy;
-        pilot.current_client_uid = context.auth?.uid;
+          pilot.status = Pilot.Status.busy;
+          pilot.current_client_uid = context.auth?.uid;
 
-        // populate final confirmTrip response with data from pilot
-        confirmTripResponse.pilot_id = pilot.uid;
-        confirmTripResponse.pilot_name = pilot.name;
-        confirmTripResponse.pilot_last_name = pilot.last_name;
-        confirmTripResponse.pilot_total_trips =
-          pilot.total_trips == undefined ? "0" : pilot.total_trips;
-        confirmTripResponse.pilot_member_since = pilot.member_since;
-        confirmTripResponse.pilot_phone_number = pilot.phone_number;
-        confirmTripResponse.current_client_uid = pilot.current_client_uid;
-        confirmTripResponse.pilot_current_latitude = pilot.current_latitude;
-        confirmTripResponse.pilot_current_longitude = pilot.current_longitude;
-        confirmTripResponse.pilot_current_zone = pilot.current_zone;
-        confirmTripResponse.pilot_status = pilot.status;
-        confirmTripResponse.pilot_vehicle = pilot.vehicle;
-        confirmTripResponse.pilot_idle_since = pilot.idle_since;
-        confirmTripResponse.pilot_rating = pilot.rating;
-        // update pilot in database
-        return pilot;
-      });
+          // populate final confirmTrip response with data from pilot
+          confirmTripResponse.pilot_id = pilot.uid;
+          confirmTripResponse.pilot_name = pilot.name;
+          confirmTripResponse.pilot_last_name = pilot.last_name;
+          confirmTripResponse.pilot_total_trips =
+            pilot.total_trips == undefined ? "0" : pilot.total_trips;
+          confirmTripResponse.pilot_member_since = pilot.member_since;
+          confirmTripResponse.pilot_phone_number = pilot.phone_number;
+          confirmTripResponse.current_client_uid = pilot.current_client_uid;
+          confirmTripResponse.pilot_current_latitude = pilot.current_latitude;
+          confirmTripResponse.pilot_current_longitude = pilot.current_longitude;
+          confirmTripResponse.pilot_current_zone = pilot.current_zone;
+          confirmTripResponse.pilot_status = pilot.status;
+          confirmTripResponse.pilot_vehicle = pilot.vehicle;
+          confirmTripResponse.pilot_idle_since = pilot.idle_since;
+          confirmTripResponse.pilot_rating = pilot.rating;
+          // update pilot in database
+          return pilot;
+        })
+      );
 
       // set trip_status to waiting-pilot. this is how the client knows that
       // confirm-trip was successful.
-      tr.ref.transaction((tripRequest: TripRequest.Interface) => {
-        if (tripRequest == null) {
-          return {};
-        }
-        tripRequest.trip_status = TripRequest.Status.waitingPilot;
-        return tripRequest;
-      });
+      promises.push(
+        tr.ref.transaction((tripRequest: TripRequest.Interface) => {
+          if (tripRequest == null) {
+            return {};
+          }
+          tripRequest.trip_status = TripRequest.Status.waitingPilot;
+          return tripRequest;
+        })
+      );
     }
   });
 
@@ -549,7 +624,9 @@ const confirmTrip = async (
       break;
     }
 
-    pilotsRef.child(nearbyPilots[i].uid).transaction(requestPilot);
+    promises.push(
+      pilotsRef.child(nearbyPilots[i].uid).transaction(requestPilot)
+    );
 
     // wait at most 4 seconds before tring to turn next pilot into 'requested'
     // this is so that first pilot to receive request has 5 seconds of
@@ -575,12 +652,11 @@ const confirmTrip = async (
   // state. If timeoutPromse was cleared, this may not be the case yet. If clear()
   // is called late enough but before timeout goes off, the code will already be waiting for
   // timeoutPromise. This way, as soon as clear() is called, confirmTrip returns
-  // before the listener has time to update status to waitingPilot. Thats why we
+  // before the listener has time to update status to waitingPilot. That's why we
   // wait here until waitingPilot state is reached.
   if (asyncTimeout.wasCleared) {
     // listen for trip status and only continue when it has waiting-pilot status
     // we want to exit confirmTrip if trip having its final status
-    tripRequest = await tr.getTripRequest();
     do {
       await sleep(1);
       tripRequest = await tr.getTripRequest();
@@ -598,7 +674,9 @@ const confirmTrip = async (
     // and didn't reset the pilot's status.
     const j = requestedPilotsUIDs.length;
     for (var i = 0; i < j; i++) {
-      pilotsRef.child(requestedPilotsUIDs[0]).transaction(unrequestPilot);
+      promises.push(
+        pilotsRef.child(requestedPilotsUIDs[0]).transaction(unrequestPilot)
+      );
 
       // remove pilot from list of requested pilots.
       requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
@@ -611,17 +689,19 @@ const confirmTrip = async (
     } while (confirmTripResponse == undefined);
     // pupulate response with trip status
     confirmTripResponse.trip_status = tripRequest.trip_status;
+    await Promise.all(promises);
     return confirmTripResponse;
   }
 
   // otherwise, return object with trip_status
-  tripRequest = await tr.getTripRequest();
+  // TODO: why do we do this? if timeout expires, the function throws error!
   do {
     await sleep(1);
     tripRequest = await tr.getTripRequest();
   } while (tripRequest == null || tripRequest == undefined);
   // important: sleep a bit to guarantee that final status is persisted
   await sleep(300);
+  await Promise.all(promises);
   return { trip_status: tripRequest.trip_status };
 };
 
@@ -829,6 +909,14 @@ const startTrip = async (
   );
 };
 
+/**
+ * TODO: capture transaction
+ * TODO: if it fails, flag customer as owing us money and save pastTrip ID in Client for reference
+ * TODO: if payment was cash, increase amount pilot owes Venni
+ * TODO: do the same things for cancellations that need to be paid.
+ * TODO: modify tripRequest to make sure the customer doesn't owe us anything! Need to update frontend as well.
+ * TODO: need to create a new endpoint for capture failed transactions later.
+ */
 const completeTrip = async (
   data: any,
   context: functions.https.CallableContext

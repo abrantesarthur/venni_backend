@@ -15,7 +15,7 @@ import {
 import { Address } from "pagarme-js-types/src/common";
 import { SplitRuleArg } from "pagarme-js-types/src/client/transactions/options";
 
-export class pagarme {
+export class Pagarme {
   private _clientPromise: Promise<typeof client>;
   protected _client: typeof client;
 
@@ -34,11 +34,42 @@ export class pagarme {
   // use customer's document_number '11111111111' to simulate antifraud failure
   // use cardID of card with cvv starting with a 6 to simulate refused transactions
 
-  createTransactionByCardID = async (
+  // createTransaction creates a transaction to be captured later
+  createTransaction = async (
     cardID: string,
     amount: number,
     customer: { id: number; name: string },
-    billingAddress: Address,
+    billingAddress: Address
+  ): Promise<Transaction> => {
+    return await this._client.transactions.create({
+      payment_method: "credit_card",
+      card_id: cardID,
+      amount: amount,
+      capture: false,
+      customer: {
+        // mandatory (because of documents) for antifraud
+        id: customer.id,
+      },
+      billing: {
+        name: customer.name,
+        address: billingAddress, // mandatory for antifraud
+      },
+      items: [
+        // mandatory for antifraud
+        {
+          id: "corrida-moto-taxi",
+          title: "corrida de moto-taxi",
+          unit_price: amount,
+          quantity: 1,
+          tangible: false,
+        },
+      ],
+    });
+  };
+
+  captureTransaction = async (
+    transactionID: string,
+    amount: number,
     recipientID?: string
   ): Promise<Transaction> => {
     let splitRules: SplitRuleArg[] = [
@@ -61,34 +92,11 @@ export class pagarme {
       });
     }
 
-    return await this._client.transactions.create({
+    return await this._client.transactions.capture({
+      id: transactionID,
       amount: amount,
-      payment_method: "credit_card",
-      card_id: cardID,
-      customer: {
-        // mandatory (because of documents) for antifraud
-        id: customer.id,
-      },
-      billing: {
-        name: customer.name,
-        address: billingAddress, // mandatory for antifraud
-      },
-      items: [
-        // mandatory for antifraud
-        {
-          id: "corrida-moto-taxi",
-          title: "corrida de moto-taxi",
-          unit_price: amount,
-          quantity: 1,
-          tangible: false,
-        },
-      ],
       split_rules: splitRules,
     });
-  };
-
-  refund = async (trasactionID: number): Promise<Transaction> => {
-    return await this._client.transactions.refund({ id: trasactionID });
   };
 
   getCardHashKey = async (): Promise<CardHashKey> => {

@@ -14,6 +14,8 @@ const {
   ClientPastTrips,
 } = require("../lib/database/pastTrips");
 const { expect } = require("chai");
+const { Client } = require("../lib/database/client");
+const { Pagarme } = require("../lib/vendors/pagarme");
 const assert = chai.assert;
 
 // the tests actually hit venni-rider-development project in firebase
@@ -34,6 +36,7 @@ describe("trip", () => {
   let valid_destination_place_id;
   let defaultUID;
   let createTripRequest;
+  let getTripRequestByID;
 
   before(() => {
     if (admin.apps.length == 0) {
@@ -55,14 +58,14 @@ describe("trip", () => {
     ) => {
       let defaultTripRequest = {
         uid: defaultUID,
+        trip_status: status,
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: status,
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: Date.now().toString(),
@@ -78,6 +81,15 @@ describe("trip", () => {
 
       await tripRequestRef.set(defaultTripRequest);
       return tripRequestRef;
+    };
+
+    getTripRequestByClientID = async (clientID) => {
+      let snapshot = await admin
+        .database()
+        .ref("trip-requests")
+        .child(clientID)
+        .once("value");
+      return snapshot.val();
     };
   });
 
@@ -481,34 +493,26 @@ describe("trip", () => {
       // add trip request to database with status waiting-confirmation
       let tripRequest = {
         uid: clientID,
+        trip_status: "waiting-confirmation",
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "waiting-confirmation",
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
       };
-      await admin
-        .database()
-        .ref("trip-requests")
-        .child(clientID)
-        .set(tripRequest);
-
-      // assert trip has been added
+      await admin.database().ref("trip-requests").remove();
       const tripRequestRef = admin
         .database()
         .ref("trip-requests")
         .child(clientID);
-      let snapshot = await tripRequestRef.once("value");
-      assert.isTrue(snapshot.val() != null);
-      assert.equal(snapshot.val().trip_status, "waiting-confirmation");
+      await tripRequestRef.set(tripRequest);
 
       // confirm trip
       const wrappedConfirm = test.wrap(trip.confirm);
@@ -523,7 +527,7 @@ describe("trip", () => {
       assert.equal(snapshot.val().trip_status, "looking-for-pilot");
 
       // assert pilot has been requested
-      let pilotSnapshot = await pilotRef.once("value");
+      pilotSnapshot = await pilotRef.once("value");
       assert.isNotNull(pilotSnapshot.val());
       // this fails if there is a mockPilotBehavior listener that automatically accepts the trip
       assert.equal(pilotSnapshot.val().status, "requested");
@@ -568,15 +572,27 @@ describe("trip", () => {
   });
 
   describe("confirm", () => {
+    let pagarmeClient;
+    let payment;
+
+    before(async () => {
+      // initialize pagarme
+      pagarmeClient = new Pagarme();
+      await pagarmeClient.ensureInitialized();
+      // initialize payment
+      payment = require("../lib/payment");
+    });
+
     const genericTest = async (
       expectedCode,
       expectedMessage,
       ctx = defaultCtx,
-      succeeed = false
+      succeeed = false,
+      argument = {}
     ) => {
       const wrapped = test.wrap(trip.confirm);
       try {
-        await wrapped({}, ctx);
+        await wrapped(argument, ctx);
         if (succeeed) {
           assert(true, "method finished successfully");
         } else {
@@ -601,12 +617,30 @@ describe("trip", () => {
       await admin.database().ref("trip-requests").remove();
     };
 
+    const removeClients = async () => {
+      await admin.database().ref("clients").remove();
+    };
+
+    const removePilots = async () => {
+      await admin.database().ref("pilots").remove();
+    };
+
     it("user must be authenticated", async () => {
       // run generic test without context with client id
       await genericTest(
         "failed-precondition",
         "Missing authentication credentials.",
         {}
+      );
+    });
+
+    it("fails if 'card_id' is specified but not a string", async () => {
+      await genericTest(
+        "invalid-argument",
+        "argument 'card_id' has invalid type. Expected 'string'. Received 'number'.",
+        defaultCtx,
+        false,
+        { card_id: 123 }
       );
     });
 
@@ -683,6 +717,281 @@ describe("trip", () => {
 
       // clear database
       await removeTripRequests();
+    });
+
+    it("fails if 'card_id' doesn't not correspond to a card", async () => {
+      // populate database with 'client' without 'cards'
+      let clientRef = admin.database().ref("clients").child(defaultUID);
+      await clientRef.set({
+        uid: defaultUID,
+        rating: "5.0",
+        payment_method: {
+          default: "cash",
+        },
+      });
+
+      // populate database with trip request with valid status
+      await createTripRequest("waiting-confirmation");
+
+      // expect confirmTrip to fail
+      await genericTest(
+        "failed-precondition",
+        "Could not find card with id 'inexisting_id'.",
+        defaultCtx,
+        false,
+        { card_id: "inexisting_id" }
+      );
+
+      // clear database
+      await removeTripRequests();
+    });
+
+    it("fails if paying with credit card but the transaction throws error", async () => {
+      // create client in database with default payment as a card that wasn't added to pagarme
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "credit_card",
+          card_id: "card_id",
+        },
+        cards: {
+          card_id: {
+            id: "card_id",
+            holder_name: "Joao das Neves",
+            brand: "visa",
+            last_digits: "8909",
+            first_digits: "523421",
+            expiration_date: "0235",
+            pagarme_customer_id: 12345,
+            billing_address: {
+              country: "br",
+              state: "mg",
+              city: "Paracatu",
+              street: "Rua i",
+              street_number: "151",
+              zipcode: "38600000",
+            },
+          },
+        },
+      });
+      // assert client was succesfully created
+      let client = await c.getClient();
+      assert.isDefined(client);
+
+      // populate database with trip request with valid status
+      await createTripRequest("waiting-confirmation");
+
+      // call confirmTrip with id of card to be refused and expect it to fail
+      await genericTest(
+        "cancelled",
+        "Payment was not authorized.",
+        defaultCtx,
+        false,
+        { card_id: "card_id" }
+      );
+
+      // clear database
+      await removeTripRequests();
+      await removeClients();
+    });
+
+    it("saves transaction capture info in tripRequest if the transaction is authorized", async () => {
+      // delete all pilots from the database
+      const pilotsRef = admin.database().ref("pilots");
+      await pilotsRef.remove();
+
+      // add an available pilot to the database
+      const pilotID1 = "pilotID1";
+      let pilot = {
+        uid: pilotID1,
+        name: "Fulano",
+        last_name: "de Tal",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
+        current_zone: "AA",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      await pilotsRef.child(pilotID1).set(pilot);
+
+      // add client to the database
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "cash",
+        },
+      });
+
+      // create a valid card for the client
+      validCard = {
+        card_number: "5234213829598909",
+        card_expiration_date: "0235",
+        card_holder_name: "Joao das Neves",
+        card_cvv: "600",
+      };
+      cardHash = await pagarmeClient.encrypt(validCard);
+      let createCardArg = {
+        card_number: validCard.card_number,
+        card_expiration_date: validCard.card_expiration_date,
+        card_holder_name: validCard.card_holder_name,
+        card_hash: cardHash,
+        cpf_number: "58229366365",
+        email: "fulano@venni.app",
+        phone_number: "+5538998601275",
+        billing_address: {
+          country: "br",
+          state: "mg",
+          city: "Paracatu",
+          street: "Rua i",
+          street_number: "151",
+          zipcode: "38600000",
+        },
+      };
+      const wrappedCreateCard = test.wrap(payment.create_card);
+      let createCardResult = await wrappedCreateCard(createCardArg, defaultCtx);
+
+      // add trip request to database
+      const tripRequestRef = await createTripRequest();
+
+      // call confirmTrip with id of card to be used in transaction
+      const wrappedConfirm = test.wrap(trip.confirm);
+      const confirmPromise = wrappedConfirm(
+        { card_id: createCardResult.id },
+        { auth: { uid: defaultUID } }
+      );
+
+      // wait enough time for confirm to send request to pilot
+      await sleep(2500);
+
+      // assert trip has looking-for-pilot status
+      let tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripRequestSnapshot.val());
+      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-pilot");
+
+      // assert pilot was requested
+      let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
+      assert.isNotNull(pilot1Snapshot.val());
+      assert.equal(pilot1Snapshot.val().status, "requested");
+      assert.isUndefined(pilot1Snapshot.val().total_trips);
+
+      // pilot one accepts the trip
+      const wrappedAccept = test.wrap(trip.accept);
+      await wrappedAccept(
+        { client_id: defaultUID },
+        { auth: { uid: pilotID1 } }
+      );
+
+      // await for confirmTrip to return
+      const confirmResult = await confirmPromise;
+
+      // // make sure that payment_method, card_id and transaction_id were added to trip request
+      let tripRequest = await getTripRequestByClientID(defaultUID);
+      assert.isNotNull(tripRequest);
+
+      assert.equal(tripRequest.payment_method, "credit_card");
+      assert.equal(tripRequest.card_id, createCardResult.id);
+      assert.isDefined(tripRequest.transaction_id);
+
+      // clean database
+      await removeClients();
+      await pilotsRef.remove();
+      await tripRequestRef.remove();
+    });
+
+    it("sets tripRequest 'payment_method' to 'cash' if client is paying cash", async () => {
+      // delete all pilots from the database
+      const pilotsRef = admin.database().ref("pilots");
+      await pilotsRef.remove();
+
+      // add an available pilot to the database
+      const pilotID1 = "pilotID1";
+      let pilot = {
+        uid: pilotID1,
+        name: "Fulano",
+        last_name: "de Tal",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
+        current_zone: "AA",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      await pilotsRef.child(pilotID1).set(pilot);
+
+      // add client to the database
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "cash",
+        },
+      });
+
+      // add trip request to database
+      const tripRequestRef = await createTripRequest();
+
+      // call confirmTrip without 'card_id' so payment method is 'cash'
+      const wrappedConfirm = test.wrap(trip.confirm);
+      const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
+
+      // wait enough time for confirm to send request to pilot
+      await sleep(3000);
+
+      // assert trip has looking-for-pilot status
+      let tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripRequestSnapshot.val());
+      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-pilot");
+
+      // assert pilot was requested
+      let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
+      assert.isNotNull(pilot1Snapshot.val());
+      assert.equal(pilot1Snapshot.val().status, "requested");
+      assert.isUndefined(pilot1Snapshot.val().total_trips);
+
+      // pilot one accepts the trip
+      const wrappedAccept = test.wrap(trip.accept);
+      await wrappedAccept(
+        { client_id: defaultUID },
+        { auth: { uid: pilotID1 } }
+      );
+
+      // await for confirmTrip to return
+      const confirmResult = await confirmPromise;
+
+      let tripRequest = await getTripRequestByClientID(defaultUID);
+      assert.isNotNull(tripRequest);
+      // assert that payment_method was set to cash
+      assert.equal(tripRequest.payment_method, "cash");
+      // assert that card_id and transaction_id are undefined
+      assert.isUndefined(tripRequest.card_id);
+      assert.isUndefined(tripRequest.transaction_id);
+
+      // clean database
+      await removeClients();
+      await pilotsRef.remove();
+      await tripRequestRef.remove();
     });
 
     it("fails if there are no pilots nearby", async () => {
@@ -874,7 +1183,11 @@ describe("trip", () => {
       assert.equal(tripRequestSnapshot.val().pilot_id, "");
 
       // pilot 1 accepts the trip
-      await tripRequestRef.child("pilot_id").set(pilotID1);
+      const wrappedAccept = test.wrap(trip.accept);
+      await wrappedAccept(
+        { client_id: defaultUID },
+        { auth: { uid: pilotID1 } }
+      );
 
       // assert confirm trip accepted pilot 1
       tripRequestSnapshot = await tripRequestRef.once("value");
@@ -1358,7 +1671,6 @@ describe("trip", () => {
     it("works when integrated with confirmTrip and acceptTrip", async () => {
       const pilotID1 = "pilotID1";
       const pilotID2 = "pilotID2";
-      const clientID = "clientID";
 
       // add two available pilots to the database
       await admin.database().ref("pilots").remove();
@@ -1673,14 +1985,14 @@ describe("trip", () => {
       // add trip request supposedly for user
       let defaultTripRequest = {
         uid: clientID,
+        trip_status: "in-progress",
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "in-progress",
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: Date.now().toString(),
@@ -1891,14 +2203,14 @@ describe("trip", () => {
       // add trip request for defaultUID being handled by the pilot
       let defaultTripRequest = {
         uid: defaultUID,
+        trip_status: "in-progress",
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "in-progress",
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: Date.now().toString(),
@@ -1906,6 +2218,7 @@ describe("trip", () => {
         destination_address: "destination_address",
         pilot_id: pilotID1,
       };
+
       const tripRequestRef = admin
         .database()
         .ref("trip-requests")
@@ -2207,14 +2520,14 @@ describe("trip", () => {
     const createValidTripRequest = async (refKey = "refKey") => {
       let defaultTripRequest = {
         uid: defaultUID,
+        trip_status: "completed",
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "completed",
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: Date.now().toString(),
@@ -2286,14 +2599,14 @@ describe("trip", () => {
       const ppt = new PilotPastTrips(pilotID);
       let defaultTrip = {
         uid: defaultUID,
+        trip_status: "completed",
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "completed",
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: Date.now().toString(),
@@ -2301,6 +2614,7 @@ describe("trip", () => {
         destination_address: "destination_address",
         pilot_id: pilotID,
       };
+
       let pastTripRefKey = await ppt.pushPastTrip(defaultTrip);
       await createValidTripRequest(pastTripRefKey);
 
@@ -2526,17 +2840,17 @@ describe("trip", () => {
       const cpt = new ClientPastTrips(defaultUID);
       let pastTrip = {
         uid: defaultUID,
+        trip_status: "completed",
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "completed",
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
-        request_time: "",
+        request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
         pilot_id: "pilotID",
@@ -2636,23 +2950,24 @@ describe("trip", () => {
       );
     });
 
-    it("returns a rating of the pilot", async () => {
+    it("returns undefined to unrated trips", async () => {
       // clear database
       await admin.database().ref("past-trips").remove();
 
-      // populate database with pilot past trip with rating 4.
+      // populate database with pilot past trip without rating
       const pilotID = "pilotID";
       const ppt = new PilotPastTrips(pilotID);
+
       let pastTrip = {
         uid: defaultUID,
+        trip_status: "completed",
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "completed",
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: Date.now().toString(),
@@ -2660,6 +2975,7 @@ describe("trip", () => {
         destination_address: "destination_address",
         pilot_id: pilotID,
       };
+
       const refKey = await ppt.pushPastTrip(pastTrip);
 
       const wrapped = test.wrap(trip.pilot_get_trip_rating);
@@ -2681,14 +2997,14 @@ describe("trip", () => {
       const ppt = new PilotPastTrips(pilotID);
       let pastTrip = {
         uid: defaultUID,
+        trip_status: "completed",
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "completed",
         origin_zone: "AA",
-        fare_price: 5,
-        distance_meters: 1000,
-        distance_text: "1000",
-        duration_seconds: 300,
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: Date.now().toString(),
