@@ -51,7 +51,7 @@ describe("authEvents", () => {
         destination_place_id: "valid_destination_place_id",
         trip_status: "in-progress",
         origin_zone: "AA",
-        fare_price: 5,
+        fare_price: 500,
         distance_meters: 1000,
         distance_text: "1000",
         duration_seconds: 300,

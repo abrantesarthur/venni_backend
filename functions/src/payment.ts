@@ -2,7 +2,7 @@ import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
 import { Client } from "./database/client";
 import { validateArgument, phoneHasE164Format } from "./utils";
-import { pagarme } from "./vendors/pagarme";
+import { Pagarme } from "./vendors/pagarme";
 import { Customer } from "pagarme-js-types/src/client/customers/responses";
 import { Card } from "pagarme-js-types/src/client/cards/responses";
 import { Transaction } from "pagarme-js-types/src/client/transactions/responses";
@@ -118,7 +118,7 @@ const createCard = async (
   validateCreateCardArguments(data);
 
   // create a pagarme customer
-  const p = new pagarme();
+  const p = new Pagarme();
   await p.ensureInitialized();
   let customer: Customer;
   try {
@@ -165,7 +165,7 @@ const createCard = async (
   // do pre-authorization of R$1,00 to make sure credit card is valid
   let transaction: Transaction;
   try {
-    transaction = await p.createTransactionByCardID(
+    transaction = await p.createTransaction(
       card.id,
       100,
       { id: customer.id, name: customer.name },
@@ -179,15 +179,15 @@ const createCard = async (
   }
 
   // throw error if pre-approval failed
-  if (transaction.status != "paid") {
+  if (transaction.status != "authorized") {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "pre-approval " + transaction.status + ": " + transaction.status_reason
+      "expected 'authorized' pre-approval, but got " +
+        transaction.status +
+        ": " +
+        transaction.status_reason
     );
   }
-
-  // refund transaction if pre-approval was successfull
-  let refundPromise = p.refund(transaction.id);
 
   // add new Card to Client's cards
   let responseCard: Client.Interface.Card = {
@@ -201,10 +201,9 @@ const createCard = async (
     billing_address: data.billing_address,
   };
   const c = new Client(context.auth.uid);
-  let addCardPromise = c.addCard(responseCard);
 
   try {
-    await Promise.all([refundPromise, addCardPromise]);
+    await c.addCard(responseCard);
   } catch (e) {
     throw new functions.https.HttpsError("unknown", "Algo deu errado!");
   }
@@ -255,7 +254,7 @@ const getCardHashKey = async (
     );
   }
 
-  const p = new pagarme();
+  const p = new Pagarme();
   await p.ensureInitialized();
   return await p.getCardHashKey();
 };

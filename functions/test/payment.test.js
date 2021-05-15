@@ -2,7 +2,7 @@ const firebaseFunctionsTest = require("firebase-functions-test");
 const admin = require("firebase-admin");
 const chai = require("chai");
 const { Client } = require("../lib/database/client");
-const { pagarme } = require("../lib/vendors/pagarme");
+const { Pagarme } = require("../lib/vendors/pagarme");
 
 const assert = chai.assert;
 const test = firebaseFunctionsTest(
@@ -32,7 +32,7 @@ describe("payment", () => {
       },
     };
     // initialize pagarme
-    pagarmeClient = new pagarme();
+    pagarmeClient = new Pagarme();
     await pagarmeClient.ensureInitialized();
     // initialize payment
     payment = require("../lib/payment");

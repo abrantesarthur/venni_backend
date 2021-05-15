@@ -215,7 +215,7 @@ export namespace Client {
       /** id do cartão no pagar.me */
       id: string;
       /** Nome do portador do cartão. */
-      holder_name: String;
+      holder_name: string;
       /** 6 primeiros dígitos do cartão. */
       first_digits: String;
       /** 4 primeiros dígitos do cartão. */
