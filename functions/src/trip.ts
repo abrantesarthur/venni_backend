@@ -273,7 +273,6 @@ const confirmTrip = async (
 ) => {
   // validate authentication
   if (context.auth == null) {
-    console.log("authentication is null");
     throw new functions.https.HttpsError(
       "failed-precondition",
       "Missing authentication credentials."

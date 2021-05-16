@@ -165,5 +165,5 @@ export function phoneHasE164Format(phoneNumber: string) {
 
 // toTwoFixedNumber returns converts 'n' to a number with 2 decimals
 export const toTwoFixedNumber = (n: number) => {
-  return Number(((n * 100) / 100).toFixed(2));
+  return Number((Math.round(n * 100) / 100).toFixed(2));
 };
