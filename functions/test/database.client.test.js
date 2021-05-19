@@ -334,90 +334,76 @@ describe("Client", () => {
         await admin.database().ref("clients").remove();
       });
     });
+
+    describe("setPaymentMethod", async () => {
+      it("works", async () => {
+        // add client to the database
+        await c.addClient(defaultClient);
+
+        // assert payment method is credit card
+        let client = await c.getClient();
+
+        assert.isDefined(client);
+        assert.isDefined(client.payment_method);
+        assert.equal(client.payment_method.default, "cash");
+
+        // set payment method to credit_card
+        await c.setPaymentMethod("credit_card", "card_id");
+
+        // assert it worked
+        client = await c.getClient();
+        assert.isDefined(client);
+        assert.isDefined(client.payment_method);
+        assert.equal(client.payment_method.default, "credit_card");
+        assert.equal(client.payment_method.card_id, "card_id");
+
+        // set payment method back to "cash"
+        await c.setPaymentMethod("cash");
+
+        // assert it worked
+        client = await c.getClient();
+        assert.isDefined(client);
+        assert.isDefined(client.payment_method);
+        assert.equal(client.payment_method.default, "cash");
+        assert.isUndefined(client.payment_method.card_id);
+
+        // clear database
+        await admin.database().ref("clients").remove();
+      });
+    });
+
+    describe("setUnpaidTrip", async () => {
+      it("works", async () => {
+        // add client without unpaid trip to the database
+        await c.addClient(defaultClient);
+
+        // assert client has no unpaid trips
+        let client = c.getClient();
+        assert.isDefined(client);
+        assert.isUndefined(client.amount_owed);
+        assert.isUndefined(client.unpaid_past_trip_ref_key);
+
+        // add unpaid past trip
+        await c.setUnpaidTrip(5, "tripRefKey");
+
+        // assert it worked
+        client = await c.getClient();
+        assert.isDefined(client);
+        assert.equal(client.amount_owed, 5);
+        assert.equal(client.unpaid_past_trip_ref_key, "tripRefKey");
+
+        // clear database
+        await admin.database().ref("clients").remove();
+      });
+    });
   });
 
   describe("Interface", () => {
     describe("is", () => {
-      it("returns false when object is undefined", () => {
-        assert.equal(Client.Client.Interface.is(undefined), false);
-      });
-      it("returns false when object is null", () => {
-        assert.equal(Client.Client.Interface.is(null), false);
-      });
+      let validArg;
 
-      it("returns false if 'cards' field is present and incorrect", () => {
-        const obj = {
-          uid: "clientUID",
-          rating: "5",
-          payment_method: {
-            default: "cash",
-          },
-          cards: {
-            card_id: {
-              id: "card_id",
-              brand: "visa",
-              last_digits: "1234",
-              pagarme_customer_id: 12345,
-              billing_address: {},
-            },
-          },
-        };
-        assert.equal(Client.Client.Interface.is(obj), false);
-      });
-
-      it("returns false if 'payment_method' is credit_card without card_id", () => {
-        const obj = {
-          uid: "clientUID",
-          rating: "5",
-          payment_method: {
-            default: "credit_card",
-          },
-          cards: {
-            card_id: {
-              id: "card_id",
-
-              pagarme_customer_id: 12345,
-              billing_address: {},
-            },
-          },
-        };
-        assert.equal(Client.Client.Interface.is(obj), false);
-      });
-
-      it("returns false if 'payment_method.default' is neither 'cash' nor 'credit_card'", () => {
-        const obj = {
-          uid: "clientUID",
-          rating: "5",
-          payment_method: {
-            default: "invalid",
-          },
-          cards: {
-            card_id: {
-              id: "card_id",
-              brand: "visa",
-              last_digits: "1234",
-              pagarme_customer_id: 12345,
-              billing_address: {},
-            },
-          },
-        };
-        assert.equal(Client.Client.Interface.is(obj), false);
-      });
-
-      it("returns true when all required fields are present", () => {
-        const obj = {
-          uid: "clientUID",
-          payment_method: {
-            default: "credit_card",
-            card_id: "card_id",
-          },
-          rating: "5",
-        };
-        assert.equal(Client.Client.Interface.is(obj), true);
-      });
-
-      it("returns true if all possible fields are present and valid", () => {
-        const obj = {
+      beforeEach(() => {
+        validArg = {
           uid: "clientUID",
           rating: "5",
           payment_method: {
@@ -443,7 +429,63 @@ describe("Client", () => {
             },
           },
         };
-        assert.equal(Client.Client.Interface.is(obj), true);
+      });
+
+      it("returns false when object is undefined", () => {
+        assert.equal(Client.Client.Interface.is(undefined), false);
+      });
+      it("returns false when object is null", () => {
+        assert.equal(Client.Client.Interface.is(null), false);
+      });
+
+      // test optional fields types
+      const falseIfOptionalWronglyTyped = (field, wrongValue) => {
+        it(
+          "returns false if, '" + field + "', is present and has wrong type",
+          () => {
+            let invalidArg = validArg;
+            invalidArg[field] = wrongValue;
+            assert.equal(Client.Client.Interface.is(invalidArg), false);
+            delete invalidArg[field];
+            assert.equal(Client.Client.Interface.is(invalidArg), true);
+          }
+        );
+      };
+      falseIfOptionalWronglyTyped("amount_owed", "not a number");
+      falseIfOptionalWronglyTyped("unpaid_past_trip_ref_key", 123);
+
+      it("returns false if 'cards' field is present and incorrect", () => {
+        let invalidArg = validArg;
+        invalidArg["cards"] = {
+          card_id: {
+            id: "card_id",
+            brand: "visa",
+            last_digits: "1234",
+            pagarme_customer_id: 12345,
+            billing_address: {},
+          },
+        };
+        assert.equal(Client.Client.Interface.is(invalidArg), false);
+      });
+
+      it("returns false if 'payment_method' is credit_card without card_id", () => {
+        let invalidArg = validArg;
+        invalidArg["payment_method"] = {
+          default: "credit_card",
+        };
+        assert.equal(Client.Client.Interface.is(invalidArg), false);
+      });
+
+      it("returns false if 'payment_method.default' is neither 'cash' nor 'credit_card'", () => {
+        let invalidArg = validArg;
+        invalidArg["payment_method"] = {
+          default: "invalid",
+        };
+        assert.equal(Client.Client.Interface.is(invalidArg), false);
+      });
+
+      it("returns true if all possible fields are present and valid", () => {
+        assert.equal(Client.Client.Interface.is(validArg), true);
       });
     });
 
@@ -517,6 +559,8 @@ describe("Client", () => {
         assert.equal(response.cards.length, 0);
         assert.equal(response.payment_method.default, "credit_card"),
           assert.equal(response.payment_method.card_id, "card_id");
+        assert.isUndefined(response.amount_owed);
+        assert.isUndefined(response.unpaid_past_trip_ref_key);
       });
 
       it("returns Client.Interface if obj is Client.Interface III", () => {
@@ -545,6 +589,8 @@ describe("Client", () => {
               },
             },
           },
+          amount_owed: 5,
+          unpaid_past_trip_ref_key: "unpaid_past_trip_ref_key",
         };
 
         const response = Client.Client.Interface.fromObj(obj);
@@ -557,6 +603,11 @@ describe("Client", () => {
         assert.equal(response.cards[0].brand, "visa");
         assert.equal(response.payment_method.default, "cash");
         assert.isUndefined(response.payment_method.card_id);
+        assert.equal(response.amount_owed, 5);
+        assert.equal(
+          response.unpaid_past_trip_ref_key,
+          "unpaid_past_trip_ref_key"
+        );
       });
     });
 

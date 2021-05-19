@@ -18,6 +18,7 @@ export class Pilots extends Database {
     super();
     this.ref = this.DB.ref("pilots");
   }
+  // TODO: filter out pilots without pagarme_receiver_id.
   findAllAvailable = async (
     tripRequest: TripRequest.Interface
   ): Promise<Pilot.Interface[]> => {

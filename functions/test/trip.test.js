@@ -15,6 +15,7 @@ const {
 } = require("../lib/database/pastTrips");
 const { expect } = require("chai");
 const { Client } = require("../lib/database/client");
+const { Pilot } = require("../lib/database/pilot");
 const { Pagarme } = require("../lib/vendors/pagarme");
 const assert = chai.assert;
 
@@ -97,6 +98,8 @@ describe("trip", () => {
     // clean database
     await admin.database().ref("trip-requests").remove();
     await admin.database().ref("pilots").remove();
+    await admin.database().ref("clients").remove();
+    await admin.database().ref("past-trips").remove();
     // do cleanup tasks
     test.cleanup();
   });
@@ -874,7 +877,8 @@ describe("trip", () => {
       );
 
       // wait enough time for confirm to send request to pilot
-      await sleep(2500);
+      // may have to increae this if test is failing
+      await sleep(5500);
 
       // assert trip has looking-for-pilot status
       let tripRequestSnapshot = await tripRequestRef.once("value");
@@ -1055,7 +1059,7 @@ describe("trip", () => {
       const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
       // wait enough time for confirm to send request to pilot1 and pilot 2
-      await sleep(8000);
+      await sleep(8500);
 
       // assert trip has looking-for-pilot status
       let tripRequestSnapshot = await tripRequestRef.once("value");
@@ -1159,7 +1163,8 @@ describe("trip", () => {
       const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
       // wait enough time for confirm to send request to pilot1
-      await sleep(1500);
+      // may have to increase if test is not passing
+      await sleep(2500);
 
       // assert trip has looking-for-pilot status
       let tripRequestSnapshot = await tripRequestRef.once("value");
@@ -1792,6 +1797,9 @@ describe("trip", () => {
   });
 
   describe("complete", () => {
+    let pagarmeClient;
+    let payment;
+    let creditCard;
     const genericTest = async (
       data,
       expectedCode,
@@ -1820,6 +1828,39 @@ describe("trip", () => {
     before(async () => {
       await admin.database().ref("past-trips").child("clients").remove();
       await admin.database().ref("past-trips").child("pilots").remove();
+      // initialize pagarme
+      pagarmeClient = new Pagarme();
+      await pagarmeClient.ensureInitialized();
+      // initialize payment
+      payment = require("../lib/payment");
+
+      // create credit card
+      validCard = {
+        card_number: "5234213829598909",
+        card_expiration_date: "0235",
+        card_holder_name: "Joao das Neves",
+        card_cvv: "600",
+      };
+      cardHash = await pagarmeClient.encrypt(validCard);
+      let createCardArg = {
+        card_number: validCard.card_number,
+        card_expiration_date: validCard.card_expiration_date,
+        card_holder_name: validCard.card_holder_name,
+        card_hash: cardHash,
+        cpf_number: "58229366365",
+        email: "fulano@venni.app",
+        phone_number: "+5538998601275",
+        billing_address: {
+          country: "br",
+          state: "mg",
+          city: "Paracatu",
+          street: "Rua i",
+          street_number: "151",
+          zipcode: "38600000",
+        },
+      };
+      const wrappedCreateCard = test.wrap(payment.create_card);
+      creditCard = await wrappedCreateCard(createCardArg, defaultCtx);
     });
 
     after(async () => {
@@ -2081,6 +2122,315 @@ describe("trip", () => {
         );
         assert.equal(e.code, "not-found");
       }
+
+      // await admin.database().ref("clients").remove();
+    });
+
+    decreasesPilotAmountOwed = async (
+      description,
+      farePrice,
+      amountOwed,
+      expectedDiscountedAmount
+    ) => {
+      it(description, async () => {
+        // add client to the database
+        const c = new Client(defaultUID);
+        await c.addClient({
+          uid: defaultUID,
+          rating: "5",
+          payment_method: {
+            default: "cash",
+          },
+        });
+
+        // create transaction with farePrice value supposedly to pay the trip
+        const transaction = await pagarmeClient.createTransaction(
+          creditCard.id,
+          farePrice,
+          {
+            id: creditCard.pagarme_customer_id,
+            name: creditCard.holder_name,
+          },
+          creditCard.billing_address
+        );
+
+        // add trip request for client being handled by the pilot with id 'pilotID',
+        // and being paid with the pending transaction
+        const pilotID = "pilotID";
+        let defaultTripRequest = {
+          uid: defaultUID,
+          trip_status: "in-progress",
+          origin_place_id: valid_origin_place_id,
+          destination_place_id: valid_destination_place_id,
+          origin_zone: "AA",
+          fare_price: farePrice,
+          distance_meters: "123",
+          distance_text: "123 meters",
+          duration_seconds: "300",
+          duration_text: "5 minutes",
+          encoded_points: "encoded_points",
+          request_time: Date.now().toString(),
+          origin_address: "origin_address",
+          destination_address: "destination_address",
+          pilot_id: pilotID,
+          payment_method: "credit_card",
+          credit_card: creditCard,
+          transaction_id: transaction.tid.toString(),
+        };
+        const tripRequestRef = admin
+          .database()
+          .ref("trip-requests")
+          .child(defaultUID);
+        await tripRequestRef.set(defaultTripRequest);
+
+        // add a pilot to the database supposedly handing the trip for defaultUID
+        // owing amountOwed and with a valid pagarme_receiver_id
+        await admin.database().ref("pilots").remove();
+        let defaultPilot = {
+          uid: pilotID,
+          name: "Fulano",
+          last_name: "de Tal",
+          member_since: Date.now().toString(),
+          phone_number: "(38) 99999-9999",
+          current_latitude: "-17.217587",
+          current_longitude: "-46.881064",
+          current_client_uid: defaultUID,
+          current_zone: "AA",
+          status: "busy",
+          vehicle: {
+            brand: "honda",
+            model: "CG 150",
+            year: 2020,
+            plate: "HMR 1092",
+          },
+          idle_since: Date.now().toString(),
+          rating: "5.0",
+          amount_owed: amountOwed,
+          pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+        };
+        const pilotRef = admin.database().ref("pilots").child(pilotID);
+        await pilotRef.set(defaultPilot);
+
+        // before completing trip, assert pilot owes amountOwed
+        const pilot = new Pilot(pilotID);
+        let p = await pilot.getPilot();
+        assert.isDefined(p);
+        assert.equal(p.amount_owed, amountOwed);
+
+        // pilot calls complete trip
+        const wrappedComplete = test.wrap(trip.complete);
+        await wrappedComplete({ client_rating: 5 }, { auth: { uid: pilotID } });
+        await sleep(200);
+
+        // after completing trip, assert pilot owes amountOwed - discounted amount
+        p = await pilot.getPilot();
+        assert.isDefined(p);
+        assert.equal(p.amount_owed, amountOwed - expectedDiscountedAmount);
+      });
+    };
+
+    decreasesPilotAmountOwed(
+      "decreases pilot's amount_owed if pay with credit_card and pilot owes more than 80% of fare price",
+      521,
+      727,
+      Math.ceil(0.8 * 521)
+    );
+
+    decreasesPilotAmountOwed(
+      "decreases pilot's amount_owed if pay with credit_card and pilot owes less than 80% of fare price",
+      401,
+      157,
+      157
+    );
+
+    decreasesPilotAmountOwed(
+      "doesn't decrease pilot's amount_owed if pay with credit_card but pilot owes nothing",
+      563,
+      0,
+      0
+    );
+
+    it("flags client and doesn't decrease pilots amount_owed if pay with credit_card but capture fails", async () => {
+      // add client to the database
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "cash",
+        },
+      });
+
+      // add trip request for client being handled by the pilot with id 'pilotID',
+      // and being paid with an invalid transaction ID so capture fails
+      const pilotID = "pilotID";
+      const farePrice = 569;
+      let defaultTripRequest = {
+        uid: defaultUID,
+        trip_status: "in-progress",
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        origin_zone: "AA",
+        fare_price: farePrice,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: Date.now().toString(),
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        pilot_id: pilotID,
+        payment_method: "credit_card",
+        credit_card: creditCard,
+        transaction_id: "invalid_transactin_id",
+      };
+      const tripRequestRef = admin
+        .database()
+        .ref("trip-requests")
+        .child(defaultUID);
+      await tripRequestRef.set(defaultTripRequest);
+
+      // add a pilot to the database supposedly handing the trip for defaultUID
+      // owing amountOwed
+      let amountOwed = 311;
+      let defaultPilot = {
+        uid: pilotID,
+        name: "Fulano",
+        last_name: "de Tal",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
+        current_client_uid: defaultUID,
+        current_zone: "AA",
+        status: "busy",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+        amount_owed: amountOwed,
+        pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+      };
+      const pilotRef = admin.database().ref("pilots").child(pilotID);
+      await pilotRef.set(defaultPilot);
+
+      // before completing trip, assert pilot owes amountOwed
+      const pilot = new Pilot(pilotID);
+      let p = await pilot.getPilot();
+      assert.isDefined(p);
+      assert.equal(p.amount_owed, amountOwed);
+
+      // before pilot completes trip, assert client has no unpaid trips
+      let client = await c.getClient();
+      assert.isDefined(client);
+      assert.isUndefined(client.amount_owed);
+      assert.isUndefined(client.unpaid_past_trip_ref_key);
+
+      // pilot calls complete trip
+      const wrappedComplete = test.wrap(trip.complete);
+      await wrappedComplete({ client_rating: 5 }, { auth: { uid: pilotID } });
+      await sleep(200);
+
+      // after completing trip, assert pilot still owes amountOwed
+      p = await pilot.getPilot();
+      assert.isDefined(p);
+      assert.equal(p.amount_owed, amountOwed);
+
+      // after pilot complets trip, assert client has an unpaid trip
+      // oweing farePrice
+      client = await c.getClient();
+      assert.isDefined(client);
+      assert.equal(client.amount_owed, farePrice);
+      assert.isDefined(client.unpaid_past_trip_ref_key);
+    });
+
+    it("increases pilot's amount_owed if pay with cash", async () => {
+      // add client to the database
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "cash",
+        },
+      });
+
+      // add trip request for client being handled by the pilot with id 'pilotID',
+      // and being paid with cash
+      const pilotID = "pilotID";
+      const farePrice = 631;
+      let defaultTripRequest = {
+        uid: defaultUID,
+        trip_status: "in-progress",
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        origin_zone: "AA",
+        fare_price: farePrice,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: Date.now().toString(),
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        pilot_id: pilotID,
+        payment_method: "cash",
+      };
+      const tripRequestRef = admin
+        .database()
+        .ref("trip-requests")
+        .child(defaultUID);
+      await tripRequestRef.set(defaultTripRequest);
+
+      // add a pilot to the database supposedly handing the trip for defaultUID
+      // owing amountOwed
+      let amountOwed = 311;
+      let defaultPilot = {
+        uid: pilotID,
+        name: "Fulano",
+        last_name: "de Tal",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
+        current_client_uid: defaultUID,
+        current_zone: "AA",
+        status: "busy",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+        amount_owed: amountOwed,
+        pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+      };
+      const pilotRef = admin.database().ref("pilots").child(pilotID);
+      await pilotRef.set(defaultPilot);
+
+      // before completing trip, assert pilot owes amountOwed
+      const pilot = new Pilot(pilotID);
+      let p = await pilot.getPilot();
+      assert.isDefined(p);
+      assert.equal(p.amount_owed, amountOwed);
+
+      // pilot calls complete trip
+      const wrappedComplete = test.wrap(trip.complete);
+      await wrappedComplete({ client_rating: 5 }, { auth: { uid: pilotID } });
+      await sleep(200);
+
+      // after completing trip, assert pilot owes amountOwed + 20% of farePrice
+      p = await pilot.getPilot();
+      assert.isDefined(p);
+      assert.equal(p.amount_owed, amountOwed + Math.ceil(0.2 * farePrice));
     });
 
     it("fails when trying to complete a trip with status different from in-progress", async () => {
@@ -2097,7 +2447,6 @@ describe("trip", () => {
       await createTripRequest("waiting-pilot");
 
       // add a pilot to the database supposedly handing the trip for defaultUID
-      await admin.database().ref("pilots").remove();
       let defaultPilot = {
         uid: pilotID1,
         name: "Fulano",
@@ -2151,7 +2500,6 @@ describe("trip", () => {
       await createTripRequest("in-progress");
 
       // add a pilot to the database supposedly handing the trip for clientID
-      await admin.database().ref("pilots").remove();
       let defaultPilot = {
         uid: pilotID1,
         name: "Fulano",
@@ -2189,6 +2537,9 @@ describe("trip", () => {
     });
 
     it("succesfully updates pilot's and client's data on success", async () => {
+      // clear past-trips
+      await admin.database().ref("past-trips").remove();
+
       const pilotID1 = "pilotID1";
 
       // add client entry to the database
@@ -2229,7 +2580,6 @@ describe("trip", () => {
 
       // add a pilot to the database supposedly handing the trip for defaultUID
       const initialIdleSince = Date.now().toString();
-      await admin.database().ref("pilots").remove();
       let defaultPilot = {
         uid: pilotID1,
         name: "Fulano",

@@ -54,6 +54,7 @@ export const createMockPilots = async (amount: number) => {
     let uid = uuid.v4();
     let pilot = {
       uid: uid,
+      pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o", // everyboyd uses same test receiver ID for now
       name: "Alberto",
       last_name: "Silva",
       total_trips: "142",
@@ -226,12 +227,10 @@ const mockDrivingToClient = async (pilot: Pilot.Interface) => {
     if (pilot == null) {
       return {};
     }
-    pilot.current_latitude = steps[
-      steps.length - 1
-    ].end_location.lat.toString();
-    pilot.current_longitude = steps[
-      steps.length - 1
-    ].end_location.lng.toString();
+    pilot.current_latitude =
+      steps[steps.length - 1].end_location.lat.toString();
+    pilot.current_longitude =
+      steps[steps.length - 1].end_location.lng.toString();
     return pilot;
   });
 
@@ -379,12 +378,10 @@ const mockDriveToDestination = async (pilot: Pilot.Interface) => {
     if (pilot == null) {
       return {};
     }
-    pilot.current_latitude = steps[
-      steps.length - 1
-    ].end_location.lat.toString();
-    pilot.current_longitude = steps[
-      steps.length - 1
-    ].end_location.lng.toString();
+    pilot.current_latitude =
+      steps[steps.length - 1].end_location.lat.toString();
+    pilot.current_longitude =
+      steps[steps.length - 1].end_location.lng.toString();
     return pilot;
   });
 
@@ -464,7 +461,7 @@ const mockTripComplete = async (pilotID: string) => {
   // save trip to client's list of past trips and rate client
   // we are hardcoding the rate, but in real example the pilot
   // passes it by argument
-  if(pastTripRefKey != null) {
+  if (pastTripRefKey != null) {
     trip.pilot_past_trip_ref_key = pastTripRefKey;
   }
   await c.pushPastTripAndRate(trip, 4);
