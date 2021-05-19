@@ -126,8 +126,7 @@ export class Client extends Database {
         return null;
       }
       // important; we must enforce a variant that a client can only request a new trip if
-      // amount_owed is undefined or 0. Otherwise, this will override a previous amount owed.
-      client.amount_owed = amount;
+      // unpaid_past_trip_id is undefined or empty. Otherwise, this will override a previous amount owed.
       client.unpaid_past_trip_id = tripRefKey;
       return client;
     });
@@ -143,7 +142,6 @@ export namespace Client {
       card_id?: string;
     };
     cards?: Client.Interface.Card[]; // is empty if customer has no cards
-    amount_owed?: number; // set with amount owed when paying with a credit card fails
     unpaid_past_trip_id?: string; // reference key to the unpaid past trip
   }
 
@@ -163,10 +161,6 @@ export namespace Client {
         }
       }
 
-      // if amount_owed is present, make sure it's correctly typed
-      if (obj.amount_owed != undefined && typeof obj.amount_owed != "number") {
-        return false;
-      }
       // if unpaid_past_trip_id is present, make sure it's correctly typed
       if (
         obj.unpaid_past_trip_id != undefined &&
@@ -222,7 +216,6 @@ export namespace Client {
           rating: obj.rating,
           payment_method: obj.payment_method,
           cards: cards,
-          amount_owed: obj.amount_owed,
           unpaid_past_trip_id: obj.unpaid_past_trip_id,
         };
       }

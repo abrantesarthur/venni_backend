@@ -380,7 +380,6 @@ describe("Client", () => {
         // assert client has no unpaid trips
         let client = c.getClient();
         assert.isDefined(client);
-        assert.isUndefined(client.amount_owed);
         assert.isUndefined(client.unpaid_past_trip_id);
 
         // add unpaid past trip
@@ -389,7 +388,6 @@ describe("Client", () => {
         // assert it worked
         client = await c.getClient();
         assert.isDefined(client);
-        assert.equal(client.amount_owed, 5);
         assert.equal(client.unpaid_past_trip_id, "tripRefKey");
 
         // clear database
@@ -451,7 +449,6 @@ describe("Client", () => {
           }
         );
       };
-      falseIfOptionalWronglyTyped("amount_owed", "not a number");
       falseIfOptionalWronglyTyped("unpaid_past_trip_id", 123);
 
       it("returns false if 'cards' field is present and incorrect", () => {
@@ -559,7 +556,6 @@ describe("Client", () => {
         assert.equal(response.cards.length, 0);
         assert.equal(response.payment_method.default, "credit_card"),
           assert.equal(response.payment_method.card_id, "card_id");
-        assert.isUndefined(response.amount_owed);
         assert.isUndefined(response.unpaid_past_trip_id);
       });
 
@@ -589,7 +585,6 @@ describe("Client", () => {
               },
             },
           },
-          amount_owed: 5,
           unpaid_past_trip_id: "unpaid_past_trip_id",
         };
 
@@ -603,7 +598,6 @@ describe("Client", () => {
         assert.equal(response.cards[0].brand, "visa");
         assert.equal(response.payment_method.default, "cash");
         assert.isUndefined(response.payment_method.card_id);
-        assert.equal(response.amount_owed, 5);
         assert.equal(response.unpaid_past_trip_id, "unpaid_past_trip_id");
       });
     });
