@@ -1168,6 +1168,25 @@ const clientGetPastTrips = async (
   return await cpt.getPastTrips(data?.page_size, data?.max_request_time);
 };
 
+// clientGetPastTrips returns the past trip specified by id
+// TODO: test, specially when past trip doesn't exist
+const clientGetPastTrip = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateArgument(data, ["past_trip_id"], ["string"], [true]);
+
+  const cpt = new ClientPastTrips(context.auth.uid);
+  return await cpt.getPastTrip(data.past_trip_id);
+};
+
 const pilotGetTripRating = async (
   data: any,
   context: functions.https.CallableContext
@@ -1208,5 +1227,6 @@ export const complete = functions.https.onCall(completeTrip);
 export const rate_pilot = functions.https.onCall(ratePilot);
 export const client_get_past_trips = functions.https.onCall(clientGetPastTrips);
 export const pilot_get_trip_rating = functions.https.onCall(pilotGetTripRating);
+export const client_get_past_trip = functions.https.onCall(clientGetPastTrip);
 
 // TODO: request directions to get encoded points when pilot reports his position
