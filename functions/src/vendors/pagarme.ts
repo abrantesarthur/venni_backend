@@ -70,24 +70,38 @@ export class Pagarme {
   captureTransaction = async (
     transactionID: string,
     amount: number,
-    recipientID?: string
+    recipientID?: string,
+    venniAmount?: number
   ): Promise<Transaction> => {
     let splitRules: SplitRuleArg[] = [
-      // venni receives 20% - fees and is liable to chargebacks if there is no other recipient
+      // if venniAmount is specified and there is no other recipient, venni receives amount (100%)
+      // if venniAmount is specified and there is another recipient, venni receives venniAmount
+      // if venniAmount is not specified and there is no other recipient, venni receives 100%
+      // if venniAmount is not specified and there is another recipient, venni receives 20%
+      // if there is no other recipient, venni is liable to chargebacks
       {
         liable: recipientID == undefined,
         charge_processing_fee: true,
-        percentage: recipientID == undefined ? 100 : 20,
+        percentage:
+          venniAmount == undefined
+            ? recipientID == undefined
+              ? 100
+              : 20
+            : undefined,
+        amount: venniAmount,
         recipient_id: functions.config().pagarmeapi.recipient_id,
       },
     ];
 
     if (recipientID != undefined) {
-      // collaborator receives 80% and is liable to chargebacks
+      // if venniAmount is specified, collaborator receives amount minus venniAmount.
+      // if venniAmount is not specified, collaborator receives 80%
+      // collaborator is liable to chargebacks
       splitRules.push({
         liable: true,
         charge_processing_fee: false,
-        percentage: 80,
+        percentage: venniAmount == undefined ? 80 : undefined,
+        amount: venniAmount == undefined ? undefined : amount - venniAmount,
         recipient_id: recipientID,
       });
     }

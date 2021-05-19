@@ -1,5 +1,5 @@
 import { LooseObject } from "../utils";
-import { Database } from "./index";
+import { Database, transaction } from "./index";
 import { ClientPastTrips } from "./pastTrips";
 import { TripRequest } from "./tripRequest";
 
@@ -107,7 +107,6 @@ export class Client extends Database {
     return cards;
   };
 
-  // TODO: test
   setPaymentMethod = async (
     defaultMethod: "cash" | "credit_card",
     cardID?: string
@@ -120,6 +119,19 @@ export class Client extends Database {
     }
     return await this.ref.child("payment_method").set(paymentMethod);
   };
+
+  setUnpaidTrip = async (amount: number, tripRefKey: string) => {
+    await transaction(this.ref, (client: Client.Interface) => {
+      if (client == null) {
+        return null;
+      }
+      // important; we must enforce a variant that a client can only request a new trip if
+      // amount_owed is undefined or 0. Otherwise, this will override a previous amount owed.
+      client.amount_owed = amount;
+      client.unpaid_past_trip_ref_key = tripRefKey;
+      return client;
+    });
+  };
 }
 
 export namespace Client {
@@ -131,6 +143,8 @@ export namespace Client {
       card_id?: string;
     };
     cards?: Client.Interface.Card[]; // is empty if customer has no cards
+    amount_owed?: number; // set with amount owed when paying with a credit card fails
+    unpaid_past_trip_ref_key?: string; // reference key to the unpaid past trip
   }
 
   export namespace Interface {
@@ -149,6 +163,18 @@ export namespace Client {
         }
       }
 
+      // if amount_owed is present, make sure it's correctly typed
+      if (obj.amount_owed != undefined && typeof obj.amount_owed != "number") {
+        return false;
+      }
+      // if unpaid_past_trip_ref_key is present, make sure it's correctly typed
+      if (
+        obj.unpaid_past_trip_ref_key != undefined &&
+        typeof obj.unpaid_past_trip_ref_key != "string"
+      ) {
+        return false;
+      }
+
       // type check obj.payment_method
       if (
         obj.payment_method == undefined ||
@@ -164,7 +190,7 @@ export namespace Client {
         return false;
       }
       if (
-        obj.payment_method.deafult == "credit_card" &&
+        obj.payment_method.default == "credit_card" &&
         obj.payment_method.card_id == undefined
       ) {
         return false;
@@ -196,6 +222,8 @@ export namespace Client {
           rating: obj.rating,
           payment_method: obj.payment_method,
           cards: cards,
+          amount_owed: obj.amount_owed,
+          unpaid_past_trip_ref_key: obj.unpaid_past_trip_ref_key,
         };
       }
       return;

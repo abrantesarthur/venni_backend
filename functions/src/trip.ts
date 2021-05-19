@@ -122,7 +122,8 @@ export interface RequestTripInterface {
 }
 
 // TODO: only accept requests departing from Paracatu
-// TODO: check that client doesn't have pending payments. If so, return cancelled status
+// TODO: check that client doesn't have pending payments. If so, return cancelled status.
+// TODO: Update frontend to warn client even before he tries to request a trip. If they manage to request, warn again!
 const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
@@ -909,12 +910,7 @@ const startTrip = async (
 };
 
 /**
- * TODO: capture transaction
- * TODO: if it fails, flag customer as owing us money and save pastTrip ID in Client for reference
- * TODO: if payment was cash, increase amount pilot owes Venni
- * TODO: do the same things for cancellations that need to be paid.
- * TODO: modify tripRequest to make sure the customer doesn't owe us anything! Need to update frontend as well.
- * TODO: need to create a new endpoint for capture failed transactions later.
+ * TODO: do similar capturing for cancellations that need to be paid.
  */
 const completeTrip = async (
   data: any,
@@ -971,20 +967,77 @@ const completeTrip = async (
     );
   }
 
+  // variable that will tell us whether capture succeeded
+  let captureSucceeded = true;
+  // variable that will hold how much to discount from pilot's receivables
+  let pilotReceivableDiscount;
+  // if payment is through credit card
+  if (
+    trip.payment_method == "credit_card" &&
+    trip.transaction_id != undefined
+  ) {
+    let amountOwed = await p.getAmountOwed();
+    let venniAmount;
+    // if pilot owes us money
+    if (amountOwed != null && amountOwed > 0) {
+      // decrease what pilot receives by the rounded minimum between
+      // 80% of fare price and what he owes us
+      pilotReceivableDiscount = Math.ceil(
+        Math.min(0.8 * trip.fare_price, amountOwed)
+      );
+
+      // venni should receive 20% + whatever was discounted from the pilot.
+      // we calculate Math.min here just to guarantee that client won't pay more than
+      // trip.fare_price
+      venniAmount = Math.floor(
+        Math.min(
+          trip.fare_price,
+          0.2 * trip.fare_price + pilotReceivableDiscount
+        )
+      );
+    }
+
+    // try to capture transaction, setting 'captureSucceeded' to false if it fails
+    const pagarme = new Pagarme();
+    await pagarme.ensureInitialized();
+    try {
+      let transaction = await pagarme.captureTransaction(
+        trip.transaction_id,
+        trip.fare_price,
+        pilot.pagarme_receiver_id,
+        venniAmount
+      );
+      if (transaction.status != "paid") {
+        captureSucceeded = false;
+      }
+    } catch (e) {
+      captureSucceeded = false;
+    }
+  } else {
+    // if payment is cash, increase amount pilot owes venni by 20% of fare price
+    await p.increaseAmountOwedBy(Math.ceil(0.2 * trip.fare_price));
+  }
+
+  if (captureSucceeded && pilotReceivableDiscount != undefined) {
+    // if capture succeeded and the pilot paid some amount he owed us, decrease amount owed
+    await p.decreaseAmountOwedBy(pilotReceivableDiscount);
+  }
+
   // free the pilot to handle other trips
   await p.free();
 
   // add trip with completed status to pilot's list of past trips
   trip.trip_status = TripRequest.Status.completed;
-  let pastTripRefKey = await p.pushPastTrip(trip);
+  let pilotPastTripRefKey = await p.pushPastTrip(trip);
+
   // save past trip's reference key in trip request's pilot_past_trip_ref_key
   // this is so the client can retrieve it later when rating the pilot
   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
     if (tripRequest == null) {
       return {};
     }
-    if (pastTripRefKey != null) {
-      tripRequest.pilot_past_trip_ref_key = pastTripRefKey;
+    if (pilotPastTripRefKey != null) {
+      tripRequest.pilot_past_trip_ref_key = pilotPastTripRefKey;
     }
     return tripRequest;
   });
@@ -1000,11 +1053,19 @@ const completeTrip = async (
   }
 
   // save trip with pilot_past_trip_ref_key to client's list of past trips and rate client
-  if (pastTripRefKey != null) {
-    trip.pilot_past_trip_ref_key = pastTripRefKey;
+  if (pilotPastTripRefKey != null) {
+    trip.pilot_past_trip_ref_key = pilotPastTripRefKey;
   }
   if (trip != undefined) {
-    await c.pushPastTripAndRate(trip, data.client_rating);
+    let clientPastTripRefKey = await c.pushPastTripAndRate(
+      trip,
+      data.client_rating
+    );
+    // if credit card payment failed
+    if (!captureSucceeded && clientPastTripRefKey != null) {
+      // flag customer as owing us money
+      await c.setUnpaidTrip(trip.fare_price, clientPastTripRefKey);
+    }
   }
 
   // set trip's status to completed in a transaction

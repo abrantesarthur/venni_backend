@@ -37,11 +37,9 @@ export class Pilot extends Database {
       if (pilot == null) {
         return {};
       }
-      let totalTrips;
-      if (pilot.total_trips == undefined) {
-        totalTrips = 1;
-      } else {
-        totalTrips = Number(pilot.total_trips) + 1;
+      let totalTrips = 1;
+      if (pilot.total_trips != undefined) {
+        totalTrips += Number(pilot.total_trips);
       }
       pilot.total_trips = totalTrips.toString();
       return pilot;
@@ -111,6 +109,30 @@ export class Pilot extends Database {
         .set(((rating * 100) / 100).toFixed(2).toString());
     }
   };
+
+  getAmountOwed = async (): Promise<number | null> => {
+    return (await this.ref.child("amount_owed").once("value")).val();
+  };
+
+  // increaseAmountOwedBy uses transaction to increase amount owed by pilot by 'amount'
+  increaseAmountOwedBy = async (amount: number) => {
+    await transaction(this.ref, (pilot: Pilot.Interface) => {
+      if (pilot == null) {
+        return {};
+      }
+      let amountOwed = amount;
+      if (pilot.amount_owed != undefined) {
+        amountOwed += pilot.amount_owed;
+      }
+      pilot.amount_owed = amountOwed;
+      return pilot;
+    });
+  };
+
+  // decreaseAmountOwedBy uses transaction to decrease amount owed by pilot by 'amount'
+  decreaseAmountOwedBy = async (amount: number) => {
+    await this.increaseAmountOwedBy(-amount);
+  };
 }
 
 export namespace Pilot {
@@ -147,6 +169,8 @@ export namespace Pilot {
     score?: number; // not stored in database
     // TODO: change name to route or somethign
     distance_to_client?: DistanceToClient; // not stored in database
+    pagarme_receiver_id?: string; // used to identify pilot in pagarme API
+    amount_owed?: number; // increased when pilot handles trip paid in cash and decreased when paid in credit_card.
   }
 
   export namespace Interface {
@@ -169,6 +193,8 @@ export namespace Pilot {
           rating: obj.rating,
           score: obj.score,
           total_trips: obj.total_trips,
+          pagarme_receiver_id: obj.pagarme_receiver_id,
+          amount_owed: obj.amount_owed,
         };
       }
       return;
@@ -183,6 +209,22 @@ export namespace Pilot {
           return false;
         }
       } else {
+        return false;
+      }
+
+      // type check optional fields
+      const typeCheckOptionalField = (field: string, expectedType: string) => {
+        if (obj[field] != undefined && typeof obj[field] != expectedType) {
+          return false;
+        }
+        return true;
+      };
+      if (
+        !typeCheckOptionalField("total_trips", "string") ||
+        !typeCheckOptionalField("score", "number") ||
+        !typeCheckOptionalField("pagarme_receiver_id", "string") ||
+        !typeCheckOptionalField("amount_owed", "number")
+      ) {
         return false;
       }
 

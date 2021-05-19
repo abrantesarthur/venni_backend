@@ -62,6 +62,7 @@ describe("TripRequest.Interface", () => {
     falseIfNotPresent("destination_address");
 
     // test required fields types
+    // TODO: move to utils
     const falseIfWronglyTyped = (field, wrongValue) => {
       it("returns false if '" + field + "' has wrong type", () => {
         let invalidArg = validArg;
@@ -86,16 +87,21 @@ describe("TripRequest.Interface", () => {
 
     // test optional fields types
     const falseIfOptionalWronglyTyped = (field, wrongValue) => {
-      it("returns false if, '" + field + "', is present and has wrong type", () => {
-        let invalidArg = validArg;
-        invalidArg[field] = wrongValue;
-        assert.equal(tr.TripRequest.Interface.is(invalidArg), false);
-      });
+      it(
+        "returns false if, '" + field + "', is present and has wrong type",
+        () => {
+          let invalidArg = validArg;
+          invalidArg[field] = wrongValue;
+          assert.equal(tr.TripRequest.Interface.is(invalidArg), false);
+          delete invalidArg[field];
+          assert.equal(tr.TripRequest.Interface.is(invalidArg), true);
+        }
+      );
     };
     falseIfOptionalWronglyTyped("pilot_id", 123);
     falseIfOptionalWronglyTyped("client_rating", "not numeric");
     falseIfOptionalWronglyTyped("payment_method", "invalid");
-    falseIfOptionalWronglyTyped("credit_card", {id: "card_id"});
+    falseIfOptionalWronglyTyped("credit_card", { id: "card_id" });
     falseIfOptionalWronglyTyped("transaction_id", 123);
 
     it("returns false if, pilot_rating, if present, is not an object", () => {
@@ -129,7 +135,6 @@ describe("TripRequest.Interface", () => {
   describe("fromObj", () => {
     let validArg;
 
-  
     beforeEach(() => {
       validArg = {
         uid: "uid",
@@ -158,7 +163,7 @@ describe("TripRequest.Interface", () => {
           expiration_date: "1123",
           brand: "visa",
           pagarme_customer_id: 12345,
-          billing_address:{
+          billing_address: {
             country: "br",
             state: "mg",
             city: "paracatu",
@@ -176,8 +181,6 @@ describe("TripRequest.Interface", () => {
         },
       };
     });
-
-
 
     it("returns undefined if obj is null", () => {
       assert.isUndefined(tr.TripRequest.Interface.fromObj(null));
