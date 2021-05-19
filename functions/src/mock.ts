@@ -12,6 +12,7 @@ import {
   Language,
 } from "@googlemaps/google-maps-services-js";
 import { transaction } from "./database";
+import { Pagarme } from "./vendors/pagarme";
 
 // initialize google maps API client
 const googleMaps = new GoogleMapsClient({});
@@ -429,12 +430,68 @@ const mockTripComplete = async (pilotID: string) => {
     );
   }
 
+  // variable that will tell us whether capture succeeded
+  let captureSucceeded = true;
+  // variable that will hold how much to discount from pilot's receivables
+  let pilotReceivableDiscount;
+  // if payment is through credit card
+  if (
+    trip.payment_method == "credit_card" &&
+    trip.transaction_id != undefined
+  ) {
+    let amountOwed = await p.getAmountOwed();
+    let venniAmount;
+    // if pilot owes us money
+    if (amountOwed != null && amountOwed > 0) {
+      // decrease what pilot receives by the rounded minimum between
+      // 80% of fare price and what he owes us
+      pilotReceivableDiscount = Math.ceil(
+        Math.min(0.8 * trip.fare_price, amountOwed)
+      );
+
+      // venni should receive 20% + whatever was discounted from the pilot.
+      // we calculate Math.min here just to guarantee that client won't pay more than
+      // trip.fare_price
+      venniAmount = Math.floor(
+        Math.min(
+          trip.fare_price,
+          0.2 * trip.fare_price + pilotReceivableDiscount
+        )
+      );
+    }
+
+    // try to capture transaction, setting 'captureSucceeded' to false if it fails
+    const pagarme = new Pagarme();
+    await pagarme.ensureInitialized();
+    try {
+      let transaction = await pagarme.captureTransaction(
+        trip.transaction_id,
+        trip.fare_price,
+        pilot.pagarme_receiver_id,
+        venniAmount
+      );
+      if (transaction.status != "paid") {
+        captureSucceeded = false;
+      }
+    } catch (e) {
+      captureSucceeded = false;
+    }
+  } else {
+    // if payment is cash, increase amount pilot owes venni by 20% of fare price
+    await p.increaseAmountOwedBy(Math.ceil(0.2 * trip.fare_price));
+  }
+
+  if (captureSucceeded && pilotReceivableDiscount != undefined) {
+    // if capture succeeded and the pilot paid some amount he owed us, decrease amount owed
+    await p.decreaseAmountOwedBy(pilotReceivableDiscount);
+  }
+
   // free the pilot to handle other trips
   await p.free();
 
   // add trip with completed status to pilot's list of past trips
   trip.trip_status = TripRequest.Status.completed;
-  let pastTripRefKey = await p.pushPastTrip(trip);
+  let pilotPastTripRefKey = await p.pushPastTrip(trip);
 
   // save past trip's reference key in trip request's pilot_past_trip_ref_key
   // this is so the client can retrieve it later when rating the pilot
@@ -442,8 +499,8 @@ const mockTripComplete = async (pilotID: string) => {
     if (tripRequest == null) {
       return {};
     }
-    if (pastTripRefKey != null) {
-      tripRequest.pilot_past_trip_ref_key = pastTripRefKey;
+    if (pilotPastTripRefKey != null) {
+      tripRequest.pilot_past_trip_ref_key = pilotPastTripRefKey;
     }
     return tripRequest;
   });
@@ -461,12 +518,17 @@ const mockTripComplete = async (pilotID: string) => {
   // save trip to client's list of past trips and rate client
   // we are hardcoding the rate, but in real example the pilot
   // passes it by argument
-  if (pastTripRefKey != null) {
-    trip.pilot_past_trip_ref_key = pastTripRefKey;
+  if (pilotPastTripRefKey != null) {
+    trip.pilot_past_trip_ref_key = pilotPastTripRefKey;
   }
-  await c.pushPastTripAndRate(trip, 4);
+  let clientPastTripRefKey = await c.pushPastTripAndRate(trip, 4);
+  // if credit card payment failed
+  if (!captureSucceeded && clientPastTripRefKey != null) {
+    // flag customer as owing us money
+    await c.setUnpaidTrip(trip.fare_price, clientPastTripRefKey);
+  }
 
-  // set trip's status to completed only if it is being handled by our pilot
+  // set trip's status to completed in a transaction
   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
     if (tripRequest == null) {
       // we always check for null in transactions.
