@@ -3243,6 +3243,114 @@ describe("trip", () => {
     });
   });
 
+  describe("clientGetPastTrip", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(trip.client_get_past_trip);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+    after(async () => {
+      await admin.database().ref("trip-requests").remove();
+      await admin.database().ref("pilots").remove();
+      await admin.database().ref("clients").remove();
+      await admin.database().ref("past-trips").remove();
+    });
+
+    it("fails if user is not authenticated", async () => {
+      // run generic test without context
+      await genericTest(
+        { past_trip_id: "past_trip_id" },
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if argument 'past_trip_id' is missing", async () => {
+      await genericTest(
+        {},
+        "invalid-argument",
+        "missing expected argument 'past_trip_id'."
+      );
+    });
+
+    it("fails if argument 'past_trip_id' is not a string", async () => {
+      await genericTest(
+        { past_trip_id: 123 },
+        "invalid-argument",
+        "argument 'past_trip_id' has invalid type. Expected 'string'. Received 'number'."
+      );
+    });
+
+    it("returns 'undefined' if specified past trip doesn't exist", async () => {
+      // clear database
+      await admin.database().ref("past-trips").remove();
+
+      const wrapped = test.wrap(trip.client_get_past_trip);
+
+      // request inexistent past trip
+      let pastTrip = await wrapped(
+        { past_trip_id: "past_trip_id" },
+        defaultCtx
+      );
+      assert.isUndefined(pastTrip);
+    });
+
+    it("returns a past trip if specified past trip exists", async () => {
+      // clear database
+      await admin.database().ref("past-trips").remove();
+
+      // populate database with client's past trips
+      const cpt = new ClientPastTrips(defaultUID);
+      let pastTrip = {
+        uid: defaultUID,
+        trip_status: "completed",
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        origin_zone: "AA",
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: Date.now().toString(),
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        pilot_id: "pilotID",
+      };
+      let pastTripID = await cpt.pushPastTrip(pastTrip);
+
+      const wrapped = test.wrap(trip.client_get_past_trip);
+
+      // request all client's past trips
+      let result = await wrapped({ past_trip_id: pastTripID }, defaultCtx);
+
+      // expect client_get_past_trip to return 3 trips
+      assert.isDefined(result);
+      assert.equal(result.uid, defaultUID);
+    });
+  });
+
   describe("pilotGetTripRating", () => {
     const genericTest = async (
       data,
