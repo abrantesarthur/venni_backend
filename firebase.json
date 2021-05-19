@@ -8,12 +8,12 @@
       "enabled": "true"
     }
   },
-  "functions": {
-    "predeploy": "npm --prefix \"functions\" run build"
-  },
   "pagarmeapi": {
     "key": "ak_test_ab6YeGzWk37ySROFYPaTVN0J5uzBlh",
     "recipient_id": "re_ckof1xjj20mmy0h9tjw0t9kuc"
+  },
+  "functions": {
+    "predeploy": "npm --prefix \"functions\" run build"
   },
   "googleapi": {
     "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"

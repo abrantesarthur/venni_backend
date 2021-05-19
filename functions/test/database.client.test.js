@@ -381,7 +381,7 @@ describe("Client", () => {
         let client = c.getClient();
         assert.isDefined(client);
         assert.isUndefined(client.amount_owed);
-        assert.isUndefined(client.unpaid_past_trip_ref_key);
+        assert.isUndefined(client.unpaid_past_trip_id);
 
         // add unpaid past trip
         await c.setUnpaidTrip(5, "tripRefKey");
@@ -390,7 +390,7 @@ describe("Client", () => {
         client = await c.getClient();
         assert.isDefined(client);
         assert.equal(client.amount_owed, 5);
-        assert.equal(client.unpaid_past_trip_ref_key, "tripRefKey");
+        assert.equal(client.unpaid_past_trip_id, "tripRefKey");
 
         // clear database
         await admin.database().ref("clients").remove();
@@ -452,7 +452,7 @@ describe("Client", () => {
         );
       };
       falseIfOptionalWronglyTyped("amount_owed", "not a number");
-      falseIfOptionalWronglyTyped("unpaid_past_trip_ref_key", 123);
+      falseIfOptionalWronglyTyped("unpaid_past_trip_id", 123);
 
       it("returns false if 'cards' field is present and incorrect", () => {
         let invalidArg = validArg;
@@ -560,7 +560,7 @@ describe("Client", () => {
         assert.equal(response.payment_method.default, "credit_card"),
           assert.equal(response.payment_method.card_id, "card_id");
         assert.isUndefined(response.amount_owed);
-        assert.isUndefined(response.unpaid_past_trip_ref_key);
+        assert.isUndefined(response.unpaid_past_trip_id);
       });
 
       it("returns Client.Interface if obj is Client.Interface III", () => {
@@ -590,7 +590,7 @@ describe("Client", () => {
             },
           },
           amount_owed: 5,
-          unpaid_past_trip_ref_key: "unpaid_past_trip_ref_key",
+          unpaid_past_trip_id: "unpaid_past_trip_id",
         };
 
         const response = Client.Client.Interface.fromObj(obj);
@@ -604,10 +604,7 @@ describe("Client", () => {
         assert.equal(response.payment_method.default, "cash");
         assert.isUndefined(response.payment_method.card_id);
         assert.equal(response.amount_owed, 5);
-        assert.equal(
-          response.unpaid_past_trip_ref_key,
-          "unpaid_past_trip_ref_key"
-        );
+        assert.equal(response.unpaid_past_trip_id, "unpaid_past_trip_id");
       });
     });
 
