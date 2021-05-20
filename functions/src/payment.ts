@@ -380,8 +380,17 @@ export const captureTripPayment = async (
   const pagarme = new Pagarme();
   await pagarme.ensureInitialized();
 
+  // calculate how many days ago the trip was requested
+  let diffTime = Date.now() - Number(trip.request_time);
+  let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
   // if creditCard is defined and differs from the one used in trip
-  if (creditCard != undefined && creditCard.id != trip.credit_card?.id) {
+  // or it's been over 5 days since trip was done (e.g., authorized transaction
+  // was automatially closed in pagarme)
+  if (creditCard != undefined && creditCard.id != trip.credit_card?.id || diffDays >= 5) {
+    if(creditCard == undefined) {
+      return false;
+    }
     let transaction;
     try {
       // create a whole new transaction
