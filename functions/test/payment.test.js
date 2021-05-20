@@ -643,13 +643,13 @@ describe("payment", () => {
     let creditCard;
     before(async () => {
       // create credit card
-      validCard = {
+      let validCard = {
         card_number: "5234213829598909",
         card_expiration_date: "0235",
         card_holder_name: "Joao das Neves",
         card_cvv: "600",
       };
-      cardHash = await pagarmeClient.encrypt(validCard);
+      let cardHash = await pagarmeClient.encrypt(validCard);
       let createCardArg = {
         card_number: validCard.card_number,
         card_expiration_date: validCard.card_expiration_date,
@@ -669,6 +669,13 @@ describe("payment", () => {
       };
       const wrappedCreateCard = test.wrap(payment.create_card);
       creditCard = await wrappedCreateCard(createCardArg, defaultCtx);
+    });
+
+    after(async () => {
+      // clear database
+      await admin.database().ref("clients").remove();
+      await admin.database().ref("pilots").remove();
+      await admin.database().ref("past-trips").remove();
     });
 
     const genericTest = async (
@@ -699,16 +706,25 @@ describe("payment", () => {
     it("fails if user is not authenticated", async () => {
       // pass empty context as a parameter
       await genericTest(
-        {},
+        { card_id: creditCard.id },
         "failed-precondition",
         "Missing authentication credentials.",
         {}
       );
     });
 
-    it("throws 'not-found' if client does not exist", async () => {
+    it("fails if 'card_id' argument is missing", async () => {
+      // pass empty context as a parameter
       await genericTest(
         {},
+        "invalid-argument",
+        "missing expected argument 'card_id'."
+      );
+    });
+
+    it("throws 'not-found' if client does not exist", async () => {
+      await genericTest(
+        { card_id: creditCard.id },
         "not-found",
         "Could not fiend client with id 'client_id'",
         { auth: { uid: "client_id" } }
@@ -727,7 +743,7 @@ describe("payment", () => {
       });
 
       await genericTest(
-        {},
+        { card_id: creditCard.id },
         "failed-precondition",
         "There is no pending payments for the client."
       );
@@ -751,7 +767,7 @@ describe("payment", () => {
       assert.equal(client.unpaid_past_trip_id, "inexisting_trip_id");
 
       const wrapped = test.wrap(payment.capture_unpaid_trip);
-      let result = await wrapped({}, defaultCtx);
+      let result = await wrapped({ card_id: creditCard.id }, defaultCtx);
       assert.isTrue(result);
 
       // assert client's 'unpaid_past_trip_id' is not set after capturing payment
@@ -760,7 +776,52 @@ describe("payment", () => {
       assert.isUndefined(client.unpaid_past_trip_id);
     });
 
-    it("unsets 'unpaid_past_trip_id' if succesfully captures payment", async () => {
+    it("fails if client doesn't have card specified by 'card_id'", async () => {
+      // add unpaidTrip for client, handled by the pilot with id 'pilotID',
+      let unpaidTrip = {
+        uid: defaultUID,
+        trip_status: "completed",
+        origin_place_id: "ChIJzY-urWVKqJQRGA8-aIMZJ4I",
+        destination_place_id: "ChIJ31rnOmVKqJQR8FM30Au7boM",
+        origin_zone: "AA",
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: Date.now().toString(),
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        pilot_id: "pilotID",
+        payment_method: "credit_card",
+        credit_card: creditCard,
+      };
+      const cpt = new ClientPastTrips(defaultUID);
+      let pastTripID = await cpt.pushPastTrip(unpaidTrip);
+
+      // add client to the database without a credit card
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "cash",
+        },
+        unpaid_past_trip_id: pastTripID,
+      });
+
+      // assert 'captureUnpaidTrip' fails
+      genericTest(
+        { card_id: creditCard.id },
+        "not-found",
+        "Client has no card with id '" + creditCard.id + "'",
+        defaultCtx,
+        false
+      );
+    });
+
+    it("unsets 'unpaid_past_trip_id' if pays with same card used to request trip", async () => {
       // create transaction with R$5,00 value supposedly to pay the trip
       const farePrice = 500;
       const transaction = await pagarmeClient.createTransaction(
@@ -810,6 +871,9 @@ describe("payment", () => {
         unpaid_past_trip_id: pastTripID,
       });
 
+      // add creditCard to the client
+      await c.addCard(creditCard);
+
       // add a pilot to the database supposedly handing the trip for defaultUID
       // owing amountOwed and with a valid pagarme_receiver_id
       await admin.database().ref("pilots").remove();
@@ -844,7 +908,133 @@ describe("payment", () => {
 
       // call 'captureUnpaidTrip' and asert it returns 'true'
       const wrapped = test.wrap(payment.capture_unpaid_trip);
-      let result = await wrapped({}, defaultCtx);
+      let result = await wrapped({ card_id: creditCard.id }, defaultCtx);
+      assert.isTrue(result);
+
+      // after calling captureUnpaidTrip, assert client has 'unpaid_past_trip_id' field unset
+      client = await c.getClient();
+      assert.isDefined(client);
+      assert.isUndefined(client.unpaid_past_trip_id);
+    });
+
+    it("unsets 'unpaid_past_trip_id' if pays with card different from one used to request trip", async () => {
+      // create transaction with R$5,00 value supposedly to pay the trip using a credit card A
+      const farePrice = 500;
+      const transaction = await pagarmeClient.createTransaction(
+        creditCard.id,
+        farePrice,
+        {
+          id: creditCard.pagarme_customer_id,
+          name: creditCard.holder_name,
+        },
+        creditCard.billing_address
+      );
+
+      // add unpaidTrip for client, handled by the pilot with id 'pilotID',
+      // and paid with the credit card A
+      const pilotID = "pilotID";
+      let unpaidTrip = {
+        uid: defaultUID,
+        trip_status: "completed",
+        origin_place_id: "ChIJzY-urWVKqJQRGA8-aIMZJ4I",
+        destination_place_id: "ChIJ31rnOmVKqJQR8FM30Au7boM",
+        origin_zone: "AA",
+        fare_price: farePrice,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: Date.now().toString(),
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        pilot_id: pilotID,
+        payment_method: "credit_card",
+        credit_card: creditCard,
+        transaction_id: transaction.tid.toString(),
+      };
+      const cpt = new ClientPastTrips(defaultUID);
+      let pastTripID = await cpt.pushPastTrip(unpaidTrip);
+
+      // add client to the database with 'unpaid_past_trip_id' field set
+      const c = new Client(defaultUID);
+      await c.addClient({
+        uid: defaultUID,
+        rating: "5",
+        payment_method: {
+          default: "cash",
+        },
+        unpaid_past_trip_id: pastTripID,
+      });
+
+      // add the credit card A to the client
+      await c.addCard(creditCard);
+
+      // add a pilot to the database supposedly handing the trip for defaultUID
+      // owing amountOwed and with a valid pagarme_receiver_id
+      await admin.database().ref("pilots").remove();
+      let defaultPilot = {
+        uid: pilotID,
+        name: "Fulano",
+        last_name: "de Tal",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
+        current_client_uid: defaultUID,
+        current_zone: "AA",
+        status: "busy",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+        pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+      };
+      const pilotRef = admin.database().ref("pilots").child(pilotID);
+      await pilotRef.set(defaultPilot);
+
+      // create a credit card B
+      let validCard = {
+        card_number: "5234213829598909",
+        card_expiration_date: "0235",
+        card_holder_name: "Joao das Neves",
+        card_cvv: "600",
+      };
+      let cardHash = await pagarmeClient.encrypt(validCard);
+      let createCardArg = {
+        card_number: validCard.card_number,
+        card_expiration_date: validCard.card_expiration_date,
+        card_holder_name: validCard.card_holder_name,
+        card_hash: cardHash,
+        cpf_number: "58229366365",
+        email: "fulano@venni.app",
+        phone_number: "+5538998601275",
+        billing_address: {
+          country: "br",
+          state: "mg",
+          city: "Paracatu",
+          street: "Rua i",
+          street_number: "151",
+          zipcode: "38600000",
+        },
+      };
+      const wrappedCreateCard = test.wrap(payment.create_card);
+      anotherCreditCard = await wrappedCreateCard(createCardArg, defaultCtx);
+      // add the credit card B to the client
+      await c.addCard(anotherCreditCard);
+
+      // before calling captureUnpaidTrip, assert client has 'unpaid_past_trip_id' field set
+      let client = await c.getClient();
+      assert.isDefined(client);
+      assert.isDefined(client.unpaid_past_trip_id);
+
+      // call 'captureUnpaidTrip' using credit card B and asert it returns 'true'
+      const wrapped = test.wrap(payment.capture_unpaid_trip);
+      let result = await wrapped({ card_id: anotherCreditCard.id }, defaultCtx);
       assert.isTrue(result);
 
       // after calling captureUnpaidTrip, assert client has 'unpaid_past_trip_id' field unset
@@ -887,6 +1077,8 @@ describe("payment", () => {
         },
         unpaid_past_trip_id: pastTripID,
       });
+      // add card to the client
+      await c.addCard(creditCard);
 
       // before calling captureUnpaidTrip, assert client has 'unpaid_past_trip_id' field set
       let client = await c.getClient();
@@ -895,7 +1087,7 @@ describe("payment", () => {
 
       // call 'captureUnpaidTrip' and assert it returns 'false'
       const wrapped = test.wrap(payment.capture_unpaid_trip);
-      let result = await wrapped({}, defaultCtx);
+      let result = await wrapped({ card_id: creditCard.id }, defaultCtx);
       assert.isFalse(result);
 
       // after calling captureUnpaidTrip, assert client still has 'unpaid_past_trip_id' set
