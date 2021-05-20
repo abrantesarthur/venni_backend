@@ -325,6 +325,7 @@ const confirmTrip = async (
   promises.push(tr.ref.set(tripRequest));
 
   // make sure that 'card_id', if specified, corresponds to existing card
+  // TODO: use getCardByID instead
   const c = new Client(context.auth.uid);
   let client = await c.getClient();
   let creditCard: Client.Interface.Card | undefined;

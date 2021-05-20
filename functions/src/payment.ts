@@ -1,5 +1,4 @@
 import * as functions from "firebase-functions";
-import * as firebaseAdmin from "firebase-admin";
 import { Client } from "./database/client";
 import { validateArgument, phoneHasE164Format } from "./utils";
 import { Pagarme } from "./vendors/pagarme";
@@ -283,7 +282,7 @@ const setDefaultPaymentMethod = async (
 };
 
 const captureUnpaidTrip = async (
-  _: any,
+  data: any,
   context: functions.https.CallableContext
 ) => {
   // do validations
@@ -293,6 +292,7 @@ const captureUnpaidTrip = async (
       "Missing authentication credentials."
     );
   }
+  validateArgument(data, ["card_id"], ["string"], [true]);
 
   // get client
   const c = new Client(context.auth.uid);
@@ -325,8 +325,17 @@ const captureUnpaidTrip = async (
     return true;
   }
 
+  // make sure card_id corresponds to existing card
+  let creditCard = await c.getCardByID(data.card_id);
+  if (creditCard == undefined) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Client has no card with id '" + data.card_id + "'"
+    );
+  }
+
   // if capture succeeded, remove unpaid trip from client and return
-  let captureSucceeded = await captureTripPayment(unpaidTrip);
+  let captureSucceeded = await captureTripPayment(unpaidTrip, creditCard);
   if (captureSucceeded) {
     await c.unsetUnpaidTrip();
   }
@@ -335,7 +344,8 @@ const captureUnpaidTrip = async (
 };
 
 export const captureTripPayment = async (
-  trip: TripRequest.Interface
+  trip: TripRequest.Interface,
+  creditCard?: Client.Interface.Card
 ): Promise<boolean> => {
   // make sure trip has transaction_id and pilot
   if (trip.pilot_id == undefined || trip.transaction_id == undefined) {
@@ -366,29 +376,63 @@ export const captureTripPayment = async (
     );
   }
 
-  // try to capture transaction, setting 'captureSucceeded' to false if it fails
-  let captureSucceeded = true;
+  // initialize pagarme
   const pagarme = new Pagarme();
   await pagarme.ensureInitialized();
-  try {
-    let transaction = await pagarme.captureTransaction(
-      trip.transaction_id,
-      trip.fare_price,
-      pilot?.pagarme_receiver_id,
-      venniAmount
-    );
-    if (transaction.status != "paid") {
-      captureSucceeded = false;
-    }
-  } catch (e) {
-    captureSucceeded = false;
-  }
 
-  if (captureSucceeded && pilotReceivableDiscount != undefined) {
-    // if capture succeeded and the pilot paid some amount he owed us, decrease amount owed
+  // if creditCard is defined and differs from the one used in trip
+  if (creditCard != undefined && creditCard.id != trip.credit_card?.id) {
+    let transaction;
+    try {
+      // create a whole new transaction
+      transaction = await pagarme.createTransaction(
+        creditCard.id,
+        trip.fare_price,
+        { id: creditCard.pagarme_customer_id, name: creditCard.holder_name },
+        creditCard.billing_address
+      );
+      if (transaction.status != "authorized") {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+    try {
+      // capture new transaction
+      transaction = await pagarme.captureTransaction(
+        transaction.tid,
+        trip.fare_price,
+        pilot?.pagarme_receiver_id,
+        venniAmount
+      );
+      if (transaction.status != "paid") {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+  } else {
+    // otherwise, simply capture trip's transactions
+    try {
+      let transaction = await pagarme.captureTransaction(
+        trip.transaction_id,
+        trip.fare_price,
+        pilot?.pagarme_receiver_id,
+        venniAmount
+      );
+      if (transaction.status != "paid") {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
+  }
+  // if capture succeeded and the pilot paid some amount he owed us
+  if (pilotReceivableDiscount != undefined) {
+    // decrease amount owed
     await p.decreaseAmountOwedBy(pilotReceivableDiscount);
   }
-  return captureSucceeded;
+  return true;
 };
 
 export const create_card = functions.https.onCall(createCard);
