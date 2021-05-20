@@ -17,6 +17,7 @@ import { transaction } from "./database/index";
 import { Pilots } from "./database/pilots";
 import { ClientPastTrips, PilotPastTrips } from "./database/pastTrips";
 import { Pagarme } from "./vendors/pagarme";
+import { captureTripPayment } from "./payment";
 // initialize google maps API client
 const googleMaps = new GoogleMapsClient({});
 
@@ -969,58 +970,15 @@ const completeTrip = async (
 
   // variable that will tell us whether capture succeeded
   let captureSucceeded = true;
-  // variable that will hold how much to discount from pilot's receivables
-  let pilotReceivableDiscount;
-  // if payment is through credit card
   if (
     trip.payment_method == "credit_card" &&
     trip.transaction_id != undefined
   ) {
-    let amountOwed = await p.getAmountOwed();
-    let venniAmount;
-    // if pilot owes us money
-    if (amountOwed != null && amountOwed > 0) {
-      // decrease what pilot receives by the rounded minimum between
-      // 80% of fare price and what he owes us
-      pilotReceivableDiscount = Math.ceil(
-        Math.min(0.8 * trip.fare_price, amountOwed)
-      );
-
-      // venni should receive 20% + whatever was discounted from the pilot.
-      // we calculate Math.min here just to guarantee that client won't pay more than
-      // trip.fare_price
-      venniAmount = Math.floor(
-        Math.min(
-          trip.fare_price,
-          0.2 * trip.fare_price + pilotReceivableDiscount
-        )
-      );
-    }
-
-    // try to capture transaction, setting 'captureSucceeded' to false if it fails
-    const pagarme = new Pagarme();
-    await pagarme.ensureInitialized();
-    try {
-      let transaction = await pagarme.captureTransaction(
-        trip.transaction_id,
-        trip.fare_price,
-        pilot.pagarme_receiver_id,
-        venniAmount
-      );
-      if (transaction.status != "paid") {
-        captureSucceeded = false;
-      }
-    } catch (e) {
-      captureSucceeded = false;
-    }
+    // if payment is through credit card, capture payment
+    captureSucceeded = await captureTripPayment(trip);
   } else {
     // if payment is cash, increase amount pilot owes venni by 20% of fare price
     await p.increaseAmountOwedBy(Math.ceil(0.2 * trip.fare_price));
-  }
-
-  if (captureSucceeded && pilotReceivableDiscount != undefined) {
-    // if capture succeeded and the pilot paid some amount he owed us, decrease amount owed
-    await p.decreaseAmountOwedBy(pilotReceivableDiscount);
   }
 
   // free the pilot to handle other trips
@@ -1064,7 +1022,7 @@ const completeTrip = async (
     // if credit card payment failed
     if (!captureSucceeded && clientPastTripRefKey != null) {
       // flag customer as owing us money
-      await c.setUnpaidTrip(trip.fare_price, clientPastTripRefKey);
+      await c.setUnpaidTrip(clientPastTripRefKey);
     }
   }
 

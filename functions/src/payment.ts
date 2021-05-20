@@ -6,6 +6,9 @@ import { Pagarme } from "./vendors/pagarme";
 import { Customer } from "pagarme-js-types/src/client/customers/responses";
 import { Card } from "pagarme-js-types/src/client/cards/responses";
 import { Transaction } from "pagarme-js-types/src/client/transactions/responses";
+import { ClientPastTrips } from "./database/pastTrips";
+import { Pilot } from "./database/pilot";
+import { TripRequest } from "./database/tripRequest";
 
 const validateCreateCardArguments = (args: any) => {
   validateArgument(
@@ -263,7 +266,7 @@ const setDefaultPaymentMethod = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
-  // validate authentication
+  // do validations
   if (context.auth == null) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -279,9 +282,119 @@ const setDefaultPaymentMethod = async (
   );
 };
 
+const captureUnpaidTrip = async (
+  _: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  // get client
+  const c = new Client(context.auth.uid);
+  let client = await c.getClient();
+
+  // make sure client exists
+  if (client == undefined) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Could not fiend client with id '" + context.auth.uid + "'"
+    );
+  }
+
+  // make sure client has unpaid past trip
+  if (client.unpaid_past_trip_id == undefined) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "There is no pending payments for the client."
+    );
+  }
+
+  // get unpaid trip
+  const cpt = new ClientPastTrips(context.auth.uid);
+  let unpaidTrip = await cpt.getPastTrip(client.unpaid_past_trip_id);
+
+  // make sure unpaid trip exists
+  if (unpaidTrip == undefined) {
+    // this should never happen, but if it does, unset unpaid trip
+    await c.unsetUnpaidTrip();
+    return true;
+  }
+
+  // if capture succeeded, remove unpaid trip from client and return
+  let captureSucceeded = await captureTripPayment(unpaidTrip);
+  if (captureSucceeded) {
+    await c.unsetUnpaidTrip();
+  }
+
+  return captureSucceeded;
+};
+
+export const captureTripPayment = async (
+  trip: TripRequest.Interface
+): Promise<boolean> => {
+  // make sure trip has transaction_id and pilot
+  if (trip.pilot_id == undefined || trip.transaction_id == undefined) {
+    return false;
+  }
+  // get pilot who completed the trip
+  let p = new Pilot(trip.pilot_id);
+  let pilot = await p.getPilot();
+
+  // variable that will hold how much to discount from pilot's receivables
+  let pilotReceivableDiscount;
+
+  let amountOwed = await p.getAmountOwed();
+  let venniAmount;
+  // if pilot owes us money
+  if (amountOwed != null && amountOwed > 0) {
+    // decrease what pilot receives by the rounded minimum between
+    // 80% of fare price and what he owes us
+    pilotReceivableDiscount = Math.ceil(
+      Math.min(0.8 * trip.fare_price, amountOwed)
+    );
+
+    // venni should receive 20% + whatever was discounted from the pilot.
+    // we calculate Math.min here just to guarantee that client won't pay more than
+    // trip.fare_price
+    venniAmount = Math.floor(
+      Math.min(trip.fare_price, 0.2 * trip.fare_price + pilotReceivableDiscount)
+    );
+  }
+
+  // try to capture transaction, setting 'captureSucceeded' to false if it fails
+  let captureSucceeded = true;
+  const pagarme = new Pagarme();
+  await pagarme.ensureInitialized();
+  try {
+    let transaction = await pagarme.captureTransaction(
+      trip.transaction_id,
+      trip.fare_price,
+      pilot?.pagarme_receiver_id,
+      venniAmount
+    );
+    if (transaction.status != "paid") {
+      captureSucceeded = false;
+    }
+  } catch (e) {
+    captureSucceeded = false;
+  }
+
+  if (captureSucceeded && pilotReceivableDiscount != undefined) {
+    // if capture succeeded and the pilot paid some amount he owed us, decrease amount owed
+    await p.decreaseAmountOwedBy(pilotReceivableDiscount);
+  }
+  return captureSucceeded;
+};
+
 export const create_card = functions.https.onCall(createCard);
 export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
 export const set_default_payment_method = functions.https.onCall(
   setDefaultPaymentMethod
 );
+export const capture_unpaid_trip = functions.https.onCall(captureUnpaidTrip);

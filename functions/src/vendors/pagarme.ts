@@ -88,7 +88,7 @@ export class Pagarme {
               ? 100
               : 20
             : undefined,
-        amount: venniAmount,
+        amount: recipientID == undefined ? amount : venniAmount,
         recipient_id: functions.config().pagarmeapi.recipient_id,
       },
     ];

@@ -120,7 +120,7 @@ export class Client extends Database {
     return await this.ref.child("payment_method").set(paymentMethod);
   };
 
-  setUnpaidTrip = async (amount: number, tripRefKey: string) => {
+  setUnpaidTrip = async (tripRefKey: string) => {
     await transaction(this.ref, (client: Client.Interface) => {
       if (client == null) {
         return null;
@@ -128,6 +128,17 @@ export class Client extends Database {
       // important; we must enforce a variant that a client can only request a new trip if
       // unpaid_past_trip_id is undefined or empty. Otherwise, this will override a previous amount owed.
       client.unpaid_past_trip_id = tripRefKey;
+      return client;
+    });
+  };
+
+  // TODO: test
+  unsetUnpaidTrip = async () => {
+    await transaction(this.ref, (client: Client.Interface) => {
+      if (client == null) {
+        return null;
+      }
+      delete client["unpaid_past_trip_id"];
       return client;
     });
   };

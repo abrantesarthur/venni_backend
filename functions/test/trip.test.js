@@ -2328,7 +2328,6 @@ describe("trip", () => {
       // before pilot completes trip, assert client has no unpaid trips
       let client = await c.getClient();
       assert.isDefined(client);
-      assert.isUndefined(client.amount_owed);
       assert.isUndefined(client.unpaid_past_trip_id);
 
       // pilot calls complete trip
@@ -2345,7 +2344,6 @@ describe("trip", () => {
       // oweing farePrice
       client = await c.getClient();
       assert.isDefined(client);
-      assert.equal(client.amount_owed, farePrice);
       assert.isDefined(client.unpaid_past_trip_id);
     });
 
