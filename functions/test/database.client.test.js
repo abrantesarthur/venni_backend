@@ -383,7 +383,7 @@ describe("Client", () => {
         assert.isUndefined(client.unpaid_past_trip_id);
 
         // add unpaid past trip
-        await c.setUnpaidTrip(5, "tripRefKey");
+        await c.setUnpaidTrip("tripRefKey");
 
         // assert it worked
         client = await c.getClient();

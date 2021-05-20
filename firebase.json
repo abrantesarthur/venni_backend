@@ -1,12 +1,6 @@
 {
-  "emulators": {
-    "functions": {
-      "host": "192.168.0.102",
-      "port": "5001"
-    },
-    "ui": {
-      "enabled": "true"
-    }
+  "googleapi": {
+    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
   },
   "pagarmeapi": {
     "key": "ak_test_ab6YeGzWk37ySROFYPaTVN0J5uzBlh",
@@ -15,7 +9,13 @@
   "functions": {
     "predeploy": "npm --prefix \"functions\" run build"
   },
-  "googleapi": {
-    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+  "emulators": {
+    "functions": {
+      "port": "5001",
+      "host": "192.168.0.102"
+    },
+    "ui": {
+      "enabled": "true"
+    }
   }
 }

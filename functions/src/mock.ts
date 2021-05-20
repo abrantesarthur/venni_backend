@@ -525,7 +525,7 @@ const mockTripComplete = async (pilotID: string) => {
   // if credit card payment failed
   if (!captureSucceeded && clientPastTripRefKey != null) {
     // flag customer as owing us money
-    await c.setUnpaidTrip(trip.fare_price, clientPastTripRefKey);
+    await c.setUnpaidTrip(clientPastTripRefKey);
   }
 
   // set trip's status to completed in a transaction
