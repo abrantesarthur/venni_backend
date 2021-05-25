@@ -580,6 +580,8 @@ const confirmTrip = async (
             return {};
           }
 
+
+
           pilot.status = Pilot.Status.busy;
           pilot.current_client_uid = context.auth?.uid;
 
@@ -670,7 +672,7 @@ const confirmTrip = async (
     // important: sleep a bit to guarantee that waiting-pilot status is persisted
     await sleep(300);
 
-    // for pilots who were requested but failed to respond in time, set status to available
+    // for pilots who were requested but accepted too late, set status to available
     // and clear current_client_id as long as its status equals requested and current_client_id
     // equals the client's uuid. This means it received our request, didn't respond in time,
     // and didn't reset the pilot's status.
@@ -746,7 +748,7 @@ const acceptTrip = async (
   const tr = new TripRequest(clientID);
 
   // set trip's pilot_id in a transaction only if it is null or empty. Otherwise,
-  // it means another pilot already picked the trip ahead of us. Throw error in that case.
+  // it means another pilot already picked the trip ahead of us. Abort transaction in that case.
   await transaction(
     tr.ref,
     (tripRequest: TripRequest.Interface) => {
@@ -765,50 +767,11 @@ const acceptTrip = async (
       // otherwise, abort
       return;
     },
-    (error, completed, _) => {
-      // if transaction failed abnormally
-      if (error) {
-        throw new functions.https.HttpsError(
-          "internal",
-          "Something went wrong."
-        );
-      }
-
-      // if transaction was aborted
-      if (completed == false) {
-        // another pilot has already requested the trip, so throw error.
-        throw new functions.https.HttpsError(
-          "failed-precondition",
-          "another pilot has already picked up the trip"
-        );
-      }
-    }
   );
 
-  // wait until pilot's status is set to busy or available by confirmTrip
-  pilotSnapshot = await pilotRef.once("value");
-  pilot = pilotSnapshot.val() as Pilot.Interface;
-  while (
-    pilot.status != Pilot.Status.busy &&
-    pilot.status != Pilot.Status.available
-  ) {
-    await sleep(1);
-    pilotSnapshot = await pilotRef.once("value");
-    pilot = pilotSnapshot.val() as Pilot.Interface;
-  }
-
-  // if it was set to available, confirmTrip denied trip to the pilot
-  if (pilot.status == Pilot.Status.available) {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "trip denied to the pilot"
-    );
-  }
-
-  // if it was set busy, confirmTrip indeed granted the trip to the pilot.
-  if (pilot.status == Pilot.Status.busy) {
-    return;
-  }
+  // at this point, confirmTrip will set pilot's status to either busy or available,
+  // depending on whether pilot was succesfull at accepting the trip or not. It's the
+  // client's responsibility to listen for that status change.
 };
 
 const startTrip = async (
