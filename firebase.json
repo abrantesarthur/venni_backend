@@ -1,7 +1,4 @@
 {
-  "functions": {
-    "predeploy": "npm --prefix \"functions\" run build"
-  },
   "emulators": {
     "ui": {
       "enabled": "true"
@@ -17,5 +14,8 @@
   },
   "googleapi": {
     "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+  },
+  "functions": {
+    "predeploy": "npm --prefix \"functions\" run build"
   }
 }
