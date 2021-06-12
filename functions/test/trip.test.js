@@ -10,12 +10,12 @@ const { wrap } = require("firebase-functions-test/lib/main");
 const { TripRequest } = require("../lib/database/tripRequest");
 const { Database } = require("../lib/database");
 const {
-  PilotPastTrips,
+  PartnerPastTrips,
   ClientPastTrips,
 } = require("../lib/database/pastTrips");
 const { expect } = require("chai");
 const { Client } = require("../lib/database/client");
-const { Pilot } = require("../lib/database/pilot");
+const { Partner } = require("../lib/database/partner");
 const { Pagarme } = require("../lib/vendors/pagarme");
 const assert = chai.assert;
 
@@ -55,7 +55,7 @@ describe("trip", () => {
     // createTripRequest populates the database with request
     createTripRequest = async (
       status = "waiting-confirmation",
-      pilotID = ""
+      partnerID = ""
     ) => {
       let defaultTripRequest = {
         uid: defaultUID,
@@ -72,7 +72,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID,
+        partner_id: partnerID,
       };
 
       let tripRequestRef = admin
@@ -97,7 +97,7 @@ describe("trip", () => {
   after(async () => {
     // clean database
     await admin.database().ref("trip-requests").remove();
-    await admin.database().ref("pilots").remove();
+    await admin.database().ref("partners").remove();
     await admin.database().ref("clients").remove();
     await admin.database().ref("past-trips").remove();
     // do cleanup tasks
@@ -112,7 +112,7 @@ describe("trip", () => {
 
     after(async () => {
       // clean database
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
     });
 
     const genericTest = async (
@@ -297,11 +297,11 @@ describe("trip", () => {
     it("fails when the user already has a trip request with inProgress status", async () => {
       await invalidTripStatusTest("in-progress");
     });
-    it("fails when the user already has a trip request with lookingForPilot status", async () => {
-      await invalidTripStatusTest("looking-for-pilot");
+    it("fails when the user already has a trip request with lookingForPartner status", async () => {
+      await invalidTripStatusTest("looking-for-partner");
     });
-    it("fails when the user already has a trip request with waitingPilot status", async () => {
-      await invalidTripStatusTest("waiting-pilot");
+    it("fails when the user already has a trip request with waitingPartner status", async () => {
+      await invalidTripStatusTest("waiting-partner");
     });
     it("fails when the user already has a trip request with waitingPayment status", async () => {
       await invalidTripStatusTest("waiting-payment");
@@ -373,7 +373,7 @@ describe("trip", () => {
 
     after(async () => {
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
     });
 
     const failsWithStatus = async (status) => {
@@ -430,8 +430,8 @@ describe("trip", () => {
       await failsWithStatus("cancelled-by-client");
     });
 
-    it("fails if trip has cancelled-by-pilot status", async () => {
-      await failsWithStatus("cancelled-by-pilot");
+    it("fails if trip has cancelled-by-partner status", async () => {
+      await failsWithStatus("cancelled-by-partner");
     });
 
     it("fails if trip has completed status", async () => {
@@ -450,16 +450,16 @@ describe("trip", () => {
       await succeedsWithStatus("payment-failed");
     });
 
-    it("succeeds when trip has no-pilots-available status", async () => {
-      await succeedsWithStatus("no-pilots-available");
+    it("succeeds when trip has no-partners-available status", async () => {
+      await succeedsWithStatus("no-partners-available");
     });
 
-    it("succeeds when trip has looking-for-pilot status", async () => {
-      await succeedsWithStatus("looking-for-pilot");
+    it("succeeds when trip has looking-for-partner status", async () => {
+      await succeedsWithStatus("looking-for-partner");
     });
 
-    it("succeeds when trip has waiting-pilot status", async () => {
-      await succeedsWithStatus("waiting-pilot");
+    it("succeeds when trip has waiting-partner status", async () => {
+      await succeedsWithStatus("waiting-partner");
     });
 
     it("succeeds when trip has in-progress status", async () => {
@@ -467,14 +467,17 @@ describe("trip", () => {
     });
 
     it("succeeds when integrated with confirmTrip and acceptTrip", async () => {
-      // add an available pilots to the database
-      const pilotID = "pilotID";
+      // add an available partners to the database
+      const partnerID = "partnerID";
       const clientID = "clientID";
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID,
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         phone_number: "(38) 99999-9999",
         member_since: Date.now().toString(),
         current_latitude: "-17.217587",
@@ -490,8 +493,8 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      const pilotRef = admin.database().ref("pilots").child(pilotID);
-      await pilotRef.set(defaultPilot);
+      const partnerRef = admin.database().ref("partners").child(partnerID);
+      await partnerRef.set(defaultPartner);
 
       // add trip request to database with status waiting-confirmation
       let tripRequest = {
@@ -521,36 +524,39 @@ describe("trip", () => {
       const wrappedConfirm = test.wrap(trip.confirm);
       wrappedConfirm({}, { auth: { uid: clientID } });
 
-      // wait enough for confirm to send out request to pilot
+      // wait enough for confirm to send out request to partner
       await sleep(1500);
 
-      // assert trip request has looking-for-pilot status
+      // assert trip request has looking-for-partner status
       snapshot = await tripRequestRef.once("value");
       assert.notEqual(snapshot.val(), null);
-      assert.equal(snapshot.val().trip_status, "looking-for-pilot");
+      assert.equal(snapshot.val().trip_status, "looking-for-partner");
 
-      // assert pilot has been requested
-      pilotSnapshot = await pilotRef.once("value");
-      assert.isNotNull(pilotSnapshot.val());
-      // this fails if there is a mockPilotBehavior listener that automatically accepts the trip
-      assert.equal(pilotSnapshot.val().status, "requested");
+      // assert partner has been requested
+      partnerSnapshot = await partnerRef.once("value");
+      assert.isNotNull(partnerSnapshot.val());
+      // this fails if there is a mockPartnerBehavior listener that automatically accepts the trip
+      assert.equal(partnerSnapshot.val().status, "requested");
 
-      // pilot accepts trip
+      // partner accepts trip
       const wrappedAccept = test.wrap(trip.accept);
-      await wrappedAccept({ client_id: clientID }, { auth: { uid: pilotID } });
+      await wrappedAccept(
+        { client_id: clientID },
+        { auth: { uid: partnerID } }
+      );
 
-      // wait enough time for confirmTrip to grant trip to the pilot
+      // wait enough time for confirmTrip to grant trip to the partner
       await sleep(100);
 
-      // assert pilot was granted the trip
-      pilotSnapshot = await pilotRef.once("value");
-      assert.equal(pilotSnapshot.val().status, "busy");
-      assert.equal(pilotSnapshot.val().current_client_uid, clientID);
+      // assert partner was granted the trip
+      partnerSnapshot = await partnerRef.once("value");
+      assert.equal(partnerSnapshot.val().status, "busy");
+      assert.equal(partnerSnapshot.val().current_client_uid, clientID);
 
-      // assert trip request has waiting-pilot status
+      // assert trip request has waiting-partner status
       snapshot = await tripRequestRef.once("value");
       assert.notEqual(snapshot.val(), null);
-      assert.equal(snapshot.val().trip_status, "waiting-pilot");
+      assert.equal(snapshot.val().trip_status, "waiting-partner");
 
       // assert trying to delete trip-request succeeds
       const wrapped = test.wrap(trip.client_cancel);
@@ -563,14 +569,14 @@ describe("trip", () => {
       assert.isTrue(snapshot.val() != null);
       assert.equal(snapshot.val().trip_status, "cancelled-by-client");
 
-      // assert pilot has 'available' status and undefined 'current_client_uid'
-      pilotSnapshot = await pilotRef.once("value");
-      assert.equal(pilotSnapshot.val().status, "available");
-      assert.equal(pilotSnapshot.val().current_client_uid, "");
+      // assert partner has 'available' status and undefined 'current_client_uid'
+      partnerSnapshot = await partnerRef.once("value");
+      assert.equal(partnerSnapshot.val().status, "available");
+      assert.equal(partnerSnapshot.val().current_client_uid, "");
 
       // delete resources
       await admin.database().ref("trip-requests").child(clientID).remove();
-      await admin.database().ref("pilots").child(pilotID).remove();
+      await admin.database().ref("partners").child(partnerID).remove();
     });
   });
 
@@ -603,7 +609,7 @@ describe("trip", () => {
     after(async () => {
       // clean database
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
     });
 
     it("user must be authenticated", async () => {
@@ -643,17 +649,20 @@ describe("trip", () => {
       );
     });
 
-    it("fails if pilot accepts a trip without having been requested", async () => {
-      const pilotID1 = "pilotID1";
-      const pilotID2 = "pilotID2";
+    it("fails if partner accepts a trip without having been requested", async () => {
+      const partnerID1 = "partnerID1";
+      const partnerID2 = "partnerID2";
       const clientID = "clientID";
 
-      // add two available pilots to the database
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
+      // add two available partners to the database
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -669,10 +678,18 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      defaultPilot.uid = pilotID1;
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
-      defaultPilot.uid = pilotID2;
-      await admin.database().ref("pilots").child(pilotID2).set(defaultPilot);
+      defaultPartner.uid = partnerID1;
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
+      defaultPartner.uid = partnerID2;
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID2)
+        .set(defaultPartner);
 
       // add trip request to database
       await createTripRequest();
@@ -681,48 +698,51 @@ describe("trip", () => {
       const wrappedConfirm = test.wrap(trip.confirm);
       wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-      // wait enough for confirm to send out request to pilot 1 only
+      // wait enough for confirm to send out request to partner 1 only
       // TODO: may have to increase this once process payments is implemented
       await sleep(1500);
 
-      // assert pilot1 has been requested
-      let pilot1Ref = admin.database().ref("pilots").child(pilotID1);
-      let pilot1Snapshot = await pilot1Ref.once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "requested");
-      // assert pilot2 has not been requested
-      let pilot2Ref = admin.database().ref("pilots").child(pilotID2);
-      let pilot2Snapshot = await pilot2Ref.once("value");
-      assert.isNotNull(pilot2Snapshot.val());
-      assert.equal(pilot2Snapshot.val().status, "available");
+      // assert partner1 has been requested
+      let partner1Ref = admin.database().ref("partners").child(partnerID1);
+      let partner1Snapshot = await partner1Ref.once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "requested");
+      // assert partner2 has not been requested
+      let partner2Ref = admin.database().ref("partners").child(partnerID2);
+      let partner2Snapshot = await partner2Ref.once("value");
+      assert.isNotNull(partner2Snapshot.val());
+      assert.equal(partner2Snapshot.val().status, "available");
 
-      // pilot 2 accepts trip, thus failing
+      // partner 2 accepts trip, thus failing
       const wrappedAccept = test.wrap(trip.accept);
       try {
         await wrappedAccept(
           { client_id: defaultUID },
-          { auth: { uid: pilotID2 } }
+          { auth: { uid: partnerID2 } }
         );
         assert(false, "should have failed");
       } catch (e) {
         assert.strictEqual(e.code, "failed-precondition");
         assert.strictEqual(
           e.message,
-          "pilot has not been requested for trip or trip has already been picked."
+          "partner has not been requested for trip or trip has already been picked."
         );
       }
     });
 
     it("works", async () => {
-      const pilotID1 = "pilotID1";
-      const pilotID2 = "pilotID2";
+      const partnerID1 = "partnerID1";
+      const partnerID2 = "partnerID2";
 
-      // add two available pilots to the database
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
+      // add two available partners to the database
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         phone_number: "(38) 99999-9999",
         member_since: Date.now().toString(),
         current_latitude: "-17.217587",
@@ -738,10 +758,18 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      defaultPilot.uid = pilotID1;
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
-      defaultPilot.uid = pilotID2;
-      await admin.database().ref("pilots").child(pilotID2).set(defaultPilot);
+      defaultPartner.uid = partnerID1;
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
+      defaultPartner.uid = partnerID2;
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID2)
+        .set(defaultPartner);
 
       // add trip request to database
       await createTripRequest();
@@ -750,49 +778,48 @@ describe("trip", () => {
       const wrappedConfirm = test.wrap(trip.confirm);
       wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-      // wait enough for confirm to send out request to pilot 1 and 2
+      // wait enough for confirm to send out request to partner 1 and 2
       // TODO: may have to increase this once process payments is implemented
       await sleep(7000);
 
-      // assert pilot1 has been requested
-      let pilot1Ref = admin.database().ref("pilots").child(pilotID1);
-      let pilot1Snapshot = await pilot1Ref.once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      // this fails if there is a mockPilotBehavior listener that automatically accepts the trip
-      assert.equal(pilot1Snapshot.val().status, "requested");
-      // assert pilot2 has been requested
-      let pilot2Ref = admin.database().ref("pilots").child(pilotID2);
-      let pilot2Snapshot = await pilot2Ref.once("value");
-      assert.isNotNull(pilot2Snapshot.val());
-      assert.equal(pilot2Snapshot.val().status, "requested");
+      // assert partner1 has been requested
+      let partner1Ref = admin.database().ref("partners").child(partnerID1);
+      let partner1Snapshot = await partner1Ref.once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      // this fails if there is a mockPartnerBehavior listener that automatically accepts the trip
+      assert.equal(partner1Snapshot.val().status, "requested");
+      // assert partner2 has been requested
+      let partner2Ref = admin.database().ref("partners").child(partnerID2);
+      let partner2Snapshot = await partner2Ref.once("value");
+      assert.isNotNull(partner2Snapshot.val());
+      assert.equal(partner2Snapshot.val().status, "requested");
 
       const wrappedAccept = test.wrap(trip.accept);
-      // pilot 1 accepts trip first
-      let pilot1Promise = wrappedAccept(
+      // partner 1 accepts trip first
+      let partner1Promise = wrappedAccept(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
 
-      // then, pilot 2 also accepts the trip
-      let pilot2Promise = wrappedAccept(
+      // then, partner 2 also accepts the trip
+      let partner2Promise = wrappedAccept(
         { client_id: defaultUID },
-        { auth: { uid: pilotID2 } }
+        { auth: { uid: partnerID2 } }
       );
 
-      // assert pilot1 status is busy
-      await pilot1Promise;
-      pilot1Snapshot = await pilot1Ref.once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "busy");
-      
-       // assert pilot2 was denied the trip and their status is available again
-        await pilot2Promise
-        pilot2Snapshot = await pilot2Ref.once("value");
-        assert.isNotNull(pilot2Snapshot.val());
-        assert.equal(pilot2Snapshot.val().status, "available");
+      // assert partner1 status is busy
+      await partner1Promise;
+      partner1Snapshot = await partner1Ref.once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "busy");
+
+      // assert partner2 was denied the trip and their status is available again
+      await partner2Promise;
+      partner2Snapshot = await partner2Ref.once("value");
+      assert.isNotNull(partner2Snapshot.val());
+      assert.equal(partner2Snapshot.val().status, "available");
     });
   });
-
 
   describe("confirm", () => {
     let pagarmeClient;
@@ -833,7 +860,7 @@ describe("trip", () => {
     after(async () => {
       // clean database
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
     });
 
     const removeTripRequests = async () => {
@@ -844,8 +871,8 @@ describe("trip", () => {
       await admin.database().ref("clients").remove();
     };
 
-    const removePilots = async () => {
-      await admin.database().ref("pilots").remove();
+    const removePartners = async () => {
+      await admin.database().ref("partners").remove();
     };
 
     it("user must be authenticated", async () => {
@@ -889,16 +916,16 @@ describe("trip", () => {
         defaultCtx
       );
 
-      // populate database with trip request with invalid waiting-pilot status
+      // populate database with trip request with invalid waiting-partner status
 
-      await createTripRequest("waiting-pilot");
+      await createTripRequest("waiting-partner");
 
       // expect confirmTrip to fail
       await genericTest(
         "failed-precondition",
         "Trip request of user with uid " +
           defaultUID +
-          " has invalid status 'waiting-pilot'",
+          " has invalid status 'waiting-partner'",
         defaultCtx
       );
 
@@ -1021,16 +1048,19 @@ describe("trip", () => {
     });
 
     it("saves transaction capture info in tripRequest if the transaction is authorized", async () => {
-      // delete all pilots from the database
-      const pilotsRef = admin.database().ref("pilots");
-      await pilotsRef.remove();
+      // delete all partners from the database
+      const partnersRef = admin.database().ref("partners");
+      await partnersRef.remove();
 
-      // add an available pilot to the database
-      const pilotID1 = "pilotID1";
-      let pilot = {
-        uid: pilotID1,
+      // add an available partner to the database
+      const partnerID1 = "partnerID1";
+      let partner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1046,7 +1076,7 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await pilotsRef.child(pilotID1).set(pilot);
+      await partnersRef.child(partnerID1).set(partner);
 
       // add client to the database
       const c = new Client(defaultUID);
@@ -1096,26 +1126,29 @@ describe("trip", () => {
         { auth: { uid: defaultUID } }
       );
 
-      // wait enough time for confirm to send request to pilot
+      // wait enough time for confirm to send request to partner
       // may have to increae this if test is failing
       await sleep(5500);
 
-      // assert trip has looking-for-pilot status
+      // assert trip has looking-for-partner status
       let tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-pilot");
+      assert.equal(
+        tripRequestSnapshot.val().trip_status,
+        "looking-for-partner"
+      );
 
-      // assert pilot was requested
-      let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "requested");
-      assert.isUndefined(pilot1Snapshot.val().total_trips);
+      // assert partner was requested
+      let partner1Snapshot = await partnersRef.child(partnerID1).once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "requested");
+      assert.isUndefined(partner1Snapshot.val().total_trips);
 
-      // pilot one accepts the trip
+      // partner one accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
       await wrappedAccept(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
 
       // await for confirmTrip to return
@@ -1132,21 +1165,24 @@ describe("trip", () => {
 
       // clean database
       await removeClients();
-      await pilotsRef.remove();
+      await partnersRef.remove();
       await tripRequestRef.remove();
     });
 
     it("sets tripRequest 'payment_method' to 'cash' if client is paying cash", async () => {
-      // delete all pilots from the database
-      const pilotsRef = admin.database().ref("pilots");
-      await pilotsRef.remove();
+      // delete all partners from the database
+      const partnersRef = admin.database().ref("partners");
+      await partnersRef.remove();
 
-      // add an available pilot to the database
-      const pilotID1 = "pilotID1";
-      let pilot = {
-        uid: pilotID1,
+      // add an available partner to the database
+      const partnerID1 = "partnerID1";
+      let partner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1162,7 +1198,7 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await pilotsRef.child(pilotID1).set(pilot);
+      await partnersRef.child(partnerID1).set(partner);
 
       // add client to the database
       const c = new Client(defaultUID);
@@ -1181,25 +1217,28 @@ describe("trip", () => {
       const wrappedConfirm = test.wrap(trip.confirm);
       const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-      // wait enough time for confirm to send request to pilot
+      // wait enough time for confirm to send request to partner
       await sleep(3000);
 
-      // assert trip has looking-for-pilot status
+      // assert trip has looking-for-partner status
       let tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-pilot");
+      assert.equal(
+        tripRequestSnapshot.val().trip_status,
+        "looking-for-partner"
+      );
 
-      // assert pilot was requested
-      let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "requested");
-      assert.isUndefined(pilot1Snapshot.val().total_trips);
+      // assert partner was requested
+      let partner1Snapshot = await partnersRef.child(partnerID1).once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "requested");
+      assert.isUndefined(partner1Snapshot.val().total_trips);
 
-      // pilot one accepts the trip
+      // partner one accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
       await wrappedAccept(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
 
       // await for confirmTrip to return
@@ -1215,13 +1254,13 @@ describe("trip", () => {
 
       // clean database
       await removeClients();
-      await pilotsRef.remove();
+      await partnersRef.remove();
       await tripRequestRef.remove();
     });
 
-    it("fails if there are no pilots nearby", async () => {
-      // delete all pilots from database
-      await admin.database().ref("pilots").remove();
+    it("fails if there are no partners nearby", async () => {
+      // delete all partners from database
+      await admin.database().ref("partners").remove();
 
       // populate database with trip request with valid status
       await createTripRequest("waiting-confirmation");
@@ -1229,7 +1268,7 @@ describe("trip", () => {
       // expect confirmTrip to fail
       await genericTest(
         "failed-precondition",
-        "There are no available pilots. Try again later."
+        "There are no available partners. Try again later."
       );
 
       // clear database
@@ -1237,18 +1276,21 @@ describe("trip", () => {
     });
 
     it("works when integrated with accept trip", async () => {
-      // delete all pilots from the database
-      const pilotsRef = admin.database().ref("pilots");
-      await pilotsRef.remove();
+      // delete all partners from the database
+      const partnersRef = admin.database().ref("partners");
+      await partnersRef.remove();
 
-      // add three available pilots to the database
-      const pilotID1 = "pilotID1";
-      const pilotID2 = "pilotID2";
-      const pilotID3 = "pilotID3";
-      let pilot = {
+      // add three available partners to the database
+      const partnerID1 = "partnerID1";
+      const partnerID2 = "partnerID2";
+      const partnerID3 = "partnerID3";
+      let partner = {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1264,12 +1306,12 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      pilot.uid = pilotID1;
-      await pilotsRef.child(pilotID1).set(pilot);
-      pilot.uid = pilotID2;
-      await pilotsRef.child(pilotID2).set(pilot);
-      pilot.uid = pilotID3;
-      await pilotsRef.child(pilotID3).set(pilot);
+      partner.uid = partnerID1;
+      await partnersRef.child(partnerID1).set(partner);
+      partner.uid = partnerID2;
+      await partnersRef.child(partnerID2).set(partner);
+      partner.uid = partnerID3;
+      await partnersRef.child(partnerID3).set(partner);
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
@@ -1278,81 +1320,87 @@ describe("trip", () => {
       const wrappedConfirm = test.wrap(trip.confirm);
       const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-      // wait enough time for confirm to send request to pilot1 and pilot 2
+      // wait enough time for confirm to send request to partner1 and partner 2
       await sleep(8500);
 
-      // assert trip has looking-for-pilot status
+      // assert trip has looking-for-partner status
       let tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-pilot");
+      assert.equal(
+        tripRequestSnapshot.val().trip_status,
+        "looking-for-partner"
+      );
 
-      // assert pilot 1 has been requested
-      let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "requested");
-      assert.isUndefined(pilot1Snapshot.val().total_trips);
-      // assert pilot 2 has been requested
-      let pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
-      assert.isNotNull(pilot2Snapshot.val());
-      assert.equal(pilot2Snapshot.val().status, "requested");
-      // assert pilot 3 has not been requested
-      let pilot3Snapshot = await pilotsRef.child(pilotID3).once("value");
-      assert.isNotNull(pilot3Snapshot.val());
-      assert.equal(pilot3Snapshot.val().status, "available");
+      // assert partner 1 has been requested
+      let partner1Snapshot = await partnersRef.child(partnerID1).once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "requested");
+      assert.isUndefined(partner1Snapshot.val().total_trips);
+      // assert partner 2 has been requested
+      let partner2Snapshot = await partnersRef.child(partnerID2).once("value");
+      assert.isNotNull(partner2Snapshot.val());
+      assert.equal(partner2Snapshot.val().status, "requested");
+      // assert partner 3 has not been requested
+      let partner3Snapshot = await partnersRef.child(partnerID3).once("value");
+      assert.isNotNull(partner3Snapshot.val());
+      assert.equal(partner3Snapshot.val().status, "available");
 
-      // pilot one accepts the trip
+      // partner one accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
       await wrappedAccept(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
       await sleep(200);
 
-      // assert confirm trip returned information about pilot 1
+      // assert confirm trip returned information about partner 1
       const confirmResult = await confirmPromise;
-      assert.equal(confirmResult.pilot_id, pilotID1);
-      assert.equal(confirmResult.pilot_status, "busy");
+      assert.equal(confirmResult.partner_id, partnerID1);
+      assert.equal(confirmResult.partner_status, "busy");
       assert.equal(confirmResult.current_client_uid, defaultUID);
-      assert.equal(confirmResult.trip_status, "waiting-pilot");
-      // pilot's total_trips is zero
-      assert.equal(confirmResult.pilot_total_trips, "0");
+      assert.equal(confirmResult.trip_status, "waiting-partner");
+      // partner's total_trips is zero
+      assert.equal(confirmResult.partner_total_trips, "0");
 
-      // assert trip has waiting-pilot status
+      // assert trip has waiting-partner status
       tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().trip_status, "waiting-pilot");
+      assert.equal(tripRequestSnapshot.val().trip_status, "waiting-partner");
 
-      // assert pilot 1 status is busy
-      pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "busy");
-      assert.equal(pilot1Snapshot.val().current_client_uid, defaultUID);
-      // assert pilot 2 status once again available
-      pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
-      assert.isNotNull(pilot2Snapshot.val());
-      assert.equal(pilot2Snapshot.val().status, "available");
-      // assert pilot 3 is still available
-      pilot3Snapshot = await pilotsRef.child(pilotID3).once("value");
-      assert.isNotNull(pilot3Snapshot.val());
-      assert.equal(pilot3Snapshot.val().status, "available");
+      // assert partner 1 status is busy
+      partner1Snapshot = await partnersRef.child(partnerID1).once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "busy");
+      assert.equal(partner1Snapshot.val().current_client_uid, defaultUID);
+      // assert partner 2 status once again available
+      partner2Snapshot = await partnersRef.child(partnerID2).once("value");
+      assert.isNotNull(partner2Snapshot.val());
+      assert.equal(partner2Snapshot.val().status, "available");
+      // assert partner 3 is still available
+      partner3Snapshot = await partnersRef.child(partnerID3).once("value");
+      assert.isNotNull(partner3Snapshot.val());
+      assert.equal(partner3Snapshot.val().status, "available");
 
       // clean database
-      await pilotsRef.remove();
+      await partnersRef.remove();
       await tripRequestRef.remove();
     });
 
-    it("doesn't accept pilots who were not picked by the algorithm", async () => {
-      // delete all pilots from the database
-      const pilotsRef = admin.database().ref("pilots");
-      await pilotsRef.remove();
+    it("doesn't accept partners who were not picked by the algorithm", async () => {
+      // delete all partners from the database
+      const partnersRef = admin.database().ref("partners");
+      await partnersRef.remove();
 
-      // add one available and one busy pilots to the database
-      const pilotID1 = "pilotID1";
-      const pilotID2 = "pilotID2";
-      let pilot = {
+      // add one available and one busy partners to the database
+      const partnerID1 = "partnerID1";
+      const partnerID2 = "partnerID2";
+      let partner = {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1368,12 +1416,12 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      pilot.uid = pilotID1;
-      pilot.status = "available";
-      await pilotsRef.child(pilotID1).set(pilot);
-      pilot.uid = pilotID2;
-      pilot.status = "busy";
-      await pilotsRef.child(pilotID2).set(pilot);
+      partner.uid = partnerID1;
+      partner.status = "available";
+      await partnersRef.child(partnerID1).set(partner);
+      partner.uid = partnerID2;
+      partner.status = "busy";
+      await partnersRef.child(partnerID2).set(partner);
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
@@ -1382,50 +1430,53 @@ describe("trip", () => {
       const wrappedConfirm = test.wrap(trip.confirm);
       const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-      // wait enough time for confirm to send request to pilot1
+      // wait enough time for confirm to send request to partner1
       // may have to increase if test is not passing
       await sleep(2500);
 
-      // assert trip has looking-for-pilot status
+      // assert trip has looking-for-partner status
       let tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().trip_status, "looking-for-pilot");
+      assert.equal(
+        tripRequestSnapshot.val().trip_status,
+        "looking-for-partner"
+      );
 
-      // assert pilot 1 has been requested
-      let pilot1Snapshot = await pilotsRef.child(pilotID1).once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "requested");
-      // assert pilot 2 has not been requested
-      let pilot2Snapshot = await pilotsRef.child(pilotID2).once("value");
-      assert.isNotNull(pilot2Snapshot.val());
-      assert.equal(pilot2Snapshot.val().status, "busy");
+      // assert partner 1 has been requested
+      let partner1Snapshot = await partnersRef.child(partnerID1).once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "requested");
+      // assert partner 2 has not been requested
+      let partner2Snapshot = await partnersRef.child(partnerID2).once("value");
+      assert.isNotNull(partner2Snapshot.val());
+      assert.equal(partner2Snapshot.val().status, "busy");
 
-      // pilot 2 accepts the trip (bypass accepTrip, which would fail)
-      await tripRequestRef.child("pilot_id").set(pilotID2);
+      // partner 2 accepts the trip (bypass accepTrip, which would fail)
+      await tripRequestRef.child("partner_id").set(partnerID2);
 
-      // assert confirm trip didn't accept pilot 2
+      // assert confirm trip didn't accept partner 2
       tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().pilot_id, "");
+      assert.equal(tripRequestSnapshot.val().partner_id, "");
 
-      // pilot 1 accepts the trip
+      // partner 1 accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
       await wrappedAccept(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
 
-      // assert confirm trip accepted pilot 1
+      // assert confirm trip accepted partner 1
       tripRequestSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripRequestSnapshot.val());
-      assert.equal(tripRequestSnapshot.val().pilot_id, pilotID1);
+      assert.equal(tripRequestSnapshot.val().partner_id, partnerID1);
 
       // clean database
-      await pilotsRef.remove();
+      await partnersRef.remove();
       await tripRequestRef.remove();
     });
   });
-  
+
   describe("start", () => {
     const genericTest = async (
       data,
@@ -1454,7 +1505,7 @@ describe("trip", () => {
 
     after(async () => {
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
     });
 
     it("user must be authenticated", async () => {
@@ -1468,15 +1519,18 @@ describe("trip", () => {
     });
 
     it("fails when client has no active trip-request", async () => {
-      const pilotID1 = "pilotID1";
+      const partnerID1 = "partnerID1";
       const clientID = "clientID";
 
-      // add a pilot to the database supposedly handing a trip for clientID
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing a trip for clientID
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1493,30 +1547,34 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
       // add no trip request to database
       await admin.database().ref("trip-requests").remove();
 
-      // fail if pilot tries starting trip for clientID without any trip-requests
+      // fail if partner tries starting trip for clientID without any trip-requests
       const wrappedStart = test.wrap(trip.start);
       try {
-        await wrappedStart({}, { auth: { uid: pilotID1 } });
+        await wrappedStart({}, { auth: { uid: partnerID1 } });
         assert(false, "should have failed");
       } catch (e) {
         assert.equal(e.code, "not-found");
         assert.equal(
           e.message,
-          "There is no trip request being handled by the pilot pilotID1"
+          "There is no trip request being handled by the partner partnerID1"
         );
       }
     });
 
-    it("fails when trying to start trip with status different from waiting-pilot", async () => {
-      const pilotID1 = "pilotID1";
+    it("fails when trying to start trip with status different from waiting-partner", async () => {
+      const partnerID1 = "partnerID1";
       const clientID = "clientID";
 
-      // add trip request for clientID with status different from waiting-pilot
+      // add trip request for clientID with status different from waiting-partner
       let tripRequest = {
         uid: clientID,
         origin_place_id: valid_origin_place_id,
@@ -1530,12 +1588,15 @@ describe("trip", () => {
         .child(clientID);
       await tripRequestRef.set(tripRequest);
 
-      // add a pilot to the database supposedly handing the trip for clientID
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing the trip for clientID
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1552,12 +1613,16 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
-      // fail if pilot tries starting the trip without waiting-pilot status
+      // fail if partner tries starting the trip without waiting-partner status
       const wrappedStart = test.wrap(trip.start);
       try {
-        await wrappedStart({}, { auth: { uid: pilotID1 } });
+        await wrappedStart({}, { auth: { uid: partnerID1 } });
         assert(false, "should have failed");
       } catch (e) {
         assert.equal(e.code, "failed-precondition");
@@ -1568,18 +1633,18 @@ describe("trip", () => {
       }
     });
 
-    it("fails when trying to start trip for which pilot was not chosen", async () => {
-      const pilotID1 = "pilotID1";
-      const anotherPilotID = "anotherPilotID";
+    it("fails when trying to start trip for which partner was not chosen", async () => {
+      const partnerID1 = "partnerID1";
+      const anotherPartnerID = "anotherPartnerID";
       const clientID = "clientID";
 
-      // add trip request for clientID that is being handled by another pilot
+      // add trip request for clientID that is being handled by another partner
       let tripRequest = {
         uid: clientID,
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
-        trip_status: "waiting-pilot",
-        pilot_id: anotherPilotID,
+        trip_status: "waiting-partner",
+        partner_id: anotherPartnerID,
         origin_zone: "AA",
       };
       const tripRequestRef = admin
@@ -1588,12 +1653,15 @@ describe("trip", () => {
         .child(clientID);
       await tripRequestRef.set(tripRequest);
 
-      // add a pilot to the database supposedly handing the trip for clientID
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing the trip for clientID
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1610,30 +1678,37 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
-      // fail if pilot tries starting the trip without waiting-pilot status
+      // fail if partner tries starting the trip without waiting-partner status
       const wrappedStart = test.wrap(trip.start);
       try {
-        await wrappedStart({}, { auth: { uid: pilotID1 } });
+        await wrappedStart({}, { auth: { uid: partnerID1 } });
         assert(false, "should have failed");
       } catch (e) {
         assert.equal(e.code, "failed-precondition");
-        assert.equal(e.message, "pilot has not been designated to this trip");
+        assert.equal(e.message, "partner has not been designated to this trip");
       }
     });
 
     it("works when integrated with confirmTrip and acceptTrip", async () => {
-      const pilotID1 = "pilotID1";
-      const pilotID2 = "pilotID2";
+      const partnerID1 = "partnerID1";
+      const partnerID2 = "partnerID2";
 
-      // add two available pilots to the database
-      await admin.database().ref("pilots").remove();
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
+      // add two available partners to the database
+      await admin.database().ref("partners").remove();
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1649,10 +1724,18 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      defaultPilot.uid = pilotID1;
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
-      defaultPilot.uid = pilotID2;
-      await admin.database().ref("pilots").child(pilotID2).set(defaultPilot);
+      defaultPartner.uid = partnerID1;
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
+      defaultPartner.uid = partnerID2;
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID2)
+        .set(defaultPartner);
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
@@ -1661,78 +1744,78 @@ describe("trip", () => {
       const wrappedConfirm = test.wrap(trip.confirm);
       wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-      // wait enough for confirm to send out request to pilot 1 only
+      // wait enough for confirm to send out request to partner 1 only
       // TODO: may have to increase this once process payments is implemented
       await sleep(2000);
 
-      // assert trip status has changed to looking-for-pilot
+      // assert trip status has changed to looking-for-partner
       let tripSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripSnapshot.val());
-      assert.equal(tripSnapshot.val().trip_status, "looking-for-pilot");
+      assert.equal(tripSnapshot.val().trip_status, "looking-for-partner");
 
-      // assert pilot1 has been requested
-      let pilot1Ref = admin.database().ref("pilots").child(pilotID1);
-      let pilot1Snapshot = await pilot1Ref.once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "requested");
-      // assert pilot2 has not been requested
-      let pilot2Ref = admin.database().ref("pilots").child(pilotID2);
-      let pilot2Snapshot = await pilot2Ref.once("value");
-      assert.isNotNull(pilot2Snapshot.val());
-      assert.equal(pilot2Snapshot.val().status, "available");
+      // assert partner1 has been requested
+      let partner1Ref = admin.database().ref("partners").child(partnerID1);
+      let partner1Snapshot = await partner1Ref.once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "requested");
+      // assert partner2 has not been requested
+      let partner2Ref = admin.database().ref("partners").child(partnerID2);
+      let partner2Snapshot = await partner2Ref.once("value");
+      assert.isNotNull(partner2Snapshot.val());
+      assert.equal(partner2Snapshot.val().status, "available");
 
-      // fail if pilot 2 tries starting the trip without being requested
+      // fail if partner 2 tries starting the trip without being requested
       const wrappedStart = test.wrap(trip.start);
       try {
         await wrappedStart(
           { client_id: defaultUID },
-          { auth: { uid: pilotID2 } }
+          { auth: { uid: partnerID2 } }
         );
         assert(false, "should have failed");
       } catch (e) {
         assert.strictEqual(e.code, "failed-precondition");
         assert.strictEqual(
           e.message,
-          "pilot has not been requested for the trip."
+          "partner has not been requested for the trip."
         );
       }
 
-      // fail if pilot 1 tries starting the trip without having accepted it first
+      // fail if partner 1 tries starting the trip without having accepted it first
       try {
         await wrappedStart(
           { client_id: defaultUID },
-          { auth: { uid: pilotID1 } }
+          { auth: { uid: partnerID1 } }
         );
         assert(false, "should have failed");
       } catch (e) {
         assert.strictEqual(e.code, "failed-precondition");
         assert.strictEqual(
           e.message,
-          "pilot has not been requested for the trip."
+          "partner has not been requested for the trip."
         );
       }
 
-      // pilot 1 accepts the trip
+      // partner 1 accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
       await wrappedAccept(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
 
-      // assert pilot 1 is busy
-      pilot1Snapshot = await pilot1Ref.once("value");
-      assert.isNotNull(pilot1Snapshot.val());
-      assert.equal(pilot1Snapshot.val().status, "busy");
+      // assert partner 1 is busy
+      partner1Snapshot = await partner1Ref.once("value");
+      assert.isNotNull(partner1Snapshot.val());
+      assert.equal(partner1Snapshot.val().status, "busy");
 
-      // assert trip status has changed to waiting-pilot
+      // assert trip status has changed to waiting-partner
       tripSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripSnapshot.val());
-      assert.equal(tripSnapshot.val().trip_status, "waiting-pilot");
+      assert.equal(tripSnapshot.val().trip_status, "waiting-partner");
 
-      // now pilot 1 is able to start the trip
+      // now partner 1 is able to start the trip
       await wrappedStart(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
 
       // await for trip status to be set
@@ -1776,7 +1859,7 @@ describe("trip", () => {
 
     before(async () => {
       await admin.database().ref("past-trips").child("clients").remove();
-      await admin.database().ref("past-trips").child("pilots").remove();
+      await admin.database().ref("past-trips").child("partners").remove();
       // initialize pagarme
       pagarmeClient = new Pagarme();
       await pagarmeClient.ensureInitialized();
@@ -1814,10 +1897,10 @@ describe("trip", () => {
 
     after(async () => {
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
       await admin.database().ref("clients").remove();
       await admin.database().ref("past-trips").child("clients").remove();
-      await admin.database().ref("past-trips").child("pilots").remove();
+      await admin.database().ref("past-trips").child("partners").remove();
     });
 
     it("user must be authenticated", async () => {
@@ -1862,16 +1945,19 @@ describe("trip", () => {
       );
     });
 
-    it("fails when pilot is not busy", async () => {
-      const pilotID1 = "pilotID1";
+    it("fails when partner is not busy", async () => {
+      const partnerID1 = "partnerID1";
       const clientID = "clientID";
 
-      // add a pilot to the database supposedly handing a trip for clientID
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing a trip for clientID
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1888,32 +1974,39 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
-      // fail if pilot tries confirming the trip without being busy
+      // fail if partner tries confirming the trip without being busy
       const wrappedComplete = test.wrap(trip.complete);
       try {
         await wrappedComplete(
           { client_rating: 5 },
-          { auth: { uid: pilotID1 } }
+          { auth: { uid: partnerID1 } }
         );
         assert(false, "should have failed");
       } catch (e) {
         assert.equal(e.code, "failed-precondition");
-        assert.equal(e.message, "pilot is not handling a trip.");
+        assert.equal(e.message, "partner is not handling a trip.");
       }
     });
 
     it("fails when current_client_uid is not set", async () => {
-      const pilotID1 = "pilotID1";
+      const partnerID1 = "partnerID1";
       const clientID = "clientID";
 
-      // add a pilot to the database supposedly handing a trip for clientID
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing a trip for clientID
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1929,32 +2022,39 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
-      // fail if pilot tries confirming the trip without current_client_uid
+      // fail if partner tries confirming the trip without current_client_uid
       const wrappedComplete = test.wrap(trip.complete);
       try {
         await wrappedComplete(
           { client_rating: 5 },
-          { auth: { uid: pilotID1 } }
+          { auth: { uid: partnerID1 } }
         );
         assert(false, "should have failed");
       } catch (e) {
         assert.equal(e.code, "failed-precondition");
-        assert.equal(e.message, "pilot is not handling a trip.");
+        assert.equal(e.message, "partner is not handling a trip.");
       }
     });
 
     it("fails when there is no client datbase entry for the user", async () => {
-      const pilotID1 = "pilotID1";
+      const partnerID1 = "partnerID1";
       const clientID = "clientID";
 
-      // add a pilot to the database supposedly handing a trip for clientID
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing a trip for clientID
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -1971,7 +2071,11 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
       // add trip request supposedly for user
       let defaultTripRequest = {
@@ -1989,7 +2093,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID1,
+        partner_id: partnerID1,
       };
       await admin
         .database()
@@ -2000,12 +2104,12 @@ describe("trip", () => {
       // make sure there is no client entry
       await admin.database().ref("clients").remove();
 
-      // fail if pilot tries confirming the trip for inexisting user
+      // fail if partner tries confirming the trip for inexisting user
       const wrappedComplete = test.wrap(trip.complete);
       try {
         await wrappedComplete(
           { client_rating: 5 },
-          { auth: { uid: pilotID1 } }
+          { auth: { uid: partnerID1 } }
         );
         assert(false, "should have failed");
       } catch (e) {
@@ -2019,7 +2123,7 @@ describe("trip", () => {
     });
 
     it("fails when client has no active trip-request", async () => {
-      const pilotID1 = "pilotID1";
+      const partnerID1 = "partnerID1";
       const clientID = "clientID";
 
       // add client entry to the database
@@ -2029,12 +2133,15 @@ describe("trip", () => {
         rating: "5",
       });
 
-      // add a pilot to the database supposedly handing a trip for clientID
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing a trip for clientID
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -2051,23 +2158,27 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
       // add no trip request to database
       await admin.database().ref("trip-requests").remove();
 
-      // fail if pilot tries starting trip for clientID without any trip-requests
+      // fail if partner tries starting trip for clientID without any trip-requests
       const wrappedComplete = test.wrap(trip.complete);
       try {
         await wrappedComplete(
           { client_rating: 5 },
-          { auth: { uid: pilotID1 } }
+          { auth: { uid: partnerID1 } }
         );
         assert(false, "should have failed");
       } catch (e) {
         assert.equal(
           e.message,
-          "There is no trip request being handled by the pilot 'pilotID1'"
+          "There is no trip request being handled by the partner 'partnerID1'"
         );
         assert.equal(e.code, "not-found");
       }
@@ -2075,7 +2186,7 @@ describe("trip", () => {
       // await admin.database().ref("clients").remove();
     });
 
-    decreasesPilotAmountOwed = async (
+    decreasesPartnerAmountOwed = async (
       description,
       farePrice,
       amountOwed,
@@ -2103,9 +2214,9 @@ describe("trip", () => {
           creditCard.billing_address
         );
 
-        // add trip request for client being handled by the pilot with id 'pilotID',
+        // add trip request for client being handled by the partner with id 'partnerID',
         // and being paid with the pending transaction
-        const pilotID = "pilotID";
+        const partnerID = "partnerID";
         let defaultTripRequest = {
           uid: defaultUID,
           trip_status: "in-progress",
@@ -2121,7 +2232,7 @@ describe("trip", () => {
           request_time: Date.now().toString(),
           origin_address: "origin_address",
           destination_address: "destination_address",
-          pilot_id: pilotID,
+          partner_id: partnerID,
           payment_method: "credit_card",
           credit_card: creditCard,
           transaction_id: transaction.tid.toString(),
@@ -2132,13 +2243,16 @@ describe("trip", () => {
           .child(defaultUID);
         await tripRequestRef.set(defaultTripRequest);
 
-        // add a pilot to the database supposedly handing the trip for defaultUID
+        // add a partner to the database supposedly handing the trip for defaultUID
         // owing amountOwed and with a valid pagarme_receiver_id
-        await admin.database().ref("pilots").remove();
-        let defaultPilot = {
-          uid: pilotID,
+        await admin.database().ref("partners").remove();
+        let defaultPartner = {
+          uid: partnerID,
           name: "Fulano",
           last_name: "de Tal",
+          cpf: "00000000000",
+          gender: "masculino",
+          account_status: "pending_documents",
           member_since: Date.now().toString(),
           phone_number: "(38) 99999-9999",
           current_latitude: "-17.217587",
@@ -2157,49 +2271,52 @@ describe("trip", () => {
           amount_owed: amountOwed,
           pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
         };
-        const pilotRef = admin.database().ref("pilots").child(pilotID);
-        await pilotRef.set(defaultPilot);
+        const partnerRef = admin.database().ref("partners").child(partnerID);
+        await partnerRef.set(defaultPartner);
 
-        // before completing trip, assert pilot owes amountOwed
-        const pilot = new Pilot(pilotID);
-        let p = await pilot.getPilot();
+        // before completing trip, assert partner owes amountOwed
+        const partner = new Partner(partnerID);
+        let p = await partner.getPartner();
         assert.isDefined(p);
         assert.equal(p.amount_owed, amountOwed);
 
-        // pilot calls complete trip
+        // partner calls complete trip
         const wrappedComplete = test.wrap(trip.complete);
-        await wrappedComplete({ client_rating: 5 }, { auth: { uid: pilotID } });
+        await wrappedComplete(
+          { client_rating: 5 },
+          { auth: { uid: partnerID } }
+        );
         await sleep(200);
 
-        // after completing trip, assert pilot owes amountOwed - discounted amount
-        p = await pilot.getPilot();
+        // after completing trip, assert partner owes amountOwed - discounted amount
+        p = await partner.getPartner();
         assert.isDefined(p);
         assert.equal(p.amount_owed, amountOwed - expectedDiscountedAmount);
       });
     };
 
-    decreasesPilotAmountOwed(
-      "decreases pilot's amount_owed if pay with credit_card and pilot owes more than 80% of fare price",
+    decreasesPartnerAmountOwed(
+      "decreases partner's amount_owed if pay with credit_card and partner owes more than 80% of fare price",
       521,
       727,
       Math.ceil(0.8 * 521)
     );
 
-    decreasesPilotAmountOwed(
-      "decreases pilot's amount_owed if pay with credit_card and pilot owes less than 80% of fare price",
+    decreasesPartnerAmountOwed(
+      "decreases partner's amount_owed if pay with credit_card and partner owes less than 80% of fare price",
       401,
       157,
       157
     );
 
-    decreasesPilotAmountOwed(
-      "doesn't decrease pilot's amount_owed if pay with credit_card but pilot owes nothing",
+    decreasesPartnerAmountOwed(
+      "doesn't decrease partner's amount_owed if pay with credit_card but partner owes nothing",
       563,
       0,
       0
     );
 
-    it("flags client and doesn't decrease pilots amount_owed if pay with credit_card but capture fails", async () => {
+    it("flags client and doesn't decrease partners amount_owed if pay with credit_card but capture fails", async () => {
       // add client to the database
       const c = new Client(defaultUID);
       await c.addClient({
@@ -2210,9 +2327,9 @@ describe("trip", () => {
         },
       });
 
-      // add trip request for client being handled by the pilot with id 'pilotID',
+      // add trip request for client being handled by the partner with id 'partnerID',
       // and being paid with an invalid transaction ID so capture fails
-      const pilotID = "pilotID";
+      const partnerID = "partnerID";
       const farePrice = 569;
       let defaultTripRequest = {
         uid: defaultUID,
@@ -2229,7 +2346,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID,
+        partner_id: partnerID,
         payment_method: "credit_card",
         credit_card: creditCard,
         transaction_id: "invalid_transactin_id",
@@ -2240,13 +2357,16 @@ describe("trip", () => {
         .child(defaultUID);
       await tripRequestRef.set(defaultTripRequest);
 
-      // add a pilot to the database supposedly handing the trip for defaultUID
+      // add a partner to the database supposedly handing the trip for defaultUID
       // owing amountOwed
       let amountOwed = 311;
-      let defaultPilot = {
-        uid: pilotID,
+      let defaultPartner = {
+        uid: partnerID,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -2265,38 +2385,38 @@ describe("trip", () => {
         amount_owed: amountOwed,
         pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
       };
-      const pilotRef = admin.database().ref("pilots").child(pilotID);
-      await pilotRef.set(defaultPilot);
+      const partnerRef = admin.database().ref("partners").child(partnerID);
+      await partnerRef.set(defaultPartner);
 
-      // before completing trip, assert pilot owes amountOwed
-      const pilot = new Pilot(pilotID);
-      let p = await pilot.getPilot();
+      // before completing trip, assert partner owes amountOwed
+      const partner = new Partner(partnerID);
+      let p = await partner.getPartner();
       assert.isDefined(p);
       assert.equal(p.amount_owed, amountOwed);
 
-      // before pilot completes trip, assert client has no unpaid trips
+      // before partner completes trip, assert client has no unpaid trips
       let client = await c.getClient();
       assert.isDefined(client);
       assert.isUndefined(client.unpaid_past_trip_id);
 
-      // pilot calls complete trip
+      // partner calls complete trip
       const wrappedComplete = test.wrap(trip.complete);
-      await wrappedComplete({ client_rating: 5 }, { auth: { uid: pilotID } });
+      await wrappedComplete({ client_rating: 5 }, { auth: { uid: partnerID } });
       await sleep(200);
 
-      // after completing trip, assert pilot still owes amountOwed
-      p = await pilot.getPilot();
+      // after completing trip, assert partner still owes amountOwed
+      p = await partner.getPartner();
       assert.isDefined(p);
       assert.equal(p.amount_owed, amountOwed);
 
-      // after pilot complets trip, assert client has an unpaid trip
+      // after partner complets trip, assert client has an unpaid trip
       // oweing farePrice
       client = await c.getClient();
       assert.isDefined(client);
       assert.isDefined(client.unpaid_past_trip_id);
     });
 
-    it("increases pilot's amount_owed if pay with cash", async () => {
+    it("increases partner's amount_owed if pay with cash", async () => {
       // add client to the database
       const c = new Client(defaultUID);
       await c.addClient({
@@ -2307,9 +2427,9 @@ describe("trip", () => {
         },
       });
 
-      // add trip request for client being handled by the pilot with id 'pilotID',
+      // add trip request for client being handled by the partner with id 'partnerID',
       // and being paid with cash
-      const pilotID = "pilotID";
+      const partnerID = "partnerID";
       const farePrice = 631;
       let defaultTripRequest = {
         uid: defaultUID,
@@ -2326,7 +2446,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID,
+        partner_id: partnerID,
         payment_method: "cash",
       };
       const tripRequestRef = admin
@@ -2335,13 +2455,16 @@ describe("trip", () => {
         .child(defaultUID);
       await tripRequestRef.set(defaultTripRequest);
 
-      // add a pilot to the database supposedly handing the trip for defaultUID
+      // add a partner to the database supposedly handing the trip for defaultUID
       // owing amountOwed
       let amountOwed = 311;
-      let defaultPilot = {
-        uid: pilotID,
+      let defaultPartner = {
+        uid: partnerID,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -2360,28 +2483,28 @@ describe("trip", () => {
         amount_owed: amountOwed,
         pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
       };
-      const pilotRef = admin.database().ref("pilots").child(pilotID);
-      await pilotRef.set(defaultPilot);
+      const partnerRef = admin.database().ref("partners").child(partnerID);
+      await partnerRef.set(defaultPartner);
 
-      // before completing trip, assert pilot owes amountOwed
-      const pilot = new Pilot(pilotID);
-      let p = await pilot.getPilot();
+      // before completing trip, assert partner owes amountOwed
+      const partner = new Partner(partnerID);
+      let p = await partner.getPartner();
       assert.isDefined(p);
       assert.equal(p.amount_owed, amountOwed);
 
-      // pilot calls complete trip
+      // partner calls complete trip
       const wrappedComplete = test.wrap(trip.complete);
-      await wrappedComplete({ client_rating: 5 }, { auth: { uid: pilotID } });
+      await wrappedComplete({ client_rating: 5 }, { auth: { uid: partnerID } });
       await sleep(200);
 
-      // after completing trip, assert pilot owes amountOwed + 20% of farePrice
-      p = await pilot.getPilot();
+      // after completing trip, assert partner owes amountOwed + 20% of farePrice
+      p = await partner.getPartner();
       assert.isDefined(p);
       assert.equal(p.amount_owed, amountOwed + Math.ceil(0.2 * farePrice));
     });
 
     it("fails when trying to complete a trip with status different from in-progress", async () => {
-      const pilotID1 = "pilotID1";
+      const partnerID1 = "partnerID1";
 
       // add client entry to the database
       const clientRef = admin.database().ref("clients").child(defaultUID);
@@ -2391,13 +2514,16 @@ describe("trip", () => {
       });
 
       // add trip request for defaultUID with status different from in-progress
-      await createTripRequest("waiting-pilot");
+      await createTripRequest("waiting-partner");
 
-      // add a pilot to the database supposedly handing the trip for defaultUID
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing the trip for defaultUID
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -2414,27 +2540,31 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
-      // fail if pilot tries completing the trip without in-progress status
+      // fail if partner tries completing the trip without in-progress status
       const wrappedComplete = test.wrap(trip.complete);
       try {
         await wrappedComplete(
           { client_rating: 5 },
-          { auth: { uid: pilotID1 } }
+          { auth: { uid: partnerID1 } }
         );
         assert(false, "should have failed");
       } catch (e) {
         assert.equal(e.code, "failed-precondition");
         assert.equal(
           e.message,
-          "cannot complete trip in status 'waiting-pilot'"
+          "cannot complete trip in status 'waiting-partner'"
         );
       }
     });
 
-    it("fails when trying to complete a trip for which the pilot was not chosen", async () => {
-      const pilotID1 = "pilotID1";
+    it("fails when trying to complete a trip for which the partner was not chosen", async () => {
+      const partnerID1 = "partnerID1";
 
       // add client entry to the database
       const clientRef = admin.database().ref("clients").child(defaultUID);
@@ -2443,14 +2573,17 @@ describe("trip", () => {
         rating: "5",
       });
 
-      // add trip request for clientID being handled by a different pilot
+      // add trip request for clientID being handled by a different partner
       await createTripRequest("in-progress");
 
-      // add a pilot to the database supposedly handing the trip for clientID
-      let defaultPilot = {
-        uid: pilotID1,
+      // add a partner to the database supposedly handing the trip for clientID
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -2467,27 +2600,31 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
-      // fail if pilot tries completing the trip being handled by a different pilot
+      // fail if partner tries completing the trip being handled by a different partner
       const wrappedComplete = test.wrap(trip.complete);
       try {
         await wrappedComplete(
           { client_rating: 5 },
-          { auth: { uid: pilotID1 } }
+          { auth: { uid: partnerID1 } }
         );
         assert(false, "should have failed");
       } catch (e) {
         assert.equal(e.code, "failed-precondition");
-        assert.equal(e.message, "pilot has not been designated to this trip");
+        assert.equal(e.message, "partner has not been designated to this trip");
       }
     });
 
-    it("succesfully updates pilot's and client's data on success", async () => {
+    it("succesfully updates partner's and client's data on success", async () => {
       // clear past-trips
       await admin.database().ref("past-trips").remove();
 
-      const pilotID1 = "pilotID1";
+      const partnerID1 = "partnerID1";
 
       // add client entry to the database
       const clientRef = admin.database().ref("clients").child(defaultUID);
@@ -2499,7 +2636,7 @@ describe("trip", () => {
         rating: "0",
       });
 
-      // add trip request for defaultUID being handled by the pilot
+      // add trip request for defaultUID being handled by the partner
       let defaultTripRequest = {
         uid: defaultUID,
         trip_status: "in-progress",
@@ -2515,7 +2652,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID1,
+        partner_id: partnerID1,
       };
 
       const tripRequestRef = admin
@@ -2525,12 +2662,15 @@ describe("trip", () => {
 
       await tripRequestRef.set(defaultTripRequest);
 
-      // add a pilot to the database supposedly handing the trip for defaultUID
+      // add a partner to the database supposedly handing the trip for defaultUID
       const initialIdleSince = Date.now().toString();
-      let defaultPilot = {
-        uid: pilotID1,
+      let defaultPartner = {
+        uid: partnerID1,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -2547,28 +2687,28 @@ describe("trip", () => {
         idle_since: initialIdleSince,
         rating: "5.0",
       };
-      const pilotRef = admin.database().ref("pilots").child(pilotID1);
-      await pilotRef.set(defaultPilot);
+      const partnerRef = admin.database().ref("partners").child(partnerID1);
+      await partnerRef.set(defaultPartner);
 
-      // before completing trip, assert the pilot is busy
-      let pilotSnapshot = await pilotRef.once("value");
-      assert.isNotNull(pilotSnapshot.val());
-      assert.equal(pilotSnapshot.val().status, "busy");
-      assert.equal(pilotSnapshot.val().current_client_uid, defaultUID);
-      assert.equal(pilotSnapshot.val().idle_since, initialIdleSince);
+      // before completing trip, assert the partner is busy
+      let partnerSnapshot = await partnerRef.once("value");
+      assert.isNotNull(partnerSnapshot.val());
+      assert.equal(partnerSnapshot.val().status, "busy");
+      assert.equal(partnerSnapshot.val().current_client_uid, defaultUID);
+      assert.equal(partnerSnapshot.val().idle_since, initialIdleSince);
 
-      // brefore completing trip, assert pilot's has no past trips
-      let ppt = new PilotPastTrips(pilotID1);
-      let pilotPastTrips = await ppt.getPastTrips();
-      assert.isEmpty(pilotPastTrips);
+      // brefore completing trip, assert partner's has no past trips
+      let ppt = new PartnerPastTrips(partnerID1);
+      let partnerPastTrips = await ppt.getPastTrips();
+      assert.isEmpty(partnerPastTrips);
 
-      // before pilot completes trip, assert client has not been updated
+      // before partner completes trip, assert client has not been updated
       let clientSnapshot = await clientRef.once("value");
       assert.isNotNull(clientSnapshot.val());
       assert.equal(clientSnapshot.val().rating, "0");
       assert.equal(clientSnapshot.val().uid, defaultUID);
 
-      // before pilot complets trip, assert client has no past_trips
+      // before partner complets trip, assert client has no past_trips
       let cpt = new ClientPastTrips(defaultUID);
       let clientPastTrips = await cpt.getPastTrips();
       assert.isEmpty(clientPastTrips);
@@ -2578,25 +2718,25 @@ describe("trip", () => {
       const wrappedComplete = test.wrap(trip.complete);
       await wrappedComplete(
         { client_rating: clientRating },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
       await sleep(200);
 
-      // assert the pilot has been set available
-      pilotSnapshot = await pilotRef.once("value");
-      assert.isNotNull(pilotSnapshot.val());
-      assert.equal(pilotSnapshot.val().status, "available");
-      assert.equal(pilotSnapshot.val().current_client_uid, "");
+      // assert the partner has been set available
+      partnerSnapshot = await partnerRef.once("value");
+      assert.isNotNull(partnerSnapshot.val());
+      assert.equal(partnerSnapshot.val().status, "available");
+      assert.equal(partnerSnapshot.val().current_client_uid, "");
       assert.isAbove(
-        Number(pilotSnapshot.val().idle_since),
+        Number(partnerSnapshot.val().idle_since),
         Number(initialIdleSince)
       );
 
-      // assert pilot's has a past trip
-      pilotPastTrips = await ppt.getPastTrips();
-      assert.equal(pilotPastTrips.length, 1);
-      assert.equal(pilotPastTrips[0].uid, defaultUID);
-      assert.equal(pilotSnapshot.val().total_trips, "1");
+      // assert partner's has a past trip
+      partnerPastTrips = await ppt.getPastTrips();
+      assert.equal(partnerPastTrips.length, 1);
+      assert.equal(partnerPastTrips[0].uid, defaultUID);
+      assert.equal(partnerSnapshot.val().total_trips, "1");
 
       // assert client has been updated
       clientSnapshot = await clientRef.once("value");
@@ -2604,21 +2744,21 @@ describe("trip", () => {
       assert.equal(clientSnapshot.val().rating, "5.00");
       assert.equal(clientSnapshot.val().uid, defaultUID);
 
-      // assert client has one past trip with client_rating and pilot_past_trip_ref_key
+      // assert client has one past trip with client_rating and partner_past_trip_ref_key
       clientPastTrips = await cpt.getPastTrips();
       assert.equal(clientPastTrips.length, 1);
       assert.equal(clientPastTrips[0].uid, defaultUID);
       assert.equal(clientPastTrips[0].client_rating, "5.00");
-      assert.isDefined(clientPastTrips[0].pilot_past_trip_ref_key);
+      assert.isDefined(clientPastTrips[0].partner_past_trip_ref_key);
 
       // assert a reference key has been added to the trip request.
       let tripSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripSnapshot.val());
-      assert.isDefined(tripSnapshot.val().pilot_past_trip_ref_key);
+      assert.isDefined(tripSnapshot.val().partner_past_trip_ref_key);
     });
   });
 
-  describe("ratePilot", () => {
+  describe("ratePartner", () => {
     const genericTest = async (
       data,
       expectedCode,
@@ -2626,7 +2766,7 @@ describe("trip", () => {
       ctx = defaultCtx,
       succeeed = false
     ) => {
-      const wrapped = test.wrap(trip.rate_pilot);
+      const wrapped = test.wrap(trip.rate_partner);
       try {
         await wrapped(data, ctx);
         if (succeeed) {
@@ -2646,7 +2786,7 @@ describe("trip", () => {
 
     after(async () => {
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
       await admin.database().ref("clients").remove();
     });
 
@@ -2662,7 +2802,7 @@ describe("trip", () => {
 
     it("fails if argument score is not be present", async () => {
       await genericTest(
-        { pilot_id: "pilot_id" },
+        { partner_id: "partner_id" },
         "invalid-argument",
         "missing expected argument 'score'."
       );
@@ -2670,36 +2810,36 @@ describe("trip", () => {
 
     it("fails if argument score is not a number", async () => {
       await genericTest(
-        { score: "not a number", pilot_id: "pilot_id" },
+        { score: "not a number", partner_id: "partner_id" },
         "invalid-argument",
         "argument 'score' has invalid type. Expected 'number'. Received 'string'."
       );
     });
 
-    it("fails if argument pilot_id is not present", async () => {
+    it("fails if argument partner_id is not present", async () => {
       await genericTest(
         { score: 1 },
         "invalid-argument",
-        "missing expected argument 'pilot_id'."
+        "missing expected argument 'partner_id'."
       );
     });
 
-    it("fails if argument pilot_id is not a string", async () => {
+    it("fails if argument partner_id is not a string", async () => {
       await genericTest(
-        { score: 1, pilot_id: {} },
+        { score: 1, partner_id: {} },
         "invalid-argument",
-        "argument 'pilot_id' has invalid type. Expected 'string'. Received 'object'."
+        "argument 'partner_id' has invalid type. Expected 'string'. Received 'object'."
       );
     });
 
     it("fails if argument score is not a number between 0 and 5", async () => {
       await genericTest(
-        { score: -1, pilot_id: "pilot_id" },
+        { score: -1, partner_id: "partner_id" },
         "invalid-argument",
         "argument 'score' must be a number between 0 and 5."
       );
       await genericTest(
-        { score: 6, pilot_id: "pilot_id" },
+        { score: 6, partner_id: "partner_id" },
         "invalid-argument",
         "argument 'score' must be a number between 0 and 5."
       );
@@ -2709,7 +2849,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
           cleanliness_went_well: "not an boolean",
         },
         "invalid-argument",
@@ -2720,7 +2860,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
           safety_went_well: "not an boolean",
         },
         "invalid-argument",
@@ -2731,7 +2871,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
           waiting_time_went_well: "not an boolean",
         },
         "invalid-argument",
@@ -2742,7 +2882,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
           feedback: 1,
         },
         "invalid-argument",
@@ -2757,7 +2897,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
         },
         "failed-precondition",
         "could not find a trip request for client with id 'defaultUID'"
@@ -2771,7 +2911,7 @@ describe("trip", () => {
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
         },
         "failed-precondition",
         "could not find a trip request with 'completed' status for client with id 'defaultUID'"
@@ -2781,34 +2921,34 @@ describe("trip", () => {
       await admin.database().ref("trip-requests").remove();
     });
 
-    it("fails if trip's  'pilot_id' does not correspond to id of pilot being rated", async () => {
-      // create trip request with 'completed' status and invalid pilot id
-      await createTripRequest("completed", "invalidPilotID");
+    it("fails if trip's  'partner_id' does not correspond to id of partner being rated", async () => {
+      // create trip request with 'completed' status and invalid partner id
+      await createTripRequest("completed", "invalidPartnerID");
 
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
         },
         "failed-precondition",
-        "could not find a trip request handled by a pilot with id 'pilot_id' for client with id 'defaultUID'"
+        "could not find a trip request handled by a partner with id 'partner_id' for client with id 'defaultUID'"
       );
 
       // clear database
       await admin.database().ref("trip-requests").remove();
     });
 
-    it("fails if trip's 'pilot_past_trip_ref_key' is not be set", async () => {
-      // create trip request with 'completed' status and valid pilot id
-      await createTripRequest("completed", "pilot_id");
+    it("fails if trip's 'partner_past_trip_ref_key' is not be set", async () => {
+      // create trip request with 'completed' status and valid partner id
+      await createTripRequest("completed", "partner_id");
 
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
         },
         "failed-precondition",
-        "trip request has undefined field 'pilot_past_trip_ref_key'"
+        "trip request has undefined field 'partner_past_trip_ref_key'"
       );
 
       // clear database
@@ -2831,8 +2971,8 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: "pilot_id",
-        pilot_past_trip_ref_key: refKey,
+        partner_id: "partner_id",
+        partner_past_trip_ref_key: refKey,
       };
 
       let tripRequestRef = admin
@@ -2844,37 +2984,40 @@ describe("trip", () => {
       return tripRequestRef;
     };
 
-    it("fails if pilot being rated does not exist", async () => {
+    it("fails if partner being rated does not exist", async () => {
       await createValidTripRequest();
 
-      // make sure pilot doesn't exist
-      await admin.database().ref("pilots").remove();
+      // make sure partner doesn't exist
+      await admin.database().ref("partners").remove();
 
       await genericTest(
         {
           score: 1,
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
         },
         "failed-precondition",
-        "could not find a pilot wiht id id 'pilot_id'"
+        "could not find a partner wiht id id 'partner_id'"
       );
 
       // clear database
       await admin.database().ref("trip-requests").remove();
     });
 
-    it("updates pilot's past trips if succeeds", async () => {
+    it("updates partner's past trips if succeeds", async () => {
       // clear database
       await admin.database().ref("trip-requests").remove();
       await admin.database().ref("past-trips").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
 
-      // create a pilot
-      const pilotID = "pilot_id";
-      let defaultPilot = {
-        uid: pilotID,
+      // create a partner
+      const partnerID = "partner_id";
+      let defaultPartner = {
+        uid: partnerID,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         phone_number: "(38) 99999-9999",
         member_since: Date.now().toString(),
         current_latitude: "-17.217587",
@@ -2890,11 +3033,11 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      const pilotRef = admin.database().ref("pilots").child(pilotID);
-      await pilotRef.set(defaultPilot);
+      const partnerRef = admin.database().ref("partners").child(partnerID);
+      await partnerRef.set(defaultPartner);
 
-      // pretend the pilot has a past trip
-      const ppt = new PilotPastTrips(pilotID);
+      // pretend the partner has a past trip
+      const ppt = new PartnerPastTrips(partnerID);
       let defaultTrip = {
         uid: defaultUID,
         trip_status: "completed",
@@ -2910,25 +3053,25 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID,
+        partner_id: partnerID,
       };
 
       let pastTripRefKey = await ppt.pushPastTrip(defaultTrip);
       await createValidTripRequest(pastTripRefKey);
 
-      // assert pilot's past trip has not been rated
+      // assert partner's past trip has not been rated
       let pastTrips = await ppt.getPastTrips();
       assert.equal(pastTrips.length, 1);
       assert.equal(pastTrips[0].rating, undefined);
 
-      // rate the pilot
+      // rate the partner
       await genericTest(
         {
           score: 2,
-          pilot_id: pilotID,
+          partner_id: partnerID,
           cleanliness_went_well: true,
           safety_went_well: false,
-          feedback: "the pilot is great!",
+          feedback: "the partner is great!",
         },
         undefined,
         "",
@@ -2939,12 +3082,18 @@ describe("trip", () => {
       // expect past trip to have been updated
       pastTrips = await ppt.getPastTrips();
       assert.equal(pastTrips.length, 1);
-      assert.isDefined(pastTrips[0].pilot_rating);
-      assert.equal(pastTrips[0].pilot_rating.score, "2");
-      assert.equal(pastTrips[0].pilot_rating.cleanliness_went_well, true);
-      assert.equal(pastTrips[0].pilot_rating.safety_went_well, false);
-      assert.equal(pastTrips[0].pilot_rating.waiting_time_went_well, undefined);
-      assert.equal(pastTrips[0].pilot_rating.feedback, "the pilot is great!");
+      assert.isDefined(pastTrips[0].partner_rating);
+      assert.equal(pastTrips[0].partner_rating.score, "2");
+      assert.equal(pastTrips[0].partner_rating.cleanliness_went_well, true);
+      assert.equal(pastTrips[0].partner_rating.safety_went_well, false);
+      assert.equal(
+        pastTrips[0].partner_rating.waiting_time_went_well,
+        undefined
+      );
+      assert.equal(
+        pastTrips[0].partner_rating.feedback,
+        "the partner is great!"
+      );
 
       // assert trip request has been deleted
       let tripSnapshot = await admin
@@ -2957,11 +3106,11 @@ describe("trip", () => {
       // clear database
       await admin.database().ref("trip-requests").remove();
       await admin.database().ref("past-trips").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
     });
 
     it("works when integrated", async () => {
-      const pilotID1 = "pilotID1";
+      const partnerID1 = "partnerID1";
 
       //  add client entry to the database
       await admin
@@ -2976,12 +3125,15 @@ describe("trip", () => {
           rating: "2",
         });
 
-      // add an available pilot to the database
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
+      // add an available partner to the database
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
         uid: "",
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -2997,8 +3149,12 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
       };
-      defaultPilot.uid = pilotID1;
-      await admin.database().ref("pilots").child(pilotID1).set(defaultPilot);
+      defaultPartner.uid = partnerID1;
+      await admin
+        .database()
+        .ref("partners")
+        .child(partnerID1)
+        .set(defaultPartner);
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
@@ -3007,56 +3163,62 @@ describe("trip", () => {
       const wrappedConfirm = test.wrap(trip.confirm);
       wrappedConfirm({}, { auth: { uid: defaultUID } });
 
-      // wait enough for confirm to send out request to pilot
+      // wait enough for confirm to send out request to partner
       await sleep(2000);
 
-      // pilot accepts the trip
+      // partner accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
       await wrappedAccept(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
 
-      // pilot starts the trip
+      // partner starts the trip
       const wrappedStart = test.wrap(trip.start);
       await wrappedStart(
         { client_id: defaultUID },
-        { auth: { uid: pilotID1 } }
+        { auth: { uid: partnerID1 } }
       );
 
       // await for trip status to be set
       await sleep(200);
 
-      // assert pilot has no past trips before completing trip
-      const ppt = new PilotPastTrips(pilotID1);
+      // assert partner has no past trips before completing trip
+      const ppt = new PartnerPastTrips(partnerID1);
       let pastTrips = await ppt.getPastTrips();
       assert.isEmpty(pastTrips);
 
-      // pilot completes the trip
+      // partner completes the trip
       const wrappedComplete = test.wrap(trip.complete);
-      await wrappedComplete({ client_rating: 5 }, { auth: { uid: pilotID1 } });
+      await wrappedComplete(
+        { client_rating: 5 },
+        { auth: { uid: partnerID1 } }
+      );
       await sleep(200);
 
-      // assert pilot's past trip has not been rated
+      // assert partner's past trip has not been rated
       pastTrips = await ppt.getPastTrips();
       assert.equal(pastTrips.length, 1);
       assert.equal(pastTrips[0].rating, undefined);
 
       // client rates the trip
-      const wrappedRatePilot = test.wrap(trip.rate_pilot);
-      await wrappedRatePilot(
-        { score: 5, pilot_id: pilotID1, cleanliness_went_well: true },
+      const wrappedRatePartner = test.wrap(trip.rate_partner);
+      await wrappedRatePartner(
+        { score: 5, partner_id: partnerID1, cleanliness_went_well: true },
         defaultCtx
       );
 
       // expect past trip to have been updated
       pastTrips = await ppt.getPastTrips();
-      assert.isDefined(pastTrips[0].pilot_rating);
-      assert.equal(pastTrips[0].pilot_rating.score, "5");
-      assert.equal(pastTrips[0].pilot_rating.cleanliness_went_well, true);
-      assert.equal(pastTrips[0].pilot_rating.safety_went_well, undefined);
-      assert.equal(pastTrips[0].pilot_rating.waiting_time_went_well, undefined);
-      assert.equal(pastTrips[0].pilot_rating.feedback, undefined);
+      assert.isDefined(pastTrips[0].partner_rating);
+      assert.equal(pastTrips[0].partner_rating.score, "5");
+      assert.equal(pastTrips[0].partner_rating.cleanliness_went_well, true);
+      assert.equal(pastTrips[0].partner_rating.safety_went_well, undefined);
+      assert.equal(
+        pastTrips[0].partner_rating.waiting_time_went_well,
+        undefined
+      );
+      assert.equal(pastTrips[0].partner_rating.feedback, undefined);
     });
   });
 
@@ -3087,7 +3249,7 @@ describe("trip", () => {
     };
     after(async () => {
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
       await admin.database().ref("clients").remove();
       await admin.database().ref("past-trips").remove();
     });
@@ -3151,7 +3313,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: "pilotID",
+        partner_id: "partnerID",
       };
       let now = Date.now();
       for (var i = 0; i < 3; i++) {
@@ -3217,7 +3379,7 @@ describe("trip", () => {
     };
     after(async () => {
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
       await admin.database().ref("clients").remove();
       await admin.database().ref("past-trips").remove();
     });
@@ -3283,7 +3445,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: "pilotID",
+        partner_id: "partnerID",
       };
       let pastTripID = await cpt.pushPastTrip(pastTrip);
 
@@ -3298,7 +3460,7 @@ describe("trip", () => {
     });
   });
 
-  describe("pilotGetTripRating", () => {
+  describe("partnerGetTripRating", () => {
     const genericTest = async (
       data,
       expectedCode,
@@ -3306,7 +3468,7 @@ describe("trip", () => {
       ctx = defaultCtx,
       succeeed = false
     ) => {
-      const wrapped = test.wrap(trip.pilot_get_trip_rating);
+      const wrapped = test.wrap(trip.partner_get_trip_rating);
       try {
         await wrapped(data, ctx);
         if (succeeed) {
@@ -3325,7 +3487,7 @@ describe("trip", () => {
     };
     after(async () => {
       await admin.database().ref("trip-requests").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
       await admin.database().ref("clients").remove();
       await admin.database().ref("past-trips").remove();
     });
@@ -3340,17 +3502,17 @@ describe("trip", () => {
       );
     });
 
-    it("fails if argument 'pilot_id' is not present", async () => {
+    it("fails if argument 'partner_id' is not present", async () => {
       await genericTest(
         { past_trip_ref_key: "past_trip_ref_key" },
         "invalid-argument",
-        "missing expected argument 'pilot_id'."
+        "missing expected argument 'partner_id'."
       );
     });
 
     it("fails if argument 'past_trip_ref_key' is not present", async () => {
       await genericTest(
-        { pilot_id: "pilot_id" },
+        { partner_id: "partner_id" },
         "invalid-argument",
         "missing expected argument 'past_trip_ref_key'."
       );
@@ -3360,9 +3522,9 @@ describe("trip", () => {
       // clear database
       await admin.database().ref("past-trips").remove();
 
-      // populate database with pilot past trip without rating
-      const pilotID = "pilotID";
-      const ppt = new PilotPastTrips(pilotID);
+      // populate database with partner past trip without rating
+      const partnerID = "partnerID";
+      const ppt = new PartnerPastTrips(partnerID);
 
       let pastTrip = {
         uid: defaultUID,
@@ -3379,28 +3541,28 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID,
+        partner_id: partnerID,
       };
 
       const refKey = await ppt.pushPastTrip(pastTrip);
 
-      const wrapped = test.wrap(trip.pilot_get_trip_rating);
+      const wrapped = test.wrap(trip.partner_get_trip_rating);
 
       // request all client's past trips
       let result = await wrapped(
-        { pilot_id: pilotID, past_trip_ref_key: refKey },
+        { partner_id: partnerID, past_trip_ref_key: refKey },
         defaultCtx
       );
       assert.isUndefined(result);
     });
 
-    it("returns a rating of the pilot", async () => {
+    it("returns a rating of the partner", async () => {
       // clear database
       await admin.database().ref("past-trips").remove();
 
-      // populate database with pilot past trip with rating 4.
-      const pilotID = "pilotID";
-      const ppt = new PilotPastTrips(pilotID);
+      // populate database with partner past trip with rating 4.
+      const partnerID = "partnerID";
+      const ppt = new PartnerPastTrips(partnerID);
       let pastTrip = {
         uid: defaultUID,
         trip_status: "completed",
@@ -3416,23 +3578,23 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID,
-        pilot_rating: {
+        partner_id: partnerID,
+        partner_rating: {
           score: "4.00",
         },
       };
       const refKey = await ppt.pushPastTrip(pastTrip);
 
-      const wrapped = test.wrap(trip.pilot_get_trip_rating);
+      const wrapped = test.wrap(trip.partner_get_trip_rating);
 
       // request all client's past trips
       let result = await wrapped(
-        { pilot_id: pilotID, past_trip_ref_key: refKey },
+        { partner_id: partnerID, past_trip_ref_key: refKey },
         defaultCtx
       );
 
       assert.isDefined(result);
-      assert.equal(result.pilot_rating, "4.00");
+      assert.equal(result.partner_rating, "4.00");
     });
   });
 });

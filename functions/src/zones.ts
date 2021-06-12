@@ -1,6 +1,6 @@
 /**
 The city is divided into squares that are stored in the database.
-As pilots drive around, they send their new latitude and longitude
+As partners drive around, they send their new latitude and longitude
 to the system every time they move 100 meters.
 The system places them in the square to which they belong.
 */

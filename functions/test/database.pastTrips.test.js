@@ -6,7 +6,7 @@ const assert = chai.assert;
 
 describe("PastTrips", () => {
   let clientID;
-  let pilotID;
+  let partnerID;
   let pastTrips;
   let p;
   before(async () => {
@@ -14,7 +14,7 @@ describe("PastTrips", () => {
       admin.initializeApp();
     }
     clientID = "clientID";
-    pilotID = "pilotID";
+    partnerID = "partnerID";
     pastTrips = pt.PastTrips;
     p = new pt.PastTrips("clients", clientID);
     defaultTrip = {
@@ -247,7 +247,7 @@ describe("PastTrips", () => {
       const obj = {
         first_trip: {
           uid: "uid",
-          pilot_id: "pilot_id",
+          partner_id: "partner_id",
           trip_status: "waiting-confirmation",
           origin_place_id: "origin_place_id",
           destination_place_id: "destination_place_id",
@@ -261,7 +261,7 @@ describe("PastTrips", () => {
           request_time: "124759",
           origin_address: "origin_address",
           destination_address: "destination_address",
-          pilot_rating: {
+          partner_rating: {
             score: "4",
           },
         },

@@ -30,7 +30,7 @@ export const clean_user_data = functions.auth
     }
   );
 
-//create entry on clients database whenever a new pilot is created
+//create entry on clients database whenever a new partner is created
 export const create_client = functions.auth
   .user()
   .onCreate(

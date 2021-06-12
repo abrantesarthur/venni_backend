@@ -27,12 +27,12 @@ export namespace TripRequest {
   export enum Status {
     waitingConfirmation = "waiting-confirmation",
     waitingPayment = "waiting-payment",
-    waitingPilot = "waiting-pilot",
-    lookingForPilot = "looking-for-pilot",
-    noPilotsAvailable = "no-pilots-available",
+    waitingPartner = "waiting-partner",
+    lookingForPartner = "looking-for-partner",
+    noPartnersAvailable = "no-partners-available",
     inProgress = "in-progress",
     completed = "completed",
-    cancelledByPilot = "cancelled-by-pilot",
+    cancelledByPartner = "cancelled-by-partner",
     cancelledByClient = "cancelled-by-client",
     paymentFailed = "payment-failed",
   }
@@ -42,12 +42,12 @@ export namespace TripRequest {
       return (
         status == "waiting-confirmation" ||
         status == "waiting-payment" ||
-        status == "waiting-pilot" ||
-        status == "looking-for-pilot" ||
-        status == "no-pilots-available" ||
+        status == "waiting-partner" ||
+        status == "looking-for-partner" ||
+        status == "no-partners-available" ||
         status == "in-progress" ||
         status == "completed" ||
-        status == "cancelled-by-pilot" ||
+        status == "cancelled-by-partner" ||
         status == "cancelled-by-client" ||
         status == "payment-failed"
       );
@@ -70,16 +70,16 @@ export namespace TripRequest {
     request_time: string; // number of milliseconds since 01/01/1970
     origin_address: string;
     destination_address: string;
-    pilot_past_trip_ref_key?: string; // added when pilot completes the trip
-    pilot_id?: string;
+    partner_past_trip_ref_key?: string; // added when partner completes the trip
+    partner_id?: string;
     client_rating?: string;
-    pilot_rating?: PilotRating; // added to pilot's past trips when client rates the pilot
+    partner_rating?: PartnerRating; // added to partner's past trips when client rates the partner
     payment_method?: "cash" | "credit_card"; // added when the client confirms the trip
     credit_card?: Client.Interface.Card; // added when the client confirms the trip and if paying with credit card
     transaction_id?: string; // added when the client confirms the trip and if paying with credit card to allow capturing transaction later
   }
 
-  export interface PilotRating {
+  export interface PartnerRating {
     score: string;
     cleanliness_went_well?: boolean;
     safety_went_well?: boolean;
@@ -87,8 +87,8 @@ export namespace TripRequest {
     feedback?: string;
   }
 
-  export namespace PilotRating {
-    export const is = (obj: any): obj is PilotRating => {
+  export namespace PartnerRating {
+    export const is = (obj: any): obj is PartnerRating => {
       if (obj == null || obj == undefined) {
         return false;
       }
@@ -112,7 +112,7 @@ export namespace TripRequest {
 
     export const fromObj = (obj: any) => {
       if (is(obj)) {
-        return obj as PilotRating;
+        return obj as PartnerRating;
       }
       return;
     };
@@ -165,8 +165,11 @@ export namespace TripRequest {
         return false;
       }
 
-      // type check optional pilot_rating
-      if (obj.pilot_rating != undefined && !PilotRating.is(obj.pilot_rating)) {
+      // type check optional partner_rating
+      if (
+        obj.partner_rating != undefined &&
+        !PartnerRating.is(obj.partner_rating)
+      ) {
         return false;
       }
 
@@ -180,7 +183,10 @@ export namespace TripRequest {
       }
 
       // type check optional credit_card
-      if(obj.credit_card != undefined && !Client.Interface.Card.is(obj.credit_card)) {
+      if (
+        obj.credit_card != undefined &&
+        !Client.Interface.Card.is(obj.credit_card)
+      ) {
         return false;
       }
 
@@ -192,8 +198,8 @@ export namespace TripRequest {
         return true;
       };
       if (
-        !typeCheckOptionalField("pilot_past_trip_ref_key", "string") ||
-        !typeCheckOptionalField("pilot_id", "string") ||
+        !typeCheckOptionalField("partner_past_trip_ref_key", "string") ||
+        !typeCheckOptionalField("partner_id", "string") ||
         !typeCheckOptionalField("client_rating", "string") ||
         !typeCheckOptionalField("transaction_id", "string")
       ) {
@@ -228,8 +234,8 @@ export namespace TripRequest {
       if (is(obj)) {
         let result: LooseObject = {};
         result = obj;
-        if (obj.pilot_rating != undefined) {
-          result.pilot_rating = PilotRating.fromObj(obj.pilot_rating);
+        if (obj.partner_rating != undefined) {
+          result.partner_rating = PartnerRating.fromObj(obj.partner_rating);
         }
         return result as TripRequest.Interface;
       }

@@ -88,8 +88,8 @@ export class ClientPastTrips extends PastTrips {
   }
 }
 
-export class PilotPastTrips extends PastTrips {
-  constructor(pilotID: string) {
-    super("pilots", pilotID);
+export class PartnerPastTrips extends PastTrips {
+  constructor(partnerID: string) {
+    super("partners", partnerID);
   }
 }

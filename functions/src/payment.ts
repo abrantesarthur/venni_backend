@@ -6,7 +6,7 @@ import { Customer } from "pagarme-js-types/src/client/customers/responses";
 import { Card } from "pagarme-js-types/src/client/cards/responses";
 import { Transaction } from "pagarme-js-types/src/client/transactions/responses";
 import { ClientPastTrips } from "./database/pastTrips";
-import { Pilot } from "./database/pilot";
+import { Partner } from "./database/partner";
 import { TripRequest } from "./database/tripRequest";
 
 const validateCreateCardArguments = (args: any) => {
@@ -347,32 +347,35 @@ export const captureTripPayment = async (
   trip: TripRequest.Interface,
   creditCard?: Client.Interface.Card
 ): Promise<boolean> => {
-  // make sure trip has transaction_id and pilot
-  if (trip.pilot_id == undefined || trip.transaction_id == undefined) {
+  // make sure trip has transaction_id and partner
+  if (trip.partner_id == undefined || trip.transaction_id == undefined) {
     return false;
   }
-  // get pilot who completed the trip
-  let p = new Pilot(trip.pilot_id);
-  let pilot = await p.getPilot();
+  // get partner who completed the trip
+  let p = new Partner(trip.partner_id);
+  let partner = await p.getPartner();
 
-  // variable that will hold how much to discount from pilot's receivables
-  let pilotReceivableDiscount;
+  // variable that will hold how much to discount from partner's receivables
+  let partnerReceivableDiscount;
 
   let amountOwed = await p.getAmountOwed();
   let venniAmount;
-  // if pilot owes us money
+  // if partner owes us money
   if (amountOwed != null && amountOwed > 0) {
-    // decrease what pilot receives by the rounded minimum between
+    // decrease what partner receives by the rounded minimum between
     // 80% of fare price and what he owes us
-    pilotReceivableDiscount = Math.ceil(
+    partnerReceivableDiscount = Math.ceil(
       Math.min(0.8 * trip.fare_price, amountOwed)
     );
 
-    // venni should receive 20% + whatever was discounted from the pilot.
+    // venni should receive 20% + whatever was discounted from the partner.
     // we calculate Math.min here just to guarantee that client won't pay more than
     // trip.fare_price
     venniAmount = Math.floor(
-      Math.min(trip.fare_price, 0.2 * trip.fare_price + pilotReceivableDiscount)
+      Math.min(
+        trip.fare_price,
+        0.2 * trip.fare_price + partnerReceivableDiscount
+      )
     );
   }
 
@@ -387,8 +390,11 @@ export const captureTripPayment = async (
   // if creditCard is defined and differs from the one used in trip
   // or it's been over 5 days since trip was done (e.g., authorized transaction
   // was automatially closed in pagarme)
-  if (creditCard != undefined && creditCard.id != trip.credit_card?.id || diffDays >= 5) {
-    if(creditCard == undefined) {
+  if (
+    (creditCard != undefined && creditCard.id != trip.credit_card?.id) ||
+    diffDays >= 5
+  ) {
+    if (creditCard == undefined) {
       return false;
     }
     let transaction;
@@ -411,7 +417,7 @@ export const captureTripPayment = async (
       transaction = await pagarme.captureTransaction(
         transaction.tid,
         trip.fare_price,
-        pilot?.pagarme_receiver_id,
+        partner?.pagarme_receiver_id,
         venniAmount
       );
       if (transaction.status != "paid") {
@@ -426,7 +432,7 @@ export const captureTripPayment = async (
       let transaction = await pagarme.captureTransaction(
         trip.transaction_id,
         trip.fare_price,
-        pilot?.pagarme_receiver_id,
+        partner?.pagarme_receiver_id,
         venniAmount
       );
       if (transaction.status != "paid") {
@@ -436,10 +442,10 @@ export const captureTripPayment = async (
       return false;
     }
   }
-  // if capture succeeded and the pilot paid some amount he owed us
-  if (pilotReceivableDiscount != undefined) {
+  // if capture succeeded and the partner paid some amount he owed us
+  if (partnerReceivableDiscount != undefined) {
     // decrease amount owed
-    await p.decreaseAmountOwedBy(pilotReceivableDiscount);
+    await p.decreaseAmountOwedBy(partnerReceivableDiscount);
   }
   return true;
 };

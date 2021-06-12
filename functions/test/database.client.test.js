@@ -15,13 +15,13 @@ describe("Client", () => {
   describe("Class", () => {
     let c;
     let clientID;
-    let pilotID;
+    let partnerID;
     let defaultClient;
     let defaultTrip;
     let defaultCard;
     before(async () => {
       clientID = "clientID";
-      pilotID = "pilotID";
+      partnerID = "partnerID";
       defaultCard = {
         id: "card_id",
         holder_name: "Fulano de Tal",
@@ -48,7 +48,7 @@ describe("Client", () => {
       };
       defaultTrip = {
         uid: clientID,
-        pilot_id: pilotID,
+        partner_id: partnerID,
         trip_status: "waiting-confirmation",
         origin_place_id: "origin_place_id",
         destination_place_id: "destination_place_id",
