@@ -23,7 +23,7 @@ describe("TripRequest.Interface", () => {
         request_time: "124759",
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_rating: {
+        partner_rating: {
           score: "2",
           safety_went_well: true,
           cleanliness_went_well: false,
@@ -98,29 +98,29 @@ describe("TripRequest.Interface", () => {
         }
       );
     };
-    falseIfOptionalWronglyTyped("pilot_id", 123);
+    falseIfOptionalWronglyTyped("partner_id", 123);
     falseIfOptionalWronglyTyped("client_rating", "not numeric");
     falseIfOptionalWronglyTyped("payment_method", "invalid");
     falseIfOptionalWronglyTyped("credit_card", { id: "card_id" });
     falseIfOptionalWronglyTyped("transaction_id", 123);
 
-    it("returns false if, pilot_rating, if present, is not an object", () => {
+    it("returns false if, partner_rating, if present, is not an object", () => {
       let invalidArg = validArg;
-      invalidArg["pilot_rating"] = "not an object";
+      invalidArg["partner_rating"] = "not an object";
       assert.equal(tr.TripRequest.Interface.is(invalidArg), false);
     });
 
-    it("returns false if, pilot_rating, if present, has no score", () => {
+    it("returns false if, partner_rating, if present, has no score", () => {
       let invalidArg = validArg;
-      invalidArg["pilot_rating"] = {
+      invalidArg["partner_rating"] = {
         cleanliness_went_well: true,
       };
       assert.equal(tr.TripRequest.Interface.is(invalidArg), false);
     });
 
-    it("returns false if, pilot_rating, if present, has invalid key", () => {
+    it("returns false if, partner_rating, if present, has invalid key", () => {
       let invalidArg = validArg;
-      invalidArg["pilot_rating"] = {
+      invalidArg["partner_rating"] = {
         score: "2",
         invalid_key: true,
       };
@@ -151,8 +151,8 @@ describe("TripRequest.Interface", () => {
         request_time: "124759",
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_past_trip_ref_key: "pilot_past_trip_ref_key",
-        pilot_id: "pilot_id",
+        partner_past_trip_ref_key: "partner_past_trip_ref_key",
+        partner_id: "partner_id",
         client_rating: "4.0",
         payment_method: "credit_card",
         credit_card: {
@@ -173,7 +173,7 @@ describe("TripRequest.Interface", () => {
           },
         },
         transaction_id: "transaction_id",
-        pilot_rating: {
+        partner_rating: {
           score: "2",
           safety_went_well: true,
           cleanliness_went_well: false,
@@ -206,14 +206,17 @@ describe("TripRequest.Interface", () => {
       assert.equal(response.request_time, "124759");
       assert.equal(response.origin_address, "origin_address");
       assert.equal(response.destination_address, "destination_address");
-      assert.isDefined(response.pilot_rating);
-      assert.equal(response.pilot_rating.score, "2");
-      assert.equal(response.pilot_rating.cleanliness_went_well, false);
-      assert.equal(response.pilot_rating.safety_went_well, true);
-      assert.equal(response.pilot_rating.waiting_time_went_well, undefined);
-      assert.equal(response.pilot_rating.feedback, "good trip!");
-      assert.equal(response.pilot_past_trip_ref_key, "pilot_past_trip_ref_key");
-      assert.equal(response.pilot_id, "pilot_id");
+      assert.isDefined(response.partner_rating);
+      assert.equal(response.partner_rating.score, "2");
+      assert.equal(response.partner_rating.cleanliness_went_well, false);
+      assert.equal(response.partner_rating.safety_went_well, true);
+      assert.equal(response.partner_rating.waiting_time_went_well, undefined);
+      assert.equal(response.partner_rating.feedback, "good trip!");
+      assert.equal(
+        response.partner_past_trip_ref_key,
+        "partner_past_trip_ref_key"
+      );
+      assert.equal(response.partner_id, "partner_id");
       assert.equal(response.payment_method, "credit_card");
       assert.equal(response.client_rating, "4.0");
       assert.isDefined(response.credit_card);

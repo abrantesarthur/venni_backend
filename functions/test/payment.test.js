@@ -674,7 +674,7 @@ describe("payment", () => {
     after(async () => {
       // clear database
       await admin.database().ref("clients").remove();
-      await admin.database().ref("pilots").remove();
+      await admin.database().ref("partners").remove();
       await admin.database().ref("past-trips").remove();
     });
 
@@ -777,7 +777,7 @@ describe("payment", () => {
     });
 
     it("fails if client doesn't have card specified by 'card_id'", async () => {
-      // add unpaidTrip for client, handled by the pilot with id 'pilotID',
+      // add unpaidTrip for client, handled by the partner with id 'partnerID',
       let unpaidTrip = {
         uid: defaultUID,
         trip_status: "completed",
@@ -793,7 +793,7 @@ describe("payment", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: "pilotID",
+        partner_id: "partnerID",
         payment_method: "credit_card",
         credit_card: creditCard,
       };
@@ -834,9 +834,9 @@ describe("payment", () => {
         creditCard.billing_address
       );
 
-      // add unpaidTrip for client, handled by the pilot with id 'pilotID',
+      // add unpaidTrip for client, handled by the partner with id 'partnerID',
       // and paid with the pending transaction
-      const pilotID = "pilotID";
+      const partnerID = "partnerID";
       let unpaidTrip = {
         uid: defaultUID,
         trip_status: "completed",
@@ -852,7 +852,7 @@ describe("payment", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID,
+        partner_id: partnerID,
         payment_method: "credit_card",
         credit_card: creditCard,
         transaction_id: transaction.tid.toString(),
@@ -874,13 +874,16 @@ describe("payment", () => {
       // add creditCard to the client
       await c.addCard(creditCard);
 
-      // add a pilot to the database supposedly handing the trip for defaultUID
+      // add a partner to the database supposedly handing the trip for defaultUID
       // owing amountOwed and with a valid pagarme_receiver_id
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID,
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -898,8 +901,8 @@ describe("payment", () => {
         rating: "5.0",
         pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
       };
-      const pilotRef = admin.database().ref("pilots").child(pilotID);
-      await pilotRef.set(defaultPilot);
+      const partnerRef = admin.database().ref("partners").child(partnerID);
+      await partnerRef.set(defaultPartner);
 
       // before calling captureUnpaidTrip, assert client has 'unpaid_past_trip_id' field set
       let client = await c.getClient();
@@ -930,9 +933,9 @@ describe("payment", () => {
         creditCard.billing_address
       );
 
-      // add unpaidTrip for client, handled by the pilot with id 'pilotID',
+      // add unpaidTrip for client, handled by the partner with id 'partnerID',
       // and paid with the credit card A
-      const pilotID = "pilotID";
+      const partnerID = "partnerID";
       let unpaidTrip = {
         uid: defaultUID,
         trip_status: "completed",
@@ -948,7 +951,7 @@ describe("payment", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: pilotID,
+        partner_id: partnerID,
         payment_method: "credit_card",
         credit_card: creditCard,
         transaction_id: transaction.tid.toString(),
@@ -970,13 +973,16 @@ describe("payment", () => {
       // add the credit card A to the client
       await c.addCard(creditCard);
 
-      // add a pilot to the database supposedly handing the trip for defaultUID
+      // add a partner to the database supposedly handing the trip for defaultUID
       // owing amountOwed and with a valid pagarme_receiver_id
-      await admin.database().ref("pilots").remove();
-      let defaultPilot = {
-        uid: pilotID,
+      await admin.database().ref("partners").remove();
+      let defaultPartner = {
+        uid: partnerID,
         name: "Fulano",
         last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_documents",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
         current_latitude: "-17.217587",
@@ -994,8 +1000,8 @@ describe("payment", () => {
         rating: "5.0",
         pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
       };
-      const pilotRef = admin.database().ref("pilots").child(pilotID);
-      await pilotRef.set(defaultPilot);
+      const partnerRef = admin.database().ref("partners").child(partnerID);
+      await partnerRef.set(defaultPartner);
 
       // create a credit card B
       let validCard = {
@@ -1060,7 +1066,7 @@ describe("payment", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
-        pilot_id: "pilotID",
+        partner_id: "partnerID",
         payment_method: "credit_card",
         credit_card: creditCard,
       };

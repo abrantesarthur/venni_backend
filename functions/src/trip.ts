@@ -10,12 +10,12 @@ import { HttpsError } from "firebase-functions/lib/providers/https";
 import { AsyncTimeout, sleep, LooseObject, validateArgument } from "./utils";
 import { getZoneNameFromCoordinate } from "./zones";
 import { TripRequest } from "./database/tripRequest";
-import { Pilot } from "./database/pilot";
+import { Partner } from "./database/partner";
 import { Client } from "./database/client";
 import "./database/index";
 import { transaction } from "./database/index";
-import { Pilots } from "./database/pilots";
-import { ClientPastTrips, PilotPastTrips } from "./database/pastTrips";
+import { Partners } from "./database/partners";
+import { ClientPastTrips, PartnerPastTrips } from "./database/pastTrips";
 import { Pagarme } from "./vendors/pagarme";
 import { captureTripPayment } from "./payment";
 // initialize google maps API client
@@ -58,21 +58,21 @@ function validateCompleteTripArguments(obj: any) {
   }
 }
 
-// validateRatePilotArguments enforces PilotRating interface
-// plus pilot_id
+// validateRatePartnerArguments enforces PartnerRating interface
+// plus partner_id
 // {
-//   pilot_id: string;
+//   partner_id: string;
 //   score: number;
 //   cleanliness_went_well?: bool;
 //   safety_went_well?: bool;
 //   waiting_time_went_well?: bool;
 //   feedback: string;
 // }
-function validateRatePilotArguments(obj: any) {
+function validateRatePartnerArguments(obj: any) {
   validateArgument(
     obj,
     [
-      "pilot_id",
+      "partner_id",
       "score",
       "cleanliness_went_well",
       "safety_went_well",
@@ -150,8 +150,8 @@ const requestTrip = async (
     tripRequest != null &&
     tripRequest != undefined &&
     (tripRequest.trip_status == TripRequest.Status.inProgress ||
-      tripRequest.trip_status == TripRequest.Status.lookingForPilot ||
-      tripRequest.trip_status == TripRequest.Status.waitingPilot ||
+      tripRequest.trip_status == TripRequest.Status.lookingForPartner ||
+      tripRequest.trip_status == TripRequest.Status.waitingPartner ||
       tripRequest.trip_status == TripRequest.Status.waitingPayment)
   ) {
     throw new functions.https.HttpsError(
@@ -212,7 +212,7 @@ const editTrip = async (
   return requestTrip(data, context);
 };
 
-// TODO: charge the customer for cancelation if pilot is already coming or trip
+// TODO: charge the customer for cancelation if partner is already coming or trip
 // is already in progress
 const clientCancelTrip = async (
   _: any,
@@ -236,9 +236,9 @@ const clientCancelTrip = async (
     tripRequest == undefined ||
     (tripRequest.trip_status != TripRequest.Status.waitingConfirmation &&
       tripRequest.trip_status != TripRequest.Status.paymentFailed &&
-      tripRequest.trip_status != TripRequest.Status.noPilotsAvailable &&
-      tripRequest.trip_status != TripRequest.Status.lookingForPilot &&
-      tripRequest.trip_status != TripRequest.Status.waitingPilot &&
+      tripRequest.trip_status != TripRequest.Status.noPartnersAvailable &&
+      tripRequest.trip_status != TripRequest.Status.lookingForPartner &&
+      tripRequest.trip_status != TripRequest.Status.waitingPartner &&
       tripRequest.trip_status != TripRequest.Status.inProgress)
   ) {
     throw new functions.https.HttpsError(
@@ -249,10 +249,10 @@ const clientCancelTrip = async (
     );
   }
 
-  // if a pilot is handling the trip, free him to handle other trips
-  const pilotID = tripRequest.pilot_id;
-  if (pilotID != undefined && pilotID.length > 0) {
-    const p = new Pilot(pilotID);
+  // if a partner is handling the trip, free him to handle other trips
+  const partnerID = tripRequest.partner_id;
+  if (partnerID != undefined && partnerID.length > 0) {
+    const p = new Partner(partnerID);
     p.free();
   }
 
@@ -282,7 +282,7 @@ const confirmTrip = async (
   }
   validateArgument(data, ["card_id"], ["string"], [false]);
 
-  // get a reference to the user's trip request and pilot_id
+  // get a reference to the user's trip request and partner_id
   const tr = new TripRequest(context.auth.uid);
   let tripRequest = await tr.getTripRequest();
 
@@ -299,9 +299,9 @@ const confirmTrip = async (
   if (
     tripRequest.trip_status != "waiting-confirmation" &&
     tripRequest.trip_status != "payment-failed" &&
-    tripRequest.trip_status != "no-pilots-available" &&
-    tripRequest.trip_status != "looking-for-pilot" &&
-    tripRequest.trip_status != "cancelled-by-pilot"
+    tripRequest.trip_status != "no-partners-available" &&
+    tripRequest.trip_status != "looking-for-partner" &&
+    tripRequest.trip_status != "cancelled-by-partner"
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -318,7 +318,7 @@ const confirmTrip = async (
 
   // change trip-request status to waiting-payment
   // important: only use set to modify trip request values befores sending
-  // requests to pilots. Use only transactions after that, because pilots
+  // requests to partners. Use only transactions after that, because partners
   // use transactions to modify trip request, and us using set would
   // cancel their transactions.
   tripRequest.trip_status = TripRequest.Status.waitingPayment;
@@ -399,45 +399,45 @@ const confirmTrip = async (
       pagarmeError?.response.errors[0]
     );
   }
-  // change trip-request status to lookingForPilot
-  tripRequest.trip_status = TripRequest.Status.lookingForPilot;
+  // change trip-request status to lookingForPartner
+  tripRequest.trip_status = TripRequest.Status.lookingForPartner;
   promises.push(tr.ref.set(tripRequest));
 
-  // search available pilots nearby client
-  let nearbyPilots: Pilot.Interface[];
-  let ps = new Pilots();
+  // search available partners nearby client
+  let nearbyPartners: Partner.Interface[];
+  let ps = new Partners();
   try {
-    nearbyPilots = await ps.findAllAvailable(tripRequest);
+    nearbyPartners = await ps.findAllAvailable(tripRequest);
   } catch (e) {
     let error: HttpsError = e as HttpsError;
-    // if failed to find pilots, update trip-request status to no-pilots-available
-    tripRequest.trip_status = TripRequest.Status.noPilotsAvailable;
+    // if failed to find partners, update trip-request status to no-partners-available
+    tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
     promises.push(tr.ref.set(tripRequest));
     await Promise.all(promises);
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
-  // if didn't find pilots, update trip-reqeust status to noPilotsAvailable and throw exception
-  if (nearbyPilots.length == 0) {
-    tripRequest.trip_status = TripRequest.Status.noPilotsAvailable;
+  // if didn't find partners, update trip-reqeust status to noPartnersAvailable and throw exception
+  if (nearbyPartners.length == 0) {
+    tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
     promises.push(tr.ref.set(tripRequest));
     await Promise.all(promises);
     throw new functions.https.HttpsError(
       "failed-precondition",
-      "There are no available pilots. Try again later."
+      "There are no available partners. Try again later."
     );
   }
 
-  // variable that will hold list of pilots who received trip request
-  let requestedPilotsUIDs: string[] = [];
+  // variable that will hold list of partners who received trip request
+  let requestedPartnersUIDs: string[] = [];
 
-  // reference to pilots
-  const pilotsRef = firebaseAdmin.database().ref("pilots");
+  // reference to partners
+  const partnersRef = firebaseAdmin.database().ref("partners");
 
-  // requestPilot is the callback used to update pilots' statuses to requested.
-  // it tires to set availablePilot's status to 'requested' and current_client_id to client's uid
-  const requestPilot = (pilot: Pilot.Interface) => {
-    if (pilot == null) {
+  // requestPartner is the callback used to update partners' statuses to requested.
+  // it tires to set availablePartner's status to 'requested' and current_client_id to client's uid
+  const requestPartner = (partner: Partner.Interface) => {
+    if (partner == null) {
       // this will run in a transaction. When running a function in a transaction,
       // we should always check for null even if there is data at this reference in the server.
       // If there is no cached data for this node, the SDK will 'guess' its value as 'null'.
@@ -449,79 +449,80 @@ const confirmTrip = async (
       return {};
     }
     if (
-      pilot.status == Pilot.Status.available &&
-      (pilot.current_client_uid == undefined || pilot.current_client_uid == "")
+      partner.status == Partner.Status.available &&
+      (partner.current_client_uid == undefined ||
+        partner.current_client_uid == "")
     ) {
-      // if pilot is still available, change its status to 'requested'
+      // if partner is still available, change its status to 'requested'
       // and current_client_uid to uid of client making requests.
-      // each pilot has 20 seconds to reply on their end.
+      // each partner has 20 seconds to reply on their end.
       // they will use the current_client_uid to find the trip-request entry for the
-      // client and try updating its pilot_id field.
-      pilot.status = Pilot.Status.requested;
-      pilot.current_client_uid = context.auth?.uid;
+      // client and try updating its partner_id field.
+      partner.status = Partner.Status.requested;
+      partner.current_client_uid = context.auth?.uid;
 
-      // mark pilot as requested.
-      requestedPilotsUIDs.push(pilot.uid);
+      // mark partner as requested.
+      requestedPartnersUIDs.push(partner.uid);
 
-      return pilot;
+      return partner;
     } else {
-      // abort transaction if pilot is no longer available
+      // abort transaction if partner is no longer available
       return;
     }
   };
 
-  // unrequestPilot undoes what requestPilot does.
-  const unrequestPilot = (pilot: Pilot.Interface) => {
-    if (pilot == null) {
+  // unrequestPartner undoes what requestPartner does.
+  const unrequestPartner = (partner: Partner.Interface) => {
+    if (partner == null) {
       // we always check for null. Read comments above for explanation.
       return {};
     }
     if (
-      pilot.status == "requested" &&
-      pilot.current_client_uid == context.auth?.uid
+      partner.status == "requested" &&
+      partner.current_client_uid == context.auth?.uid
     ) {
-      // if pilot was requested to this trip, cancel request.
-      pilot.status = Pilot.Status.available;
-      pilot.current_client_uid = "";
-      return pilot;
+      // if partner was requested to this trip, cancel request.
+      partner.status = Partner.Status.available;
+      partner.current_client_uid = "";
+      return partner;
     }
     // abort transaction in other cases
     return;
   };
 
-  // cancelRequest is a callback that is triggered if pilots fail
+  // cancelRequest is a callback that is triggered if partners fail
   // to accept a trip in 30 seconds. It stops listening for their responses
   // and unrequests them, setting their statuses back to available.
   const cancelRequest = () => {
-    // when timeout expires, stop listening for changes in pilot_id
+    // when timeout expires, stop listening for changes in partner_id
     tr.ref.off("value");
 
-    const j = requestedPilotsUIDs.length;
+    const j = requestedPartnersUIDs.length;
     for (var i = 0; i < j; i++) {
-      // set status of pilots who failed to pick trip back to available
-      pilotsRef.child(requestedPilotsUIDs[0]).transaction(unrequestPilot);
+      // set status of partners who failed to pick trip back to available
+      partnersRef.child(requestedPartnersUIDs[0]).transaction(unrequestPartner);
 
-      // remove pilot from list of requested pilots.
-      requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
+      // remove partner from list of requested partners.
+      requestedPartnersUIDs = requestedPartnersUIDs.slice(1);
     }
 
     // send failure response back
     throw new functions.https.HttpsError(
       "deadline-exceeded",
-      "No pilot accepted trip request."
+      "No partner accepted trip request."
     );
   };
 
-  // start listening for changes in trip request's pilot_id before actually
-  // sending requests to pilots. Have  with 30 seconds timeout to account for
-  // time to send all requests and for pilots to accept them.
-  // pilots are listening for changes in their 'status'. When they see its value
+  // start listening for changes in trip request's partner_id before actually
+  // sending requests to partners. Have  with 30 seconds timeout to account for
+  // time to send all requests and for partners to accept them.
+  // partners are listening for changes in their 'status'. When they see its value
   // change to 'requested' they can accept the trip by sending an accept-trip request
-  // which will update the trip-request's pilot_id field with the uid of the pilot.
-  // we detect that change to pilot_id here. It's important to note that we continue
+  // which will update the trip-request's partner_id field with the uid of the partner.
+  // we detect that change to partner_id here. It's important to note that we continue
   // listening even if confirmTrip returns. The only way to stop listening is by calling
   // tripRequestRef.off
-  let cancelFurtherPilotRequests = false;
+  let cancelFurtherPartnerRequests = false;
   let asyncTimeout = new AsyncTimeout();
   let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
   let confirmTripResponse: LooseObject = {};
@@ -535,24 +536,24 @@ const confirmTrip = async (
       );
     }
     let trip = snapshot.val() as TripRequest.Interface;
-    // if one of the pilots accepts the trip, they will call accept-trip which
-    // will update the trip's pilot_id with the id of the accepting pilot
-    if (trip.pilot_id != undefined && trip.pilot_id.length > 0) {
-      // make sure the pilot_id belongs to one for the nearby pilots
-      let isValidPilotID = false;
-      nearbyPilots.forEach((nearbyPilot) => {
-        if (nearbyPilot.uid == trip.pilot_id) {
-          isValidPilotID = true;
+    // if one of the partners accepts the trip, they will call accept-trip which
+    // will update the trip's partner_id with the id of the accepting partner
+    if (trip.partner_id != undefined && trip.partner_id.length > 0) {
+      // make sure the partner_id belongs to one for the nearby partners
+      let isValidPartnerID = false;
+      nearbyPartners.forEach((nearbyPartner) => {
+        if (nearbyPartner.uid == trip.partner_id) {
+          isValidPartnerID = true;
         }
       });
-      if (!isValidPilotID) {
-        // clear pilot_id so other pilots have the chance of claiming the trip
+      if (!isValidPartnerID) {
+        // clear partner_id so other partners have the chance of claiming the trip
         promises.push(
           tr.ref.transaction((tripRequest: TripRequest.Interface) => {
             if (tripRequest == null) {
               return {};
             }
-            tripRequest.pilot_id = "";
+            tripRequest.partner_id = "";
             return tripRequest;
           })
         );
@@ -560,87 +561,89 @@ const confirmTrip = async (
         return;
       }
 
-      // if pilot_id does belong to a nearby pilot, clear timeout
+      // if partner_id does belong to a nearby partner, clear timeout
       // so we no longer execute cancelRequests
       asyncTimeout.clear();
 
-      // stop sending requests to more pilots;
-      cancelFurtherPilotRequests = true;
+      // stop sending requests to more partners;
+      cancelFurtherPartnerRequests = true;
 
-      // stop listening for changes in pilot_id
+      // stop listening for changes in partner_id
       tr.ref.off("value");
 
-      // set status of pilot who successfully picked the ride to busy.
+      // set status of partner who successfully picked the ride to busy.
       // and current_client_id to the id of requesting client. Also, set
       // confirmTripResponse, which will be returned to the client later.
       promises.push(
-        pilotsRef.child(trip.pilot_id).transaction((pilot: Pilot.Interface) => {
-          if (pilot == null) {
-            // always check for null on transactoins
-            return {};
-          }
+        partnersRef
+          .child(trip.partner_id)
+          .transaction((partner: Partner.Interface) => {
+            if (partner == null) {
+              // always check for null on transactoins
+              return {};
+            }
 
+            partner.status = Partner.Status.busy;
+            partner.current_client_uid = context.auth?.uid;
 
-
-          pilot.status = Pilot.Status.busy;
-          pilot.current_client_uid = context.auth?.uid;
-
-          // populate final confirmTrip response with data from pilot
-          confirmTripResponse.pilot_id = pilot.uid;
-          confirmTripResponse.pilot_name = pilot.name;
-          confirmTripResponse.pilot_last_name = pilot.last_name;
-          confirmTripResponse.pilot_total_trips =
-            pilot.total_trips == undefined ? "0" : pilot.total_trips;
-          confirmTripResponse.pilot_member_since = pilot.member_since;
-          confirmTripResponse.pilot_phone_number = pilot.phone_number;
-          confirmTripResponse.current_client_uid = pilot.current_client_uid;
-          confirmTripResponse.pilot_current_latitude = pilot.current_latitude;
-          confirmTripResponse.pilot_current_longitude = pilot.current_longitude;
-          confirmTripResponse.pilot_current_zone = pilot.current_zone;
-          confirmTripResponse.pilot_status = pilot.status;
-          confirmTripResponse.pilot_vehicle = pilot.vehicle;
-          confirmTripResponse.pilot_idle_since = pilot.idle_since;
-          confirmTripResponse.pilot_rating = pilot.rating;
-          // update pilot in database
-          return pilot;
-        })
+            // populate final confirmTrip response with data from partner
+            confirmTripResponse.partner_id = partner.uid;
+            confirmTripResponse.partner_name = partner.name;
+            confirmTripResponse.partner_last_name = partner.last_name;
+            confirmTripResponse.partner_total_trips =
+              partner.total_trips == undefined ? "0" : partner.total_trips;
+            confirmTripResponse.partner_member_since = partner.member_since;
+            confirmTripResponse.partner_phone_number = partner.phone_number;
+            confirmTripResponse.current_client_uid = partner.current_client_uid;
+            confirmTripResponse.partner_current_latitude =
+              partner.current_latitude;
+            confirmTripResponse.partner_current_longitude =
+              partner.current_longitude;
+            confirmTripResponse.partner_current_zone = partner.current_zone;
+            confirmTripResponse.partner_status = partner.status;
+            confirmTripResponse.partner_vehicle = partner.vehicle;
+            confirmTripResponse.partner_idle_since = partner.idle_since;
+            confirmTripResponse.partner_rating = partner.rating;
+            // update partner in database
+            return partner;
+          })
       );
 
-      // set trip_status to waiting-pilot. this is how the client knows that
+      // set trip_status to waiting-partner. this is how the client knows that
       // confirm-trip was successful.
       promises.push(
         tr.ref.transaction((tripRequest: TripRequest.Interface) => {
           if (tripRequest == null) {
             return {};
           }
-          tripRequest.trip_status = TripRequest.Status.waitingPilot;
+          tripRequest.trip_status = TripRequest.Status.waitingPartner;
           return tripRequest;
         })
       );
     }
   });
 
-  // send request to each pilot after we start listening for pilot_id changes
-  for (var i = 0; i < nearbyPilots.length; i++) {
-    if (cancelFurtherPilotRequests) {
-      // in case we hear a valid pilot_id, the listener callback will cancel
+  // send request to each partner after we start listening for partner_id changes
+  for (var i = 0; i < nearbyPartners.length; i++) {
+    if (cancelFurtherPartnerRequests) {
+      // in case we hear a valid partner_id, the listener callback will cancel
       // further requests by setting this variable, so we abort loop.
       break;
     }
 
     promises.push(
-      pilotsRef.child(nearbyPilots[i].uid).transaction(requestPilot)
+      partnersRef.child(nearbyPartners[i].uid).transaction(requestPartner)
     );
 
-    // wait at most 4 seconds before tring to turn next pilot into 'requested'
-    // this is so that first pilot to receive request has 5 seconds of
-    // advantage to respond. Don't wait after runnign transactoin for last pilot, though.
-    // in case cancelFurtherPilotRequests is set to true, we stop waiting.
-    if (i != nearbyPilots.length - 1) {
+    // wait at most 4 seconds before tring to turn next partner into 'requested'
+    // this is so that first partner to receive request has 5 seconds of
+    // advantage to respond. Don't wait after runnign transactoin for last partner, though.
+    // in case cancelFurtherPartnerRequests is set to true, we stop waiting.
+    if (i != nearbyPartners.length - 1) {
       let msPassed = 0;
       do {
         await sleep(1);
-        if (cancelFurtherPilotRequests) {
+        if (cancelFurtherPartnerRequests) {
           break;
         }
         msPassed += 1;
@@ -656,10 +659,10 @@ const confirmTrip = async (
   // state. If timeoutPromse was cleared, this may not be the case yet. If clear()
   // is called late enough but before timeout goes off, the code will already be waiting for
   // timeoutPromise. This way, as soon as clear() is called, confirmTrip returns
-  // before the listener has time to update status to waitingPilot. That's why we
-  // wait here until waitingPilot state is reached.
+  // before the listener has time to update status to waitingPartner. That's why we
+  // wait here until waitingPartner state is reached.
   if (asyncTimeout.wasCleared) {
-    // listen for trip status and only continue when it has waiting-pilot status
+    // listen for trip status and only continue when it has waiting-partner status
     // we want to exit confirmTrip if trip having its final status
     do {
       await sleep(1);
@@ -667,23 +670,25 @@ const confirmTrip = async (
     } while (
       tripRequest == null ||
       tripRequest == undefined ||
-      tripRequest.trip_status != "waiting-pilot"
+      tripRequest.trip_status != "waiting-partner"
     );
-    // important: sleep a bit to guarantee that waiting-pilot status is persisted
+    // important: sleep a bit to guarantee that waiting-partner status is persisted
     await sleep(300);
 
-    // for pilots who were requested but accepted too late, set status to available
+    // for partners who were requested but accepted too late, set status to available
     // and clear current_client_id as long as its status equals requested and current_client_id
     // equals the client's uuid. This means it received our request, didn't respond in time,
-    // and didn't reset the pilot's status.
-    const j = requestedPilotsUIDs.length;
+    // and didn't reset the partner's status.
+    const j = requestedPartnersUIDs.length;
     for (var i = 0; i < j; i++) {
       promises.push(
-        pilotsRef.child(requestedPilotsUIDs[0]).transaction(unrequestPilot)
+        partnersRef
+          .child(requestedPartnersUIDs[0])
+          .transaction(unrequestPartner)
       );
 
-      // remove pilot from list of requested pilots.
-      requestedPilotsUIDs = requestedPilotsUIDs.slice(1);
+      // remove partner from list of requested partners.
+      requestedPartnersUIDs = requestedPartnersUIDs.slice(1);
     }
 
     // respond with confirmTripResponse, which should be already set by this point, but we await
@@ -724,53 +729,50 @@ const acceptTrip = async (
   // validate data
   validateAcceptTripArguments(data);
 
-  const pilotID = context.auth.uid;
+  const partnerID = context.auth.uid;
   const clientID = data.client_id;
 
-  // get a reference to pilot data
-  const pilotRef = firebaseAdmin.database().ref("pilots").child(pilotID);
+  // get a reference to partner data
+  const partnerRef = firebaseAdmin.database().ref("partners").child(partnerID);
 
-  // make sure the pilot's status is requested and trip's current_client_id is set
-  let pilotSnapshot = await pilotRef.once("value");
-  let pilot = pilotSnapshot.val() as Pilot.Interface;
+  // make sure the partner's status is requested and trip's current_client_id is set
+  let partnerSnapshot = await partnerRef.once("value");
+  let partner = partnerSnapshot.val() as Partner.Interface;
   if (
-    pilot == null ||
-    pilot.status != Pilot.Status.requested ||
-    pilot.current_client_uid != clientID
+    partner == null ||
+    partner.status != Partner.Status.requested ||
+    partner.current_client_uid != clientID
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
-      "pilot has not been requested for trip or trip has already been picked."
+      "partner has not been requested for trip or trip has already been picked."
     );
   }
 
   // get a reference to user's trip request
   const tr = new TripRequest(clientID);
 
-  // set trip's pilot_id in a transaction only if it is null or empty. Otherwise,
-  // it means another pilot already picked the trip ahead of us. Abort transaction in that case.
-  await transaction(
-    tr.ref,
-    (tripRequest: TripRequest.Interface) => {
-      if (tripRequest == null) {
-        // we always check for null in transactions.
-        return {};
-      }
+  // set trip's partner_id in a transaction only if it is null or empty. Otherwise,
+  // it means another partner already picked the trip ahead of us. Abort transaction in that case.
+  await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+    if (tripRequest == null) {
+      // we always check for null in transactions.
+      return {};
+    }
 
-      // if trip has not been picked up by another pilot
-      if (tripRequest.pilot_id == null || tripRequest.pilot_id == "") {
-        // set trip's pilot_id in a transaction only if it is null or empty.
-        tripRequest.pilot_id = pilotID;
-        return tripRequest;
-      }
+    // if trip has not been picked up by another partner
+    if (tripRequest.partner_id == null || tripRequest.partner_id == "") {
+      // set trip's partner_id in a transaction only if it is null or empty.
+      tripRequest.partner_id = partnerID;
+      return tripRequest;
+    }
 
-      // otherwise, abort
-      return;
-    },
-  );
+    // otherwise, abort
+    return;
+  });
 
-  // at this point, confirmTrip will set pilot's status to either busy or available,
-  // depending on whether pilot was succesfull at accepting the trip or not. It's the
+  // at this point, confirmTrip will set partner's status to either busy or available,
+  // depending on whether partner was succesfull at accepting the trip or not. It's the
   // client's responsibility to listen for that status change.
 };
 
@@ -786,32 +788,32 @@ const startTrip = async (
     );
   }
 
-  const pilotID = context.auth.uid;
+  const partnerID = context.auth.uid;
 
-  // get a reference to pilot data
-  const pilotRef = firebaseAdmin.database().ref("pilots").child(pilotID);
+  // get a reference to partner data
+  const partnerRef = firebaseAdmin.database().ref("partners").child(partnerID);
 
-  // make sure the pilot's status is busy and trip's current_client_id is set correctly
-  let pilotSnapshot = await pilotRef.once("value");
-  let pilot = pilotSnapshot.val() as Pilot.Interface;
+  // make sure the partner's status is busy and trip's current_client_id is set correctly
+  let partnerSnapshot = await partnerRef.once("value");
+  let partner = partnerSnapshot.val() as Partner.Interface;
   if (
-    pilot == null ||
-    pilot.status != Pilot.Status.busy ||
-    pilot.current_client_uid == undefined ||
-    pilot.current_client_uid == ""
+    partner == null ||
+    partner.status != Partner.Status.busy ||
+    partner.current_client_uid == undefined ||
+    partner.current_client_uid == ""
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
-      "pilot has not been requested for the trip."
+      "partner has not been requested for the trip."
     );
   }
 
   // get a reference to user's trip request
-  const clientID = pilot.current_client_uid;
+  const clientID = partner.current_client_uid;
   const tr = new TripRequest(clientID);
 
   // set trip's status to in-progress in a transaction only if it is waiting for
-  // pilot who is trying to start the trip
+  // partner who is trying to start the trip
   await transaction(
     tr.ref,
     (tripRequest: TripRequest.Interface) => {
@@ -820,10 +822,10 @@ const startTrip = async (
         return {};
       }
 
-      // set trip's status only if it is waiting for our pilot
+      // set trip's status only if it is waiting for our partner
       if (
-        tripRequest.trip_status == "waiting-pilot" &&
-        tripRequest.pilot_id == context.auth?.uid
+        tripRequest.trip_status == "waiting-partner" &&
+        tripRequest.partner_id == context.auth?.uid
       ) {
         tripRequest.trip_status = TripRequest.Status.inProgress;
         return tripRequest;
@@ -849,24 +851,24 @@ const startTrip = async (
       ) {
         throw new functions.https.HttpsError(
           "not-found",
-          "There is no trip request being handled by the pilot " +
+          "There is no trip request being handled by the partner " +
             context.auth?.uid
         );
       }
 
       // if transaction was aborted
       if (completed == false) {
-        if (snapshot?.val().trip_status != "waiting-pilot") {
-          // it was aborted because trip is not in valid waiting-pilot status
+        if (snapshot?.val().trip_status != "waiting-partner") {
+          // it was aborted because trip is not in valid waiting-partner status
           throw new functions.https.HttpsError(
             "failed-precondition",
             "cannot accept trip in status '" + snapshot?.val().trip_status + "'"
           );
         } else {
-          // it was aborted because it is not waiting for our pilot_id
+          // it was aborted because it is not waiting for our partner_id
           throw new functions.https.HttpsError(
             "failed-precondition",
-            "pilot has not been designated to this trip"
+            "partner has not been designated to this trip"
           );
         }
       }
@@ -892,30 +894,32 @@ const completeTrip = async (
   // validate arguments
   validateCompleteTripArguments(data);
 
-  // make sure the pilot's status is busy and trip's current_client_id is set
-  const pilotID = context.auth.uid;
-  let p = new Pilot(pilotID);
-  let pilot = await p.getPilot();
+  // make sure the partner's status is busy and trip's current_client_id is set
+  const partnerID = context.auth.uid;
+  let p = new Partner(partnerID);
+  let partner = await p.getPartner();
   if (
-    pilot == undefined ||
-    pilot.status != Pilot.Status.busy ||
-    pilot.current_client_uid == undefined ||
-    pilot.current_client_uid == ""
+    partner == undefined ||
+    partner.status != Partner.Status.busy ||
+    partner.current_client_uid == undefined ||
+    partner.current_client_uid == ""
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
-      "pilot is not handling a trip."
+      "partner is not handling a trip."
     );
   }
 
-  // make sure the pilot is handling an inProgress trip for some client
-  const clientID = pilot.current_client_uid;
+  // make sure the partner is handling an inProgress trip for some client
+  const clientID = partner.current_client_uid;
   const tr = new TripRequest(clientID);
   let trip = await tr.getTripRequest();
   if (trip == null) {
     throw new functions.https.HttpsError(
       "not-found",
-      "There is no trip request being handled by the pilot '" + pilotID + "'"
+      "There is no trip request being handled by the partner '" +
+        partnerID +
+        "'"
       // TODO: change message to include clientID
     );
   } else if (trip.trip_status != "in-progress") {
@@ -924,11 +928,11 @@ const completeTrip = async (
       "failed-precondition",
       "cannot complete trip in status '" + trip.trip_status + "'"
     );
-  } else if (trip.pilot_id != pilotID) {
-    // it was aborted because it is not being handled by our pilot_id
+  } else if (trip.partner_id != partnerID) {
+    // it was aborted because it is not being handled by our partner_id
     throw new functions.https.HttpsError(
       "failed-precondition",
-      "pilot has not been designated to this trip"
+      "partner has not been designated to this trip"
     );
   }
 
@@ -941,25 +945,25 @@ const completeTrip = async (
     // if payment is through credit card, capture payment
     captureSucceeded = await captureTripPayment(trip);
   } else {
-    // if payment is cash, increase amount pilot owes venni by 20% of fare price
+    // if payment is cash, increase amount partner owes venni by 20% of fare price
     await p.increaseAmountOwedBy(Math.ceil(0.2 * trip.fare_price));
   }
 
-  // free the pilot to handle other trips
+  // free the partner to handle other trips
   await p.free();
 
-  // add trip with completed status to pilot's list of past trips
+  // add trip with completed status to partner's list of past trips
   trip.trip_status = TripRequest.Status.completed;
-  let pilotPastTripRefKey = await p.pushPastTrip(trip);
+  let partnerPastTripRefKey = await p.pushPastTrip(trip);
 
-  // save past trip's reference key in trip request's pilot_past_trip_ref_key
-  // this is so the client can retrieve it later when rating the pilot
+  // save past trip's reference key in trip request's partner_past_trip_ref_key
+  // this is so the client can retrieve it later when rating the partner
   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
     if (tripRequest == null) {
       return {};
     }
-    if (pilotPastTripRefKey != null) {
-      tripRequest.pilot_past_trip_ref_key = pilotPastTripRefKey;
+    if (partnerPastTripRefKey != null) {
+      tripRequest.partner_past_trip_ref_key = partnerPastTripRefKey;
     }
     return tripRequest;
   });
@@ -974,9 +978,9 @@ const completeTrip = async (
     );
   }
 
-  // save trip with pilot_past_trip_ref_key to client's list of past trips and rate client
-  if (pilotPastTripRefKey != null) {
-    trip.pilot_past_trip_ref_key = pilotPastTripRefKey;
+  // save trip with partner_past_trip_ref_key to client's list of past trips and rate client
+  if (partnerPastTripRefKey != null) {
+    trip.partner_past_trip_ref_key = partnerPastTripRefKey;
   }
   if (trip != undefined) {
     let clientPastTripRefKey = await c.pushPastTripAndRate(
@@ -1000,7 +1004,7 @@ const completeTrip = async (
   });
 };
 
-const ratePilot = async (
+const ratePartner = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
@@ -1013,12 +1017,12 @@ const ratePilot = async (
   }
 
   // validate arguments
-  validateRatePilotArguments(data);
+  validateRatePartnerArguments(data);
 
-  // make sure the trip has already been completed and by pilot with id pilotID
-  // and has pilot_past_trip_ref_key field set
+  // make sure the trip has already been completed and by partner with id partnerID
+  // and has partner_past_trip_ref_key field set
   const clientID: string = context.auth.uid;
-  const pilotID: string = data.pilot_id;
+  const partnerID: string = data.partner_id;
   const tr = new TripRequest(clientID);
   const tripRequest = await tr.getTripRequest();
   if (tripRequest == undefined) {
@@ -1035,36 +1039,36 @@ const ratePilot = async (
         "'"
     );
   }
-  if (tripRequest.pilot_id != pilotID) {
+  if (tripRequest.partner_id != partnerID) {
     throw new functions.https.HttpsError(
       "failed-precondition",
-      "could not find a trip request handled by a pilot with id '" +
-        pilotID +
+      "could not find a trip request handled by a partner with id '" +
+        partnerID +
         "' for client with id '" +
         clientID +
         "'"
     );
   }
-  if (tripRequest.pilot_past_trip_ref_key == undefined) {
+  if (tripRequest.partner_past_trip_ref_key == undefined) {
     throw new functions.https.HttpsError(
       "failed-precondition",
-      "trip request has undefined field 'pilot_past_trip_ref_key'"
+      "trip request has undefined field 'partner_past_trip_ref_key'"
     );
   }
 
-  // make sure pilot exists
-  let p = new Pilot(pilotID);
-  const pilot = await p.getPilot();
-  if (pilot == undefined) {
+  // make sure partner exists
+  let p = new Partner(partnerID);
+  const partner = await p.getPartner();
+  if (partner == undefined) {
     throw new functions.https.HttpsError(
       "failed-precondition",
-      "could not find a pilot wiht id id '" + pilotID + "'"
+      "could not find a partner wiht id id '" + partnerID + "'"
     );
   }
 
-  // add rating to pilot's past-trip's record of the trip
-  delete data["pilot_id"];
-  await p.rate(tripRequest.pilot_past_trip_ref_key, { pilot_rating: data });
+  // add rating to partner's past-trip's record of the trip
+  delete data["partner_id"];
+  await p.rate(tripRequest.partner_past_trip_ref_key, { partner_rating: data });
 
   // delete trip-request after rating it, so the client can't rate the same trip twice
   await tr.remove();
@@ -1109,7 +1113,7 @@ const clientGetPastTrip = async (
   return await cpt.getPastTrip(data.past_trip_id);
 };
 
-const pilotGetTripRating = async (
+const partnerGetTripRating = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
@@ -1124,17 +1128,17 @@ const pilotGetTripRating = async (
   // validate argument
   validateArgument(
     data,
-    ["pilot_id", "past_trip_ref_key"],
+    ["partner_id", "past_trip_ref_key"],
     ["string", "string"],
     [true, true]
   );
 
-  // get pilot's trip
-  const ppt = new PilotPastTrips(data.pilot_id);
+  // get partner's trip
+  const ppt = new PartnerPastTrips(data.partner_id);
   const trip = await ppt.getPastTrip(data.past_trip_ref_key);
 
-  if (trip != undefined && trip.pilot_rating != undefined) {
-    return { pilot_rating: trip.pilot_rating.score };
+  if (trip != undefined && trip.partner_rating != undefined) {
+    return { partner_rating: trip.partner_rating.score };
   }
   return;
 };
@@ -1146,9 +1150,10 @@ export const confirm = functions.https.onCall(confirmTrip);
 export const accept = functions.https.onCall(acceptTrip);
 export const start = functions.https.onCall(startTrip);
 export const complete = functions.https.onCall(completeTrip);
-export const rate_pilot = functions.https.onCall(ratePilot);
+export const rate_partner = functions.https.onCall(ratePartner);
 export const client_get_past_trips = functions.https.onCall(clientGetPastTrips);
-export const pilot_get_trip_rating = functions.https.onCall(pilotGetTripRating);
+export const partner_get_trip_rating =
+  functions.https.onCall(partnerGetTripRating);
 export const client_get_past_trip = functions.https.onCall(clientGetPastTrip);
 
-// TODO: request directions to get encoded points when pilot reports his position
+// TODO: request directions to get encoded points when partner reports his position
