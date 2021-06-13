@@ -183,7 +183,7 @@ export namespace Partner {
     current_longitude?: string;
     current_zone?: ZoneName;
     status?: Status;
-    vehicle?: VehicleInterface;
+    vehicle?: Vehicle;
     idle_since?: string;
     rating?: string; // based on last 200 trips
     denial_reason?: string;
@@ -235,7 +235,7 @@ export namespace Partner {
       if (obj == null || obj == undefined) {
         return false;
       }
-      if ("vehicle" in obj && !VehicleInterface.is(obj.vehicle)) {
+      if ("vehicle" in obj && !Vehicle.is(obj.vehicle)) {
         return false;
       }
 
@@ -248,10 +248,7 @@ export namespace Partner {
       }
 
       // type check optional bank_account
-      if (
-        "bank_account" in obj &&
-        !AppBankAccount.is(obj.submitted_documents)
-      ) {
+      if ("bank_account" in obj && !AppBankAccount.is(obj.bank_account)) {
         return false;
       }
 
@@ -291,18 +288,31 @@ export namespace Partner {
     };
   }
 
-  export interface VehicleInterface {
+  export interface Vehicle {
     brand: string;
     model: string;
     year: number;
     plate: string;
   }
 
-  export namespace VehicleInterface {
-    export const is = (obj: any): obj is VehicleInterface => {
+  export namespace Vehicle {
+    export const is = (obj: any): obj is Vehicle => {
       if (obj == null || obj == undefined) {
         return false;
       }
+      // make sure no invalid key is present
+      let keys = Object.keys(obj);
+      for (var i = 0; i < keys.length; i++) {
+        if (
+          keys[i] != "brand" &&
+          keys[i] != "model" &&
+          keys[i] != "year" &&
+          keys[i] != "plate"
+        ) {
+          return false;
+        }
+      }
+
       return (
         "brand" in obj && "model" in obj && "year" in obj && "plate" in obj
       );
@@ -310,11 +320,11 @@ export namespace Partner {
   }
 
   export interface SubmittedDocuments {
-    cnh: boolean;
-    crlv: boolean;
-    photo_with_cnh: boolean;
-    profile_photo: boolean;
-    bank_account: boolean;
+    cnh?: boolean;
+    crlv?: boolean;
+    photo_with_cnh?: boolean;
+    profile_photo?: boolean;
+    bank_account?: boolean;
   }
 
   export namespace SubmittedDocuments {
@@ -371,7 +381,6 @@ export namespace Partner {
     document_number: string;
     legal_name: string;
     charge_transfer_fees?: boolean;
-    date_created?: Date;
   }
 
   export namespace AppBankAccount {
@@ -395,6 +404,7 @@ export namespace Partner {
           keys[i] != "legal_name" &&
           keys[i] != "charge_transfer_fees"
         ) {
+          console.log(keys[i] + " is invalid");
           return false;
         }
       }
@@ -402,6 +412,7 @@ export namespace Partner {
       // type check optional fields
       const typeCheckOptionalField = (field: string, expectedType: string) => {
         if (obj[field] != undefined && typeof obj[field] != expectedType) {
+          console.log(field + " has invalid type");
           return false;
         }
         return true;
@@ -410,8 +421,7 @@ export namespace Partner {
         !typeCheckOptionalField("id", "number") ||
         !typeCheckOptionalField("agency_dv", "string") ||
         !typeCheckOptionalField("document_type", "string") ||
-        !typeCheckOptionalField("date_created", "") ||
-        !typeCheckOptionalField("bank_account", "boolean")
+        !typeCheckOptionalField("charge_transfer_fees", "boolean")
       ) {
         return false;
       }

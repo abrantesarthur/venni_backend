@@ -42,7 +42,7 @@ export const getRandomLongitude = () => {
 export const createMockPartners = async (amount: number) => {
   const db = firebaseAdmin.database();
   const storage = firebaseAdmin.storage();
-  let defaultVehicle: Partner.VehicleInterface = {
+  let defaultVehicle: Partner.Vehicle = {
     brand: "honda",
     model: "CG-150",
     year: 2020,
