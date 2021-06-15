@@ -394,7 +394,6 @@ describe("Partner", () => {
       falseIfOptionalWronglyTyped("score", "not a number");
       falseIfOptionalWronglyTyped("pagarme_receiver_id", 123);
       falseIfOptionalWronglyTyped("amount_owed", "not a number");
-      falseIfOptionalWronglyTyped("denial_reason", 123);
       falseIfOptionalWronglyTyped("lock_reason", 123);
       falseIfOptionalWronglyTyped("vehicle", { invalid_field: "invalid" });
       falseIfOptionalWronglyTyped("submitted_documents", {

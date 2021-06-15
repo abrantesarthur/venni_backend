@@ -8,6 +8,32 @@ import { Transaction } from "pagarme-js-types/src/client/transactions/responses"
 import { ClientPastTrips } from "./database/pastTrips";
 import { Partner } from "./database/partner";
 import { TripRequest } from "./database/tripRequest";
+import { BankAccount } from "pagarme-js-types/src/client/bankAccounts/responses";
+import { BankAccountCreateOptions } from "pagarme-js-types/src/client/bankAccounts/options";
+
+// validDigits makes sure 'digits' have expected length and all
+// characters in it are numerical
+const validDigits = (digits: string, length: number, exactLength = true) => {
+  if (exactLength) {
+    // digits must have exactly length
+    if (digits.length != length) {
+      return false;
+    }
+  } else {
+    // digits must have at most length
+    if (digits.length > length) {
+      return false;
+    }
+  }
+
+  // all characters in digits must be integers
+  for (var i = 0; i < digits.length; i++) {
+    if (isNaN(parseInt(digits[i], 10))) {
+      return false;
+    }
+  }
+  return true;
+};
 
 const validateCreateCardArguments = (args: any) => {
   validateArgument(
@@ -34,21 +60,6 @@ const validateCreateCardArguments = (args: any) => {
     ],
     [true, true, true, true, true, true, true, true]
   );
-
-  const validDigits = (digits: string, expectedLength: number) => {
-    // digits must have expected length
-    if (digits.length != expectedLength) {
-      return false;
-    }
-
-    // all characters in digits must be integers
-    for (var i = 0; i < digits.length; i++) {
-      if (isNaN(parseInt(digits[i], 10))) {
-        return false;
-      }
-    }
-    return true;
-  };
 
   // card_number must have 16 digits
   if (!validDigits(args.card_number, 16)) {
@@ -102,6 +113,78 @@ const validateCreateCardArguments = (args: any) => {
     throw new functions.https.HttpsError(
       "invalid-argument",
       "argument 'billing_address' is invalid."
+    );
+  }
+};
+
+const validateCreateBankAccountArguments = (args: any) => {
+  validateArgument(
+    args,
+    [
+      "bank_code",
+      "agency",
+      "agency_dv",
+      "account",
+      "account_dv",
+      "type",
+      "document_number",
+      "legal_name",
+    ],
+    [
+      "string",
+      "string",
+      "string",
+      "string",
+      "string",
+      "string",
+      "string",
+      "string",
+    ],
+    [true, true, false, true, true, true, true, true]
+  );
+
+  // bank_code must have 3 digits
+  if (!validDigits(args.bank_code, 3)) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'bank_code' must have 3 digits."
+    );
+  }
+
+  // agency must have at most 4 digits
+  if (!validDigits(args.agency, 4, false)) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'agency' must have at most 4 digits."
+    );
+  }
+
+  // account must have at most 13 digits
+  if (!validDigits(args.account, 13, false)) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'account' must have at most 13 digits."
+    );
+  }
+
+  // account_dv must have at most 2 digits
+  if (!validDigits(args.account_dv, 2, false)) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'account_dv' must have at most 2 digits."
+    );
+  }
+
+  // type must be valid
+  if (
+    args.type != "conta_corrente" &&
+    args.type != "conta_poupanca" &&
+    args.type != "conta_corrente_conjunta" &&
+    args.type != "conta_poupanca_conjunta"
+  ) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'type' must be one of 'conta_corrente', 'conta_poupanca', 'conta_corrente_conjunta', and 'conta_poupanca_conjunta'"
     );
   }
 };
@@ -450,6 +533,71 @@ export const captureTripPayment = async (
   return true;
 };
 
+const createBankAccount = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateCreateBankAccountArguments(data);
+
+  // add a pagarme bank account to the partner
+  const p = new Pagarme();
+  await p.ensureInitialized();
+  let bankAccount: BankAccount;
+  try {
+    let opts: BankAccountCreateOptions = {
+      agencia: data.agency,
+      bank_code: data.bank_code,
+      conta: data.account,
+      conta_dv: data.account_dv,
+      document_number: data.document_number,
+      legal_name: data.legal_name,
+      type: data.type,
+    };
+    if (data.agency_dv != undefined) {
+      opts["agencia_dv"] = data.agency_dv;
+    }
+    bankAccount = await p.createBankAccount(opts);
+  } catch (e) {
+    console.log(e.response.errors[0]);
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Falha ao criar conta bancária no pagarme.",
+      e.response.errors[0]
+    );
+  }
+
+  // add created bankAccount to partner
+  const partner = new Partner(context.auth.uid);
+  let appBankAccount: Partner.AppBankAccount;
+  try {
+    appBankAccount = {
+      id: bankAccount.id,
+      agency: bankAccount.agencia,
+      agency_dv: bankAccount.agencia_dv,
+      account: bankAccount.conta,
+      account_dv: bankAccount.conta_dv,
+      type: bankAccount.type,
+      charge_transfer_fees: bankAccount.charge_transfer_fees,
+      bank_code: bankAccount.bank_code,
+      document_number: bankAccount.document_number,
+      legal_name: bankAccount.legal_name,
+    };
+    await partner.createBankAccount(appBankAccount);
+  } catch (e) {
+    throw new functions.https.HttpsError("unknown", "Algo deu errado!");
+  }
+
+  // return added bank account
+  return appBankAccount;
+};
+
 export const create_card = functions.https.onCall(createCard);
 export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
@@ -457,3 +605,4 @@ export const set_default_payment_method = functions.https.onCall(
   setDefaultPaymentMethod
 );
 export const capture_unpaid_trip = functions.https.onCall(captureUnpaidTrip);
+export const create_bank_account = functions.https.onCall(createBankAccount);

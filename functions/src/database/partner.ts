@@ -19,6 +19,17 @@ export class Partner extends Database {
     return Partner.Interface.fromObj(snapshot.val());
   };
 
+  update = async (values: Object) => {
+    return await this.ref.update(values);
+  };
+
+  lockAccount = async (lockReason: string) => {
+    return await this.ref.update({
+      account_status: "locked",
+      lock_reason: lockReason,
+    });
+  };
+
   // freePartner sets the partner's status to available, empties its current_client_uid,
   // and resets its idle_time to now.
   free = async () => {
@@ -134,6 +145,10 @@ export class Partner extends Database {
   decreaseAmountOwedBy = async (amount: number) => {
     await this.increaseAmountOwedBy(-amount);
   };
+
+  createBankAccount = async (bankAccount: Partner.AppBankAccount) => {
+    await this.ref.child("bank_account").set(bankAccount);
+  };
 }
 
 export namespace Partner {
@@ -147,10 +162,10 @@ export namespace Partner {
 
   export enum AccountStatus {
     pending_documents = "pending_documents",
-    pending_approval = "pending_approval",
+    pending_review = "pending_review",
     granted_interview = "granted_interview",
     approved = "approved",
-    deniedApproval = "denied_approval",
+    denied_approval = "denied_approval",
     locked = "locked",
   }
 
@@ -186,7 +201,6 @@ export namespace Partner {
     vehicle?: Vehicle;
     idle_since?: string;
     rating?: string; // based on last 200 trips
-    denial_reason?: string;
     total_trips?: string; // incremented when partner completes a trip
     lock_reason?: string;
     score?: number; // not stored in database
@@ -219,7 +233,6 @@ export namespace Partner {
           idle_since: obj.idle_since,
           rating: obj.rating,
           score: obj.score,
-          denial_reason: obj.denial_reason,
           lock_reason: obj.lock_reason,
           total_trips: obj.total_trips,
           submitted_documents: obj.submitted_documents,
@@ -264,7 +277,6 @@ export namespace Partner {
         !typeCheckOptionalField("score", "number") ||
         !typeCheckOptionalField("pagarme_receiver_id", "string") ||
         !typeCheckOptionalField("amount_owed", "number") ||
-        !typeCheckOptionalField("denial_reason", "string") ||
         !typeCheckOptionalField("lock_reason", "string") ||
         !typeCheckOptionalField("member_since", "string") ||
         !typeCheckOptionalField("current_latitude", "string") ||
