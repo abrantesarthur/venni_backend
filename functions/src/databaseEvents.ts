@@ -1,8 +1,17 @@
 import { database, Change, EventContext } from "firebase-functions";
 import { transaction } from "./database";
 import { Partner } from "./database/partner";
+import { PartnersPendingReview } from "./database/partnersPendingReview";
+import * as firebaseAdmin from "firebase-admin";
+import { Pagarme } from "./vendors/pagarme";
+import { Recipient } from "pagarme-js-types/src/client/recipients/responses";
+import { LockedPartners } from "./database/lockedPartners";
 
-export const update_partner_account_status = database
+// on_submitted_documents watches a partner's submitted documents. As
+// soon as the partners submits all required documents for onboarding, the function
+// updates theirs status to pending_review and adds them the to the list of partners
+// to be reviewed
+export const on_submitted_documents = database
   .ref("partners/{partnerID}/submitted_documents")
   .onWrite(
     async (change: Change<database.DataSnapshot>, context: EventContext) => {
@@ -32,12 +41,13 @@ export const update_partner_account_status = database
           "partner has account_status equal to " + partner?.account_status
         );
 
-        // can only transition to pending_approval if status was pending_documents or denied_approval
+        // can only transition to pending_review if status was pending_documents or denied_approval
         if (
           partner != undefined &&
           (partner.account_status == Partner.AccountStatus.pending_documents ||
-            partner.account_status == Partner.AccountStatus.deniedApproval)
+            partner.account_status == Partner.AccountStatus.denied_approval)
         ) {
+          // switch account_status to pending_review
           await transaction(p.ref, (partner: Partner.Interface) => {
             if (partner == null) {
               return {};
@@ -45,12 +55,214 @@ export const update_partner_account_status = database
             console.log(
               "switch account_status from " +
                 partner.account_status +
-                " to pending_approval"
+                " to pending_review"
             );
-            partner.account_status = Partner.AccountStatus.pending_approval;
+            partner.account_status = Partner.AccountStatus.pending_review;
             return partner;
           });
+
+          // get partner email
+          const partnerEmail = (await firebaseAdmin.auth().getUser(partner.uid))
+            .email;
+
+          try {
+            console.log(
+              "adding partner with uid  " +
+                partner.uid +
+                " to partners-pending-review list"
+            );
+
+            // add partner to list of pending review partners
+            const ppr = new PartnersPendingReview();
+            await ppr.set({
+              uid: partner.uid,
+              name: partner.name,
+              last_name: partner.last_name,
+              phone_number: partner.phone_number,
+              email: partnerEmail,
+            });
+          } catch (e) {
+            console.log(
+              "failed to add partner with uid  " +
+                partner.uid +
+                " to partners-pending-review list: " +
+                e
+            );
+          }
         }
       }
     }
   );
+
+// on_account_status_change watches a partner's account_status. As soon as
+// it switches from pending_review to either granted_interview or denied_approval,
+// the function removes the partner from the pending review list
+export const on_account_status_change = database
+  .ref("partners/{partnerID}/account_status")
+  .onWrite(
+    async (change: Change<database.DataSnapshot>, context: EventContext) => {
+      const oldAccountStatus: Partner.AccountStatus = change.before.val();
+      const newAccountStatus: Partner.AccountStatus = change.after.val();
+      const partnerID = context.params.partnerID;
+      console.log(
+        "partner with uid " +
+          partnerID +
+          " had account_status transition from " +
+          oldAccountStatus +
+          " to " +
+          newAccountStatus
+      );
+
+      // if partner's account_status transitioned from pending_review or denied_approval
+      // to granted_interview or denied_approval
+      if (
+        (oldAccountStatus == Partner.AccountStatus.pending_review ||
+          oldAccountStatus == Partner.AccountStatus.denied_approval) &&
+        (newAccountStatus == Partner.AccountStatus.granted_interview ||
+          newAccountStatus == Partner.AccountStatus.denied_approval)
+      ) {
+        console.log(
+          "deleting partner with uid " + partnerID + " from pending review list"
+        );
+
+        // delete partner from pending review list
+        try {
+          const ppa = new PartnersPendingReview();
+          await ppa.deleteByID(partnerID);
+        } catch (e) {
+          console.log(
+            "failed to delete partner with uid " +
+              partnerID +
+              " from pending review list: " +
+              e
+          );
+        }
+      }
+
+      // if partner's account_status transitioned from granted_interview to approved,
+      // create a pagarme recipient ID and update partner with more information
+      if (
+        oldAccountStatus == Partner.AccountStatus.granted_interview &&
+        newAccountStatus == Partner.AccountStatus.approved
+      ) {
+        // get partner data
+        const p = new Partner(partnerID);
+        const partner = await p.getPartner();
+        const partnerAuth = await firebaseAdmin.auth().getUser(partnerID);
+        const partnerEmail = partnerAuth.email;
+        const partnerPhone = partnerAuth.phoneNumber;
+
+        if (partner == undefined) {
+          console.log("failed to get partner with uid " + partnerID);
+          return;
+        }
+        if (partner.bank_account == undefined) {
+          console.log("partner with uid " + partnerID + " has no bank account");
+          return;
+        }
+        if (partner.bank_account.id == undefined) {
+          console.log(
+            "partner with uid " +
+              partnerID +
+              " has a bank account with undefined id"
+          );
+          return;
+        }
+        if (partnerEmail == undefined) {
+          console.log("partner with UID " + partnerID + " has no email");
+          return;
+        }
+        if (partnerPhone == undefined) {
+          console.log("partner with UID " + partnerID + " has no phone number");
+          return;
+        }
+
+        // create a pagarme recipient for the partner
+        const pagarme = new Pagarme();
+        await pagarme.ensureInitialized();
+        let recipient: Recipient;
+        try {
+          recipient = await pagarme.createRecipient({
+            transfer_interval: "weekly",
+            transfer_day: "1",
+            transfer_enabled: false,
+            bank_account_id: partner.bank_account.id.toString(),
+            anticipatable_volume_percentage: "100",
+            register_information: {
+              type: "individual",
+              document_number: partner.cpf,
+              name: partner.name + " " + partner.last_name,
+              email: partnerEmail,
+              phone_numbers: [
+                {
+                  ddd: partnerPhone.substring(3, 5),
+                  number: partnerPhone.substring(5),
+                  type: "mobile",
+                },
+              ],
+            },
+            metadata: {},
+          });
+        } catch (e) {
+          // on failure, lock partner's account
+          console.log(
+            "failed to create a pagarme recipient for partner with UID " +
+              partnerID +
+              ": " +
+              e
+          );
+          await lockPartnerAccount(
+            {
+              uid: partner.uid,
+              name: partner.name,
+              last_name: partner.last_name,
+              phone_number: partner.phone_number,
+            },
+            "failed to create pagarme recipient when 'account_status' transitioned to 'approved'"
+          );
+          return;
+        }
+
+        // populate partner with other relevant information
+        try {
+          const values: Object = {
+            member_since: Date.now().toString(),
+            rating: "5.0",
+            total_trips: "0",
+            pilot_status: "unavailable",
+            current_client_id: "",
+            pagarme_recipient_id: recipient.id,
+          };
+          await p.update(values);
+        } catch (e) {
+          // on failure, lock partner's account
+          console.log("failed to update partner with UID " + partnerID);
+          await lockPartnerAccount(
+            {
+              uid: partner.uid,
+              name: partner.name,
+              last_name: partner.last_name,
+              phone_number: partner.phone_number,
+            },
+            "failed to add more info when 'account_status' transitioned to 'approved'"
+          );
+          return;
+        }
+      }
+    }
+  );
+
+const lockPartnerAccount = async (
+  partner: LockedPartners.Interface,
+  reason: string
+) => {
+  const p = new Partner(partner.uid);
+  await p.lockAccount(reason);
+  const lp = new LockedPartners();
+  await lp.set({
+    uid: partner.uid,
+    name: partner.name,
+    last_name: partner.last_name,
+    phone_number: partner.phone_number,
+  });
+};

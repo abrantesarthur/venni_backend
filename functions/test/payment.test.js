@@ -4,6 +4,7 @@ const chai = require("chai");
 const { Client } = require("../lib/database/client");
 const { Pagarme } = require("../lib/vendors/pagarme");
 const { ClientPastTrips } = require("../lib/database/pastTrips");
+const { Partner } = require("../lib/database/partner");
 
 const assert = chai.assert;
 const test = firebaseFunctionsTest(
@@ -1100,6 +1101,239 @@ describe("payment", () => {
       client = await c.getClient();
       assert.isDefined(client);
       assert.isDefined(client.unpaid_past_trip_id);
+    });
+  });
+
+  describe("createBankAccount", () => {
+    let validArg;
+    beforeEach(async () => {
+      validArg = {
+        bank_code: "000",
+        agency: "0000",
+        agency_dv: "0",
+        account: "00000",
+        account_dv: "0",
+        type: "conta_corrente",
+        document_number: "00000000000",
+        legal_name: "Joao da Silva",
+      };
+    });
+
+    after(async () => {
+      // clear database
+    });
+
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(payment.create_bank_account);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "create_bank_account finished successfully");
+        } else {
+          assert(false, "create_bank_account didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+
+    it("fails if user is not authenticated", async () => {
+      // pass empty context as a parameter
+      await genericTest(
+        validArg,
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    const failsIfMissingArg = (arg) => {
+      it("fails if '" + arg + "' argument is missing", async () => {
+        let invalidArg = validArg;
+        delete invalidArg[arg];
+        await genericTest(
+          invalidArg,
+          "invalid-argument",
+          "missing expected argument '" + arg + "'."
+        );
+      });
+    };
+
+    failsIfMissingArg("bank_code");
+    failsIfMissingArg("agency");
+    failsIfMissingArg("account");
+    failsIfMissingArg("account_dv");
+    failsIfMissingArg("type");
+    failsIfMissingArg("document_number");
+    failsIfMissingArg("legal_name");
+
+    const failsIfWrongType = (arg, expectedType, actualValue) => {
+      it("fails if '" + arg + "' argument has wrong type", async () => {
+        let invalidArg = validArg;
+        invalidArg[arg] = actualValue;
+        await genericTest(
+          invalidArg,
+          "invalid-argument",
+          "argument '" +
+            arg +
+            "' has invalid type. Expected '" +
+            expectedType +
+            "'. Received '" +
+            typeof actualValue +
+            "'."
+        );
+      });
+    };
+
+    failsIfWrongType("bank_code", "string", 123);
+    failsIfWrongType("agency", "string", 123);
+    failsIfWrongType("agency_dv", "string", 123);
+    failsIfWrongType("account", "string", 123);
+    failsIfWrongType("account_dv", "string", 123);
+    failsIfWrongType("type", "string", 123);
+    failsIfWrongType("legal_name", "string", 123);
+    failsIfWrongType("document_number", "string", 123);
+
+    it("fails if 'bank_code' argument does not have length 3", async () => {
+      let invalidArg = validArg;
+      invalidArg["bank_code"] = "0000";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'bank_code' must have 3 digits."
+      );
+    });
+
+    it("fails if 'bank_code' argument is not all digits", async () => {
+      let invalidArg = validArg;
+      invalidArg["bank_code"] = "00a";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'bank_code' must have 3 digits."
+      );
+    });
+
+    it("fails if 'agency' argument has length greater than 4", async () => {
+      let invalidArg = validArg;
+      invalidArg["agency"] = "00000";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'agency' must have at most 4 digits."
+      );
+    });
+
+    it("fails if 'agency' argument is not all digits", async () => {
+      let invalidArg = validArg;
+      invalidArg["agency"] = "000a";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'agency' must have at most 4 digits."
+      );
+    });
+
+    it("fails if 'account' argument has length greater than 13", async () => {
+      let invalidArg = validArg;
+      invalidArg["account"] = "00000000000000";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'account' must have at most 13 digits."
+      );
+    });
+
+    it("fails if 'account' argument is not all digits", async () => {
+      let invalidArg = validArg;
+      invalidArg["account"] = "000000000000x";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'account' must have at most 13 digits."
+      );
+    });
+
+    it("fails if 'account_dv' argument has length greater than 2", async () => {
+      let invalidArg = validArg;
+      invalidArg["account_dv"] = "000";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'account_dv' must have at most 2 digits."
+      );
+    });
+
+    it("fails if 'account_dv' argument is not all digits", async () => {
+      let invalidArg = validArg;
+      invalidArg["account_dv"] = "0x";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'account_dv' must have at most 2 digits."
+      );
+    });
+
+    it("fails if 'type' argument is invalid", async () => {
+      let invalidArg = validArg;
+      invalidArg["type"] = "invalid";
+      await genericTest(
+        invalidArg,
+        "invalid-argument",
+        "argument 'type' must be one of 'conta_corrente', 'conta_poupanca', 'conta_corrente_conjunta', and 'conta_poupanca_conjunta'"
+      );
+    });
+
+    it("adds a bank_account to the partner on success", async () => {
+      // add a partner to the database
+      const p = new Partner(defaultUID);
+      await p.update({
+        uid: defaultUID,
+        name: "Joao",
+        last_name: "da Silva",
+        cpf: "00000000000",
+        gender: "masculino",
+        phone_number: "+5500000000000",
+        account_status: "pending_documents",
+      });
+
+      // assert partner has no bank account info
+      let partner = await p.getPartner();
+
+      assert.isDefined(partner);
+      assert.isUndefined(partner.bank_account);
+
+      // run createBankAccount
+      await genericTest(validArg, "", "", defaultCtx, true);
+
+      // assert partner now has bank account info
+      partner = await p.getPartner();
+
+      assert.isDefined(partner);
+      assert.isDefined(partner.bank_account);
+      assert.isDefined(partner.bank_account.id);
+      assert.equal(partner.bank_account.bank_code, validArg.bank_code);
+      assert.equal(partner.bank_account.agency, validArg.agency);
+      assert.equal(partner.bank_account.agency_dv, validArg.agency_dv);
+      assert.equal(partner.bank_account.account, validArg.account);
+      assert.equal(partner.bank_account.account_dv, validArg.account_dv);
+      assert.equal(partner.bank_account.type, validArg.type);
+      assert.equal(
+        partner.bank_account.document_number,
+        validArg.document_number
+      );
+      assert.equal(partner.bank_account.legal_name, validArg.legal_name);
     });
   });
 });

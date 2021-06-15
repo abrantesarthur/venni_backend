@@ -14,6 +14,8 @@ import {
 } from "pagarme-js-types/src/client/transactions/responses";
 import { Address } from "pagarme-js-types/src/common";
 import { SplitRuleArg } from "pagarme-js-types/src/client/transactions/options";
+import { BankAccountCreateOptions } from "pagarme-js-types/src/client/bankAccounts/options";
+import { RecipientCreateOptions } from "pagarme-js-types/src/client/recipients/options";
 
 export class Pagarme {
   private _clientPromise: Promise<typeof client>;
@@ -135,6 +137,17 @@ export class Pagarme {
 
   createCustomer = async (opts: CustomerCreateOptions): Promise<Customer> => {
     return await this._client.customers.create(opts);
+  };
+
+  // BANK ACCOUNT
+
+  createBankAccount = async (opts: BankAccountCreateOptions) => {
+    return await this._client.bankAccounts.create(opts);
+  };
+
+  // RECIPIENTS
+  createRecipient = async (opts: RecipientCreateOptions) => {
+    return await this._client.recipients.create(opts);
   };
 
   // SECURITY
