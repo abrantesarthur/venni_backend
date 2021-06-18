@@ -876,7 +876,7 @@ describe("payment", () => {
       await c.addCard(creditCard);
 
       // add a partner to the database supposedly handing the trip for defaultUID
-      // owing amountOwed and with a valid pagarme_receiver_id
+      // owing amountOwed and with a valid pagarme_recipient_id
       await admin.database().ref("partners").remove();
       let defaultPartner = {
         uid: partnerID,
@@ -900,7 +900,7 @@ describe("payment", () => {
         },
         idle_since: Date.now().toString(),
         rating: "5.0",
-        pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+        pagarme_recipient_id: "re_cko91zvv600b60i9tv2qvf24o",
       };
       const partnerRef = admin.database().ref("partners").child(partnerID);
       await partnerRef.set(defaultPartner);
@@ -975,7 +975,7 @@ describe("payment", () => {
       await c.addCard(creditCard);
 
       // add a partner to the database supposedly handing the trip for defaultUID
-      // owing amountOwed and with a valid pagarme_receiver_id
+      // owing amountOwed and with a valid pagarme_recipient_id
       await admin.database().ref("partners").remove();
       let defaultPartner = {
         uid: partnerID,
@@ -999,7 +999,7 @@ describe("payment", () => {
         },
         idle_since: Date.now().toString(),
         rating: "5.0",
-        pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+        pagarme_recipient_id: "re_cko91zvv600b60i9tv2qvf24o",
       };
       const partnerRef = admin.database().ref("partners").child(partnerID);
       await partnerRef.set(defaultPartner);

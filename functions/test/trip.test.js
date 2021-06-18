@@ -2244,7 +2244,7 @@ describe("trip", () => {
         await tripRequestRef.set(defaultTripRequest);
 
         // add a partner to the database supposedly handing the trip for defaultUID
-        // owing amountOwed and with a valid pagarme_receiver_id
+        // owing amountOwed and with a valid pagarme_recipient_id
         await admin.database().ref("partners").remove();
         let defaultPartner = {
           uid: partnerID,
@@ -2269,7 +2269,7 @@ describe("trip", () => {
           idle_since: Date.now().toString(),
           rating: "5.0",
           amount_owed: amountOwed,
-          pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+          pagarme_recipient_id: "re_cko91zvv600b60i9tv2qvf24o",
         };
         const partnerRef = admin.database().ref("partners").child(partnerID);
         await partnerRef.set(defaultPartner);
@@ -2383,7 +2383,7 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
         amount_owed: amountOwed,
-        pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+        pagarme_recipient_id: "re_cko91zvv600b60i9tv2qvf24o",
       };
       const partnerRef = admin.database().ref("partners").child(partnerID);
       await partnerRef.set(defaultPartner);
@@ -2481,7 +2481,7 @@ describe("trip", () => {
         idle_since: Date.now().toString(),
         rating: "5.0",
         amount_owed: amountOwed,
-        pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o",
+        pagarme_recipient_id: "re_cko91zvv600b60i9tv2qvf24o",
       };
       const partnerRef = admin.database().ref("partners").child(partnerID);
       await partnerRef.set(defaultPartner);

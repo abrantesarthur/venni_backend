@@ -18,7 +18,7 @@ export class Partners extends Database {
     super();
     this.ref = this.DB.ref("partners");
   }
-  // TODO: filter out partners without pagarme_receiver_id.
+  // TODO: filter out partners without pagarme_recipient_id.
   findAllAvailable = async (
     tripRequest: TripRequest.Interface
   ): Promise<Partner.Interface[]> => {
