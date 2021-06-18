@@ -16,6 +16,8 @@ import { Address } from "pagarme-js-types/src/common";
 import { SplitRuleArg } from "pagarme-js-types/src/client/transactions/options";
 import { BankAccountCreateOptions } from "pagarme-js-types/src/client/bankAccounts/options";
 import { RecipientCreateOptions } from "pagarme-js-types/src/client/recipients/options";
+import { BalanceFindOptions } from "pagarme-js-types/src/client/balance/options";
+import { BalanceResponse } from "pagarme-js-types/src/client/balance/responses";
 
 export class Pagarme {
   private _clientPromise: Promise<typeof client>;
@@ -148,6 +150,11 @@ export class Pagarme {
   // RECIPIENTS
   createRecipient = async (opts: RecipientCreateOptions) => {
     return await this._client.recipients.create(opts);
+  };
+
+  // BALANCE
+  getBalance = async (opts: BalanceFindOptions): Promise<BalanceResponse> => {
+    return await this._client.balance.find(opts);
   };
 
   // SECURITY

@@ -10,6 +10,7 @@ import { Partner } from "./database/partner";
 import { TripRequest } from "./database/tripRequest";
 import { BankAccount } from "pagarme-js-types/src/client/bankAccounts/responses";
 import { BankAccountCreateOptions } from "pagarme-js-types/src/client/bankAccounts/options";
+import { BalanceResponse } from "pagarme-js-types/src/client/balance/responses";
 
 // validDigits makes sure 'digits' have expected length and all
 // characters in it are numerical
@@ -598,6 +599,39 @@ const createBankAccount = async (
   return appBankAccount;
 };
 
+const getBalance = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateArgument(data, ["pagarme_recipient_id"], ["string"], [true]);
+
+  let balance: BalanceResponse;
+  try {
+    const pagarme = new Pagarme();
+    await pagarme.ensureInitialized();
+    balance = await pagarme.getBalance({
+      recipientId: data.pagarme_recipient_id,
+    });
+  } catch (e) {
+    console.log(e.response.errors[0]);
+    throw new functions.https.HttpsError(
+      "unknown",
+      "Falha ao solicitar saldo do recipiente com id " +
+        data.pagarme_recipient_id +
+        ".",
+      e.response.errors[0]
+    );
+  }
+  return balance;
+};
+
 export const create_card = functions.https.onCall(createCard);
 export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
@@ -606,3 +640,4 @@ export const set_default_payment_method = functions.https.onCall(
 );
 export const capture_unpaid_trip = functions.https.onCall(captureUnpaidTrip);
 export const create_bank_account = functions.https.onCall(createBankAccount);
+export const get_balance = functions.https.onCall(getBalance);
