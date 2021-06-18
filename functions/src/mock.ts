@@ -55,7 +55,7 @@ export const createMockPartners = async (amount: number) => {
     let uid = uuid.v4();
     let partner = {
       uid: uid,
-      pagarme_receiver_id: "re_cko91zvv600b60i9tv2qvf24o", // everyboyd uses same test receiver ID for now
+      pagarme_recipient_id: "re_cko91zvv600b60i9tv2qvf24o", // everyboyd uses same test receiver ID for now
       name: "Alberto",
       last_name: "Silva",
       total_trips: "142",
@@ -471,7 +471,7 @@ const mockTripComplete = async (partnerID: string) => {
       let transaction = await pagarme.captureTransaction(
         trip.transaction_id,
         trip.fare_price,
-        partner.pagarme_receiver_id,
+        partner.pagarme_recipient_id,
         venniAmount
       );
       if (transaction.status != "paid") {

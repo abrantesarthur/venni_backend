@@ -44,7 +44,7 @@ describe("Partner", () => {
         },
         idle_since: (Date.now() - 100000).toString(),
         rating: "rating",
-        pagarme_receiver_id: "pagarme_received_id",
+        pagarme_recipient_id: "pagarme_received_id",
         amount_owed: 2,
       };
       defaultClient = {
@@ -352,7 +352,7 @@ describe("Partner", () => {
         rating: "rating",
         total_trips: "102",
         score: 78,
-        pagarme_receiver_id: "pagarme_received_id",
+        pagarme_recipient_id: "pagarme_received_id",
         amount_owed: 23,
       };
     });
@@ -392,7 +392,7 @@ describe("Partner", () => {
       falseIfOptionalWronglyTyped("total_trips", 123);
       falseIfOptionalWronglyTyped("member_since", 123);
       falseIfOptionalWronglyTyped("score", "not a number");
-      falseIfOptionalWronglyTyped("pagarme_receiver_id", 123);
+      falseIfOptionalWronglyTyped("pagarme_recipient_id", 123);
       falseIfOptionalWronglyTyped("amount_owed", "not a number");
       falseIfOptionalWronglyTyped("lock_reason", 123);
       falseIfOptionalWronglyTyped("vehicle", { invalid_field: "invalid" });
@@ -436,7 +436,7 @@ describe("Partner", () => {
           rating: "rating",
           total_trips: "102",
           score: 78,
-          pagarme_receiver_id: "pagarme_received_id",
+          pagarme_recipient_id: "pagarme_received_id",
           amount_owed: 23,
         };
       });
@@ -453,7 +453,7 @@ describe("Partner", () => {
       it("returns Partner.Interface even if obj is missing optional fields", () => {
         delete validArg["total_trips"];
         delete validArg["score"];
-        delete validArg["pagarme_receiver_id"];
+        delete validArg["pagarme_recipient_id"];
         delete validArg["amount_owed"];
         const response = Partner.Interface.fromObj(validArg);
         assert.isDefined(response);
@@ -461,7 +461,7 @@ describe("Partner", () => {
         assert.equal(response.gender, "masculino");
         assert.isUndefined(response.total_trips);
         assert.isUndefined(response.score);
-        assert.isUndefined(response.pagarme_receiver_id);
+        assert.isUndefined(response.pagarme_recipient_id);
         assert.isUndefined(response.amount_owed);
       });
 

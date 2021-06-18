@@ -208,7 +208,7 @@ export namespace Partner {
     distance_to_client?: DistanceToClient; // not stored in database
     submitted_documents?: SubmittedDocuments;
     bank_account?: AppBankAccount;
-    pagarme_receiver_id?: string; // used to identify partner in pagarme API
+    pagarme_recipient_id?: string; // used to identify partner in pagarme API
     amount_owed?: number; // increased when partner handles trip paid in cash and decreased when paid in credit_card.
   }
   export namespace Interface {
@@ -237,7 +237,7 @@ export namespace Partner {
           total_trips: obj.total_trips,
           submitted_documents: obj.submitted_documents,
           bank_account: obj.bank_account,
-          pagarme_receiver_id: obj.pagarme_receiver_id,
+          pagarme_recipient_id: obj.pagarme_recipient_id,
           amount_owed: obj.amount_owed,
         };
       }
@@ -275,7 +275,7 @@ export namespace Partner {
       if (
         !typeCheckOptionalField("total_trips", "string") ||
         !typeCheckOptionalField("score", "number") ||
-        !typeCheckOptionalField("pagarme_receiver_id", "string") ||
+        !typeCheckOptionalField("pagarme_recipient_id", "string") ||
         !typeCheckOptionalField("amount_owed", "number") ||
         !typeCheckOptionalField("lock_reason", "string") ||
         !typeCheckOptionalField("member_since", "string") ||

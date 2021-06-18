@@ -501,7 +501,7 @@ export const captureTripPayment = async (
       transaction = await pagarme.captureTransaction(
         transaction.tid,
         trip.fare_price,
-        partner?.pagarme_receiver_id,
+        partner?.pagarme_recipient_id,
         venniAmount
       );
       if (transaction.status != "paid") {
@@ -516,7 +516,7 @@ export const captureTripPayment = async (
       let transaction = await pagarme.captureTransaction(
         trip.transaction_id,
         trip.fare_price,
-        partner?.pagarme_receiver_id,
+        partner?.pagarme_recipient_id,
         venniAmount
       );
       if (transaction.status != "paid") {
@@ -610,6 +610,8 @@ const getBalance = async (
       "Missing authentication credentials."
     );
   }
+  console.log(data);
+  console.log(data.pagarme_recipient_id);
   validateArgument(data, ["pagarme_recipient_id"], ["string"], [true]);
 
   let balance: BalanceResponse;
