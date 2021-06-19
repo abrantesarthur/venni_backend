@@ -37,6 +37,23 @@ const validDigits = (digits: string, length: number, exactLength = true) => {
   return true;
 };
 
+const validateCreateTransferArguments = (args: any) => {
+  validateArgument(
+    args,
+    ["amount", "pagarme_recipient_id"],
+    ["string", "string"],
+    [true, true]
+  );
+
+  // 'amount' in cents must have at most 6 digits
+  if (!validDigits(args.amount, 6, false)) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'number' must have at most 6 digits."
+    );
+  }
+};
+
 const validateCreateCardArguments = (args: any) => {
   validateArgument(
     args,
@@ -646,13 +663,7 @@ const createTransfer = async (
       "Missing authentication credentials."
     );
   }
-  // create a function that makes sure amount is numeric
-  validateArgument(
-    data,
-    ["amount", "pagarme_recipient_id"],
-    ["string", "string"],
-    [true, true]
-  );
+  validateCreateTransferArguments(data);
 
   let transfer: Transfer;
   try {
@@ -682,4 +693,5 @@ export const set_default_payment_method = functions.https.onCall(
 );
 export const capture_unpaid_trip = functions.https.onCall(captureUnpaidTrip);
 export const create_bank_account = functions.https.onCall(createBankAccount);
+export const get_balance = functions.https.onCall(getBalance);
 export const create_transfer = functions.https.onCall(createTransfer);
