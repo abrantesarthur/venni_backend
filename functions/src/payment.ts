@@ -634,6 +634,44 @@ const getBalance = async (
   return balance;
 };
 
+const withdrawFunds = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateArgument(
+    data,
+    ["amount", "pagarme_recipient_id"],
+    ["number", "string"],
+    [true, true]
+  );
+
+  // let balance: BalanceResponse;
+  // try {
+  //   const pagarme = new Pagarme();
+  //   await pagarme.ensureInitialized();
+  //   balance = await pagarme.getBalance({
+  //     recipientId: data.pagarme_recipient_id,
+  //   });
+  // } catch (e) {
+  //   console.log(e.response.errors[0]);
+  //   throw new functions.https.HttpsError(
+  //     "unknown",
+  //     "Falha ao solicitar saldo do recipiente com id " +
+  //       data.pagarme_recipient_id +
+  //       ".",
+  //     e.response.errors[0]
+  //   );
+  // }
+  // return balance;
+};
+
 export const create_card = functions.https.onCall(createCard);
 export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
@@ -642,4 +680,4 @@ export const set_default_payment_method = functions.https.onCall(
 );
 export const capture_unpaid_trip = functions.https.onCall(captureUnpaidTrip);
 export const create_bank_account = functions.https.onCall(createBankAccount);
-export const get_balance = functions.https.onCall(getBalance);
+export const withdraw_funds = functions.https.onCall(withdrawFunds);
