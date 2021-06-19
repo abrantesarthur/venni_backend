@@ -18,6 +18,8 @@ import { BankAccountCreateOptions } from "pagarme-js-types/src/client/bankAccoun
 import { RecipientCreateOptions } from "pagarme-js-types/src/client/recipients/options";
 import { BalanceFindOptions } from "pagarme-js-types/src/client/balance/options";
 import { BalanceResponse } from "pagarme-js-types/src/client/balance/responses";
+import { TransferCreateOptions } from "pagarme-js-types/src/client/transfers/options";
+import { Transfer } from "pagarme-js-types/src/client/transfers/responses";
 
 export class Pagarme {
   private _clientPromise: Promise<typeof client>;
@@ -153,8 +155,14 @@ export class Pagarme {
   };
 
   // BALANCE
+
   getBalance = async (opts: BalanceFindOptions): Promise<BalanceResponse> => {
     return await this._client.balance.find(opts);
+  };
+
+  // TRANSFERS
+  createTransfer = async (opts: TransferCreateOptions): Promise<Transfer> => {
+    return await this._client.transfers.create(opts);
   };
 
   // SECURITY

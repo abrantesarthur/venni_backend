@@ -11,6 +11,7 @@ import { TripRequest } from "./database/tripRequest";
 import { BankAccount } from "pagarme-js-types/src/client/bankAccounts/responses";
 import { BankAccountCreateOptions } from "pagarme-js-types/src/client/bankAccounts/options";
 import { BalanceResponse } from "pagarme-js-types/src/client/balance/responses";
+import { Transfer } from "pagarme-js-types/src/client/transfers/responses";
 
 // validDigits makes sure 'digits' have expected length and all
 // characters in it are numerical
@@ -634,7 +635,7 @@ const getBalance = async (
   return balance;
 };
 
-const withdrawFunds = async (
+const createTransfer = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
@@ -645,31 +646,32 @@ const withdrawFunds = async (
       "Missing authentication credentials."
     );
   }
+  // create a function that makes sure amount is numeric
   validateArgument(
     data,
     ["amount", "pagarme_recipient_id"],
-    ["number", "string"],
+    ["string", "string"],
     [true, true]
   );
 
-  // let balance: BalanceResponse;
-  // try {
-  //   const pagarme = new Pagarme();
-  //   await pagarme.ensureInitialized();
-  //   balance = await pagarme.getBalance({
-  //     recipientId: data.pagarme_recipient_id,
-  //   });
-  // } catch (e) {
-  //   console.log(e.response.errors[0]);
-  //   throw new functions.https.HttpsError(
-  //     "unknown",
-  //     "Falha ao solicitar saldo do recipiente com id " +
-  //       data.pagarme_recipient_id +
-  //       ".",
-  //     e.response.errors[0]
-  //   );
-  // }
-  // return balance;
+  let transfer: Transfer;
+  try {
+    const pagarme = new Pagarme();
+    await pagarme.ensureInitialized();
+    transfer = await pagarme.createTransfer({
+      amount: data.amount,
+      recipientId: data.pagarme_recipient_id,
+    });
+  } catch (e) {
+    console.log(e.response.errors[0]);
+    throw new functions.https.HttpsError(
+      "unknown",
+      "Falha ao criar transferência para recipiente com id " +
+        data.pagarme_recipient_id,
+      e.response.errors[0]
+    );
+  }
+  return transfer;
 };
 
 export const create_card = functions.https.onCall(createCard);
@@ -680,4 +682,4 @@ export const set_default_payment_method = functions.https.onCall(
 );
 export const capture_unpaid_trip = functions.https.onCall(captureUnpaidTrip);
 export const create_bank_account = functions.https.onCall(createBankAccount);
-export const withdraw_funds = functions.https.onCall(withdrawFunds);
+export const create_transfer = functions.https.onCall(createTransfer);
