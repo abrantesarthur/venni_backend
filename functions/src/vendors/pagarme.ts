@@ -165,6 +165,11 @@ export class Pagarme {
     return await this._client.transfers.create(opts);
   };
 
+  // ANTICIPATION
+  createAnticipation = async (opts: any): Promise<any> => {
+    return await this._client.bulkAnticipations.create(opts, null);
+  }
+
   // SECURITY
 
   encrypt = async (card: {
