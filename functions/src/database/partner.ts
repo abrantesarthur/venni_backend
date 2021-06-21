@@ -136,7 +136,7 @@ export class Partner extends Database {
       if (partner.amount_owed != undefined) {
         amountOwed += partner.amount_owed;
       }
-      partner.amount_owed = amountOwed;
+      partner.amount_owed = parseFloat(amountOwed.toFixed(2));
       return partner;
     });
   };
