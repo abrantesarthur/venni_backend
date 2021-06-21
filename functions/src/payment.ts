@@ -741,6 +741,47 @@ const createAnticipation = async (
   return anticipation;
 };
 
+const confirmAnticipation = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateArgument(
+    data,
+    ["anticipation_id", "pagarme_recipient_id"],
+    ["number", "string"],
+    [true, true]
+  );
+
+  let anticipation: BulkAnticipation;
+  try {
+    const pagarme = new Pagarme();
+    await pagarme.ensureInitialized();
+    anticipation = await pagarme.confirmAnticipation({
+      recipientId: data.pagarme_recipient_id,
+      id: data.anticipation_id,
+    });
+  } catch (e) {
+    console.log("something wrong happened");
+    console.log(e.response.errors[0]);
+    throw new functions.https.HttpsError(
+      "unknown",
+      "Falha ao confirmar antecipação with id '" +
+        data.anticipation_id +
+        "' para recipiente com id " +
+        data.pagarme_recipient_id,
+      e.response.errors[0]
+    );
+  }
+  return anticipation;
+};
+
 export const create_card = functions.https.onCall(createCard);
 export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
@@ -752,3 +793,4 @@ export const create_bank_account = functions.https.onCall(createBankAccount);
 export const get_balance = functions.https.onCall(getBalance);
 export const create_transfer = functions.https.onCall(createTransfer);
 export const create_anticipation = functions.https.onCall(createAnticipation);
+export const confirm_anticipation = functions.https.onCall(confirmAnticipation);
