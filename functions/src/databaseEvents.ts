@@ -232,6 +232,7 @@ export const on_account_status_change = database
             pilot_status: "unavailable",
             current_client_id: "",
             pagarme_recipient_id: recipient.id,
+            amount_owed: 0,
           };
           await p.update(values);
         } catch (e) {
