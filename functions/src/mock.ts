@@ -58,6 +58,9 @@ export const createMockPartners = async (amount: number) => {
       pagarme_recipient_id: "re_cko91zvv600b60i9tv2qvf24o", // everyboyd uses same test receiver ID for now
       name: "Alberto",
       last_name: "Silva",
+      cpf: "00000000000",
+      gender: "masculino",
+      account_status: "approved",
       total_trips: "142",
       member_since: Date.now().toString(),
       phone_number: "(38) 99999-9999",

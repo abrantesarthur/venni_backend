@@ -1339,10 +1339,6 @@ describe("payment", () => {
   });
 
   describe("getBalance", () => {
-    after(async () => {
-      // clear database
-    });
-
     const genericTest = async (
       data,
       expectedCode,
@@ -1409,6 +1405,204 @@ describe("payment", () => {
       assert.isDefined(balance.waiting_funds);
       assert.isDefined(balance.available);
       assert.isDefined(balance.transferred);
+    });
+  });
+
+  describe("createTransfer", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(payment.create_transfer);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "create_transfer finished successfully");
+        } else {
+          assert(false, "create_transfer didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+
+    it("fails if user is not authenticated", async () => {
+      // pass empty context as a parameter
+      await genericTest(
+        { amount: "1000", pagarme_recipient_id: "pagarme_recipient_id" },
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if 'pagarme_recipient_id' argument is missing", async () => {
+      await genericTest(
+        { amount: "1000" },
+        "invalid-argument",
+        "missing expected argument 'pagarme_recipient_id'."
+      );
+    });
+
+    it("fails if 'amount' argument is missing", async () => {
+      await genericTest(
+        { pagarme_recipient_id: "pagarme_recipient_id" },
+        "invalid-argument",
+        "missing expected argument 'amount'."
+      );
+    });
+
+    it("fails if 'pagarme_recipient_id' argument has wrong type", async () => {
+      await genericTest(
+        {
+          amount: "1000",
+          pagarme_recipient_id: 21,
+        },
+        "invalid-argument",
+        "argument 'pagarme_recipient_id' has invalid type. Expected 'string'. Received 'number'."
+      );
+    });
+
+    it("fails if 'amount' argument has wrong type", async () => {
+      await genericTest(
+        {
+          amount: 21,
+          pagarme_recipient_id: "pagarme_recipient_id",
+        },
+        "invalid-argument",
+        "argument 'amount' has invalid type. Expected 'string'. Received 'number'."
+      );
+    });
+
+    it("fails if 'amount' is not numeric", async () => {
+      await genericTest(
+        {
+          amount: "12a",
+          pagarme_recipient_id: "pagarme_recipient_id",
+        },
+        "invalid-argument",
+        "argument 'number' must have at most 6 digits."
+      );
+    });
+
+    it("fails if 'amount' has more than 6 digits", async () => {
+      await genericTest(
+        {
+          amount: "1234567",
+          pagarme_recipient_id: "pagarme_recipient_id",
+        },
+        "invalid-argument",
+        "argument 'number' must have at most 6 digits."
+      );
+    });
+
+    it("fails when recipient doesn't have enough funds", async () => {
+      // request balance of existing pagarme recipient
+
+      await genericTest(
+        {
+          amount: "100",
+          pagarme_recipient_id: "re_ckq08x3ec0gsj0h9twldhs9zm",
+        },
+        "unknown",
+        "Falha ao criar transferência para recipiente com id re_ckq08x3ec0gsj0h9twldhs9zm",
+        defaultCtx,
+        false
+      );
+    });
+  });
+
+  describe("createAnticipation", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(payment.create_anticipation);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "create_anticipation finished successfully");
+        } else {
+          assert(false, "create_anticipation didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+
+    it("fails if user is not authenticated", async () => {
+      // pass empty context as a parameter
+      await genericTest(
+        { amount: 1000, pagarme_recipient_id: "pagarme_recipient_id" },
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if 'pagarme_recipient_id' argument is missing", async () => {
+      await genericTest(
+        { amount: 1000 },
+        "invalid-argument",
+        "missing expected argument 'pagarme_recipient_id'."
+      );
+    });
+
+    it("fails if 'amount' argument is missing", async () => {
+      await genericTest(
+        { pagarme_recipient_id: "pagarme_recipient_id" },
+        "invalid-argument",
+        "missing expected argument 'amount'."
+      );
+    });
+
+    it("fails if 'pagarme_recipient_id' argument has wrong type", async () => {
+      await genericTest(
+        {
+          amount: 1000,
+          pagarme_recipient_id: 21,
+        },
+        "invalid-argument",
+        "argument 'pagarme_recipient_id' has invalid type. Expected 'string'. Received 'number'."
+      );
+    });
+
+    it("fails if 'amount' argument has wrong type", async () => {
+      await genericTest(
+        {
+          amount: "21",
+          pagarme_recipient_id: "pagarme_recipient_id",
+        },
+        "invalid-argument",
+        "argument 'amount' has invalid type. Expected 'number'. Received 'string'."
+      );
+    });
+
+    it("fails if 'amount' is bigger than '999999'", async () => {
+      await genericTest(
+        {
+          amount: 10000000,
+          pagarme_recipient_id: "pagarme_recipient_id",
+        },
+        "invalid-argument",
+        "argument 'number' must be at most '999999'."
+      );
     });
   });
 });

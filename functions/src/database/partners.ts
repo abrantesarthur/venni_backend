@@ -31,7 +31,7 @@ export class Partners extends Database {
     if (snapshot.val() == null) {
       // if none is available, return empty list
       // TODO: remove before deploying
-      createMockPartners(1);
+      createMockPartners(20);
       return [];
     }
     let partners = this.fromObjs(snapshot.val());
