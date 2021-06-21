@@ -22,7 +22,6 @@ export class Partners extends Database {
   findAllAvailable = async (
     tripRequest: TripRequest.Interface
   ): Promise<Partner.Interface[]> => {
-    console.log("findAllAvailable");
     // retrieve all available partners
     const snapshot = await this.ref
       .orderByChild("status")
@@ -32,7 +31,6 @@ export class Partners extends Database {
     if (snapshot.val() == null) {
       // if none is available, return empty list
       // TODO: remove before deploying
-      console.log("createMockPilots");
       createMockPartners(20);
       return [];
     }
@@ -243,7 +241,6 @@ export class Partners extends Database {
 
   // transform an object of partners in an array of partners
   fromObjs = (obj: any): Partner.Interface[] => {
-    console.log("fromObjs");
     if (obj == null || obj == undefined) {
       return [];
     }
@@ -253,8 +250,6 @@ export class Partners extends Database {
       let partner = Partner.Interface.fromObj(obj[partnerUID]);
       if (partner != undefined) {
         partners.push(partner);
-      } else {
-        console.log("partner is undefined");
       }
     });
     return partners;

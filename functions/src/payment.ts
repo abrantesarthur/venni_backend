@@ -646,8 +646,6 @@ const getBalance = async (
       "Missing authentication credentials."
     );
   }
-  console.log(data);
-  console.log(data.pagarme_recipient_id);
   validateArgument(data, ["pagarme_recipient_id"], ["string"], [true]);
 
   let balance: BalanceResponse;

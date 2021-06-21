@@ -416,7 +416,6 @@ export namespace Partner {
           keys[i] != "legal_name" &&
           keys[i] != "charge_transfer_fees"
         ) {
-          console.log(keys[i] + " is invalid");
           return false;
         }
       }
@@ -424,7 +423,6 @@ export namespace Partner {
       // type check optional fields
       const typeCheckOptionalField = (field: string, expectedType: string) => {
         if (obj[field] != undefined && typeof obj[field] != expectedType) {
-          console.log(field + " has invalid type");
           return false;
         }
         return true;

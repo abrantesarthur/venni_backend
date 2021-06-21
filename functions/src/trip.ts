@@ -273,7 +273,6 @@ const confirmTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
-  console.log("confirmTrip");
   // validate authentication
   if (context.auth == null) {
     throw new functions.https.HttpsError(
@@ -404,8 +403,6 @@ const confirmTrip = async (
   tripRequest.trip_status = TripRequest.Status.lookingForPartner;
   promises.push(tr.ref.set(tripRequest));
 
-  console.log("looking for partners");
-
   // search available partners nearby client
   let nearbyPartners: Partner.Interface[];
   let ps = new Partners();
@@ -422,7 +419,6 @@ const confirmTrip = async (
 
   // if didn't find partners, update trip-reqeust status to noPartnersAvailable and throw exception
   if (nearbyPartners.length == 0) {
-    console.log("no pilots");
     tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
     promises.push(tr.ref.set(tripRequest));
     await Promise.all(promises);
