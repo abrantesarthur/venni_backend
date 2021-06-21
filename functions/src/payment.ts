@@ -729,7 +729,6 @@ const createAnticipation = async (
       automatic_transfer: true,
     });
   } catch (e) {
-    console.log("something wrong happened");
     console.log(e.response.errors[0]);
     throw new functions.https.HttpsError(
       "unknown",
@@ -755,7 +754,7 @@ const confirmAnticipation = async (
   validateArgument(
     data,
     ["anticipation_id", "pagarme_recipient_id"],
-    ["number", "string"],
+    ["string", "string"],
     [true, true]
   );
 
@@ -768,7 +767,6 @@ const confirmAnticipation = async (
       id: data.anticipation_id,
     });
   } catch (e) {
-    console.log("something wrong happened");
     console.log(e.response.errors[0]);
     throw new functions.https.HttpsError(
       "unknown",
