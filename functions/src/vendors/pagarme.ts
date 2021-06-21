@@ -176,12 +176,6 @@ export class Pagarme {
     return await this._client.bulkAnticipations.create(opts);
   };
 
-  confirmAnticipation = async (
-    opts: BulkAnticipationsConfirmOptions
-  ): Promise<BulkAnticipation> => {
-    return await this._client.bulkAnticipations.confirm(opts);
-  };
-
   // SECURITY
 
   encrypt = async (card: {
