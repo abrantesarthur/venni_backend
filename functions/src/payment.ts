@@ -12,6 +12,7 @@ import { BankAccount } from "pagarme-js-types/src/client/bankAccounts/responses"
 import { BankAccountCreateOptions } from "pagarme-js-types/src/client/bankAccounts/options";
 import { BalanceResponse } from "pagarme-js-types/src/client/balance/responses";
 import { Transfer } from "pagarme-js-types/src/client/transfers/responses";
+import { BulkAnticipation } from "pagarme-js-types/src/client/bulkAnticipations/responses";
 
 // validDigits makes sure 'digits' have expected length and all
 // characters in it are numerical
@@ -50,6 +51,23 @@ const validateCreateTransferArguments = (args: any) => {
     throw new functions.https.HttpsError(
       "invalid-argument",
       "argument 'number' must have at most 6 digits."
+    );
+  }
+};
+
+const validateCreateAnticipationArguments = (args: any) => {
+  validateArgument(
+    args,
+    ["amount", "pagarme_recipient_id"],
+    ["number", "string"],
+    [true, true]
+  );
+
+  // 'amount' in cents must be at most 999999
+  if (args.amount > 999999) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'number' must be at most '999999'."
     );
   }
 };
@@ -685,6 +703,43 @@ const createTransfer = async (
   return transfer;
 };
 
+const createAnticipation = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateCreateAnticipationArguments(data);
+
+  let anticipation: BulkAnticipation;
+  try {
+    const pagarme = new Pagarme();
+    await pagarme.ensureInitialized();
+    anticipation = await pagarme.createAnticipation({
+      requested_amount: data.amount,
+      recipient_id: data.pagarme_recipient_id,
+      payment_date: (Date.now() + 24 * 60 * 60 * 1000).toString(), // request for D+1
+      timeframe: "start",
+      build: true,
+      automatic_transfer: true,
+    });
+  } catch (e) {
+    console.log(e.response.errors[0]);
+    throw new functions.https.HttpsError(
+      "unknown",
+      "Falha ao criar antecipação para recipiente com id " +
+        data.pagarme_recipient_id,
+      e.response.errors[0]
+    );
+  }
+  return anticipation;
+};
+
 export const create_card = functions.https.onCall(createCard);
 export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
@@ -695,3 +750,4 @@ export const capture_unpaid_trip = functions.https.onCall(captureUnpaidTrip);
 export const create_bank_account = functions.https.onCall(createBankAccount);
 export const get_balance = functions.https.onCall(getBalance);
 export const create_transfer = functions.https.onCall(createTransfer);
+export const create_anticipation = functions.https.onCall(createAnticipation);

@@ -157,7 +157,6 @@ export class Pagarme {
   };
 
   // BALANCE
-
   getBalance = async (opts: BalanceFindOptions): Promise<BalanceResponse> => {
     return await this._client.balance.find(opts);
   };
