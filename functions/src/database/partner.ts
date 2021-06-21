@@ -136,7 +136,7 @@ export class Partner extends Database {
       if (partner.amount_owed != undefined) {
         amountOwed += partner.amount_owed;
       }
-      partner.amount_owed = parseFloat(amountOwed.toFixed(2));
+      partner.amount_owed = Math.ceil(amountOwed);
       return partner;
     });
   };
@@ -209,7 +209,7 @@ export namespace Partner {
     submitted_documents?: SubmittedDocuments;
     bank_account?: AppBankAccount;
     pagarme_recipient_id?: string; // used to identify partner in pagarme API
-    amount_owed?: number; // increased when partner handles trip paid in cash and decreased when paid in credit_card.
+    amount_owed?: number; // in cents. increased when partner handles trip paid in cash and decreased when paid in credit_card.
   }
   export namespace Interface {
     export const fromObj = (obj: any): Partner.Interface | undefined => {
