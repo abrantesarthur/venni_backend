@@ -722,13 +722,14 @@ const createAnticipation = async (
     await pagarme.ensureInitialized();
     anticipation = await pagarme.createAnticipation({
       requested_amount: data.amount,
-      recipient_id: data.pagarme_recipient_id,
-      payment_date: (Date.now() + 24 * 60 * 60 * 1000).toString(), // request for D+1
+      recipientId: data.pagarme_recipient_id,
+      payment_date: (Date.now() + 24 * 60 * 60 * 1000).toString(),
       timeframe: "start",
       build: true,
       automatic_transfer: true,
     });
   } catch (e) {
+    console.log("something wrong happened");
     console.log(e.response.errors[0]);
     throw new functions.https.HttpsError(
       "unknown",
