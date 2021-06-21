@@ -20,6 +20,8 @@ import { BalanceFindOptions } from "pagarme-js-types/src/client/balance/options"
 import { BalanceResponse } from "pagarme-js-types/src/client/balance/responses";
 import { TransferCreateOptions } from "pagarme-js-types/src/client/transfers/options";
 import { Transfer } from "pagarme-js-types/src/client/transfers/responses";
+import { BulkAnticipationsCreateOptions } from "pagarme-js-types/src/client/bulkAnticipations/options";
+import { BulkAnticipation } from "pagarme-js-types/src/client/bulkAnticipations/responses";
 
 export class Pagarme {
   private _clientPromise: Promise<typeof client>;
@@ -166,8 +168,8 @@ export class Pagarme {
   };
 
   // ANTICIPATION
-  createAnticipation = async (opts: any): Promise<any> => {
-    return await this._client.bulkAnticipations.create(opts, null);
+  createAnticipation = async (opts: BulkAnticipationsCreateOptions): Promise<BulkAnticipation> => {
+    return await this._client.bulkAnticipations.create(opts);
   }
 
   // SECURITY
