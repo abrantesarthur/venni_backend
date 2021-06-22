@@ -29,23 +29,3 @@ export const clean_user_data = functions.auth
       });
     }
   );
-
-//create entry on clients database whenever a new partner is created
-export const create_client = functions.auth
-  .user()
-  .onCreate(
-    async (user: functions.auth.UserRecord, _: functions.EventContext) => {
-      // clients start out with a 5-star rating. After 5 trips, they start seeing
-      // an average of their atual ratings.
-      const client: Client.Interface = {
-        uid: user.uid,
-        payment_method: {
-          default: "cash",
-        },
-        rating: "5",
-      };
-
-      // add client entry to database
-      await firebaseAdmin.database().ref("clients").child(user.uid).set(client);
-    }
-  );
