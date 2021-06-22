@@ -211,13 +211,8 @@ export const on_account_status_change = database
               ": " +
               e
           );
-          await lockPartnerAccount(
-            {
-              uid: partner.uid,
-              name: partner.name,
-              last_name: partner.last_name,
-              phone_number: partner.phone_number,
-            },
+          const p = new Partner(partner.uid);
+          await p.lockAccount(
             "failed to create pagarme recipient when 'account_status' transitioned to 'approved'"
           );
           return;
@@ -238,32 +233,73 @@ export const on_account_status_change = database
         } catch (e) {
           // on failure, lock partner's account
           console.log("failed to update partner with UID " + partnerID);
-          await lockPartnerAccount(
-            {
-              uid: partner.uid,
-              name: partner.name,
-              last_name: partner.last_name,
-              phone_number: partner.phone_number,
-            },
+          const p = new Partner(partner.uid);
+          await p.lockAccount(
             "failed to add more info when 'account_status' transitioned to 'approved'"
           );
           return;
         }
       }
+
+      // if account was locked, add partner to locked-partners list
+      if (
+        oldAccountStatus != Partner.AccountStatus.locked &&
+        newAccountStatus == Partner.AccountStatus.locked
+      ) {
+        console.log("locked account of partner with uid " + partnerID);
+
+        // add partner to locked account list
+        const p = new Partner(partnerID);
+        const partner = await p.getPartner();
+        if (partner == undefined) {
+          return;
+        }
+        try {
+          const lp = new LockedPartners();
+          await lp.set({
+            uid: partner.uid,
+            name: partner.name,
+            cpf: partner.cpf,
+            last_name: partner.last_name,
+            phone_number: partner.phone_number,
+          });
+          console.log(
+            "added partner with uid " + partnerID + " to locked-partners list"
+          );
+        } catch (e) {
+          console.log(
+            "failed to add partner with uid " +
+              partnerID +
+              " to locked-partners: " +
+              e
+          );
+        }
+      }
+
+      // if account was unlocked, remove partner from locked-partners list
+      if (
+        oldAccountStatus == Partner.AccountStatus.locked &&
+        newAccountStatus != Partner.AccountStatus.locked
+      ) {
+        console.log("unlocked account of partner with uid " + partnerID);
+
+        // remove partner from locked-account list
+        try {
+          const lp = new LockedPartners();
+          await lp.deleteByID(partnerID);
+          console.log(
+            "removed partner with uid " +
+              partnerID +
+              " from locked-partners list"
+          );
+        } catch (e) {
+          console.log(
+            "failed to remove partner with uid " +
+              partnerID +
+              " from locked-partners: " +
+              e
+          );
+        }
+      }
     }
   );
-
-const lockPartnerAccount = async (
-  partner: LockedPartners.Interface,
-  reason: string
-) => {
-  const p = new Partner(partner.uid);
-  await p.lockAccount(reason);
-  const lp = new LockedPartners();
-  await lp.set({
-    uid: partner.uid,
-    name: partner.name,
-    last_name: partner.last_name,
-    phone_number: partner.phone_number,
-  });
-};

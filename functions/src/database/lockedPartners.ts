@@ -30,6 +30,7 @@ export namespace LockedPartners {
     uid: string;
     name: string;
     last_name: string;
+    cpf: string;
     phone_number: string;
   }
   export namespace Interface {
@@ -38,6 +39,7 @@ export namespace LockedPartners {
         return {
           uid: obj.uid,
           name: obj.name,
+          cpf: obj.cpf,
           last_name: obj.last_name,
           phone_number: obj.phone_number,
         };
@@ -49,6 +51,7 @@ export namespace LockedPartners {
       return (
         "uid" in obj &&
         "name" in obj &&
+        "cpf" in obj &&
         "last_name" in obj &&
         "phone_number" in obj
       );
