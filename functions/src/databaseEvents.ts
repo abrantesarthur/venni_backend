@@ -276,10 +276,11 @@ export const on_account_status_change = database
         }
       }
 
-      // if account was unlocked, remove partner from locked-partners list
+      // if account was unlocked (but not deleted), remove partner from locked-partners list
       if (
         oldAccountStatus == Partner.AccountStatus.locked &&
-        newAccountStatus != Partner.AccountStatus.locked
+        newAccountStatus != Partner.AccountStatus.locked &&
+        newAccountStatus != null
       ) {
         console.log("unlocked account of partner with uid " + partnerID);
 
