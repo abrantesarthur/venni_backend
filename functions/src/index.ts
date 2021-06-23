@@ -16,9 +16,10 @@ admin.initializeApp();
 
 // Expose Express API as a single Cloud Function:
 exports.trip = require("./trip");
-exports.auth_events = require("./authEvents");
+//exports.auth_events = require("./authEvents");
 exports.database_events = require("./databaseEvents");
 exports.payment = require("./payment");
+exports.account = require("./account");
 
 // mocks
 exports.mock = require("./mock");
