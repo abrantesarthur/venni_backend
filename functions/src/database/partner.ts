@@ -19,6 +19,10 @@ export class Partner extends Database {
     return Partner.Interface.fromObj(snapshot.val());
   };
 
+  remove = async (): Promise<any> => {
+    return await this.ref.remove();
+  };
+
   update = async (values: Object) => {
     return await this.ref.update(values);
   };

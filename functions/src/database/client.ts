@@ -22,6 +22,10 @@ export class Client extends Database {
     await this.ref.set(client);
   };
 
+  remove = async (): Promise<any> => {
+    return await this.ref.remove();
+  };
+
   // rateByID sets client's as average of last 100 ratings
   private rate = async () => {
     let client = await this.getClient();
