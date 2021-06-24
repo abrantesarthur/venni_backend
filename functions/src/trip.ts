@@ -212,8 +212,6 @@ const editTrip = async (
   return requestTrip(data, context);
 };
 
-// TODO: charge the customer for cancelation if partner is already coming or trip
-// is already in progress
 const clientCancelTrip = async (
   _: any,
   context: functions.https.CallableContext
@@ -455,7 +453,7 @@ const confirmTrip = async (
     ) {
       // if partner is still available, change its status to 'requested'
       // and current_client_uid to uid of client making requests.
-      // each partner has 20 seconds to reply on their end.
+      // each partner has 10 seconds to reply on their end.
       // they will use the current_client_uid to find the trip-request entry for the
       // client and try updating its partner_id field.
       partner.status = Partner.Status.requested;
