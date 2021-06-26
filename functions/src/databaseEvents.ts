@@ -224,7 +224,7 @@ export const on_account_status_change = database
             member_since: Date.now().toString(),
             rating: "5.0",
             total_trips: "0",
-            pilot_status: "unavailable",
+            partner_status: "unavailable",
             current_client_id: "",
             pagarme_recipient_id: recipient.id,
             amount_owed: 0,
