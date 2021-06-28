@@ -34,13 +34,13 @@ describe("partner", () => {
     };
   });
 
-  after(async () => {
-    // clear database
-    const p = new Partner(partnerID);
-    await p.remove();
-  });
-
   describe("connect", () => {
+    after(async () => {
+      // clear database
+      const p = new Partner(partnerID);
+      await p.remove();
+    });
+
     let defaultPartner;
     beforeEach(() => {
       defaultPartner = {
@@ -157,7 +157,7 @@ describe("partner", () => {
       );
     });
 
-    it("fails if partner has 'account_status' different from 'available'", async () => {
+    it("fails if partner has 'account_status' different from 'approved'", async () => {
       // add partner with 'locked' account_status
       defaultPartner.account_status = "locked";
       const p = new Partner(partnerID);
@@ -217,6 +217,134 @@ describe("partner", () => {
       assert.equal(partnerData.current_latitude, "10.123456");
       assert.equal(partnerData.current_longitude, "10.123456");
       assert.equal(partnerData.status, "available");
+    });
+  });
+
+  describe("disconnect", () => {
+    after(async () => {
+      // clear database
+      const p = new Partner(partnerID);
+      await p.remove();
+    });
+
+    let defaultPartner;
+    beforeEach(() => {
+      defaultPartner = {
+        uid: partnerID,
+        name: "name",
+        last_name: "last_name",
+        cpf: "00000000000",
+        gender: "masculino",
+        member_since: (Date.now() - 100000000).toString(),
+        phone_number: "phone_number",
+        current_zone: "AA",
+        status: "available",
+        account_status: "approved",
+        current_client_uid: clientID,
+        vehicle: {
+          brand: "brand",
+          model: "model",
+          year: 1999,
+          plate: "plate",
+        },
+        idle_since: (Date.now() - 100000).toString(),
+        rating: "rating",
+        pagarme_recipient_id: "pagarme_received_id",
+        amount_owed: 2,
+      };
+    });
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(partner.disconnect);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+
+    it("fails if user is not authenticated", async () => {
+      await genericTest(
+        {},
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if partner doesn't exist", async () => {
+      await genericTest(
+        {},
+        "not-found",
+        "could not find partner with uid partnerID"
+      );
+    });
+
+    it("fails if partner has 'account_status' different from 'approved'", async () => {
+      // add partner with 'locked' account_status
+      defaultPartner.account_status = "locked";
+      const p = new Partner(partnerID);
+      await p.update(defaultPartner);
+      await genericTest(
+        {},
+        "failed-precondition",
+        "partner with uid partnerID doesn't have an 'approved' account"
+      );
+    });
+
+    it("fails if partner has 'status' different from 'available'", async () => {
+      // add partner with 'locked' account_status
+      defaultPartner.status = "busy";
+      const p = new Partner(partnerID);
+      await p.update(defaultPartner);
+      await genericTest(
+        {},
+        "failed-precondition",
+        "partner with uid partnerID doesn't have 'available' status"
+      );
+    });
+
+    it("sets partner's status to 'unavailable' if succeeds", async () => {
+      // add partner with 'locked' account_status
+      const p = new Partner(partnerID);
+      await p.update(defaultPartner);
+
+      // before calling connect, partner has no position and status is 'unavailable'
+      let partnerData = await p.getPartner();
+      assert.isDefined(partnerData);
+      assert.equal(partnerData.status, "available");
+
+      // connect
+      await genericTest(
+        {
+          current_latitude: 10.123456,
+          current_longitude: 10.123456,
+        },
+        "",
+        "",
+        defaultCtx,
+        true
+      );
+
+      // after calling connect, partner has position and status is 'available'
+      partnerData = await p.getPartner();
+      assert.isDefined(partnerData);
+      assert.equal(partnerData.status, "unavailable");
     });
   });
 });

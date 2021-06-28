@@ -165,6 +165,16 @@ export class Partner extends Database {
       return partner;
     });
   };
+
+  disconnect = async () => {
+    await transaction(this.ref, (partner: Partner.Interface) => {
+      if (partner == null) {
+        return {};
+      }
+      partner.status = Partner.Status.unavailable;
+      return partner;
+    });
+  };
 }
 
 export namespace Partner {
