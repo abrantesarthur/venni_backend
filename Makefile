@@ -139,7 +139,7 @@ emulator: use-dev-project emulator-config build
 # install firebase-tools if it's not already installed
 # start the emulator
 	@$(NPMLIST) -g firebase-tools &> /dev/null || $(NPM) install -g firebase-tools && \
-	firebase emulators:start
+	firebase emulators:start --only functions
 	
 
 # start online testing with services pointing to test project
