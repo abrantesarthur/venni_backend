@@ -153,6 +153,18 @@ export class Partner extends Database {
   createBankAccount = async (bankAccount: Partner.AppBankAccount) => {
     await this.ref.child("bank_account").set(bankAccount);
   };
+
+  connect = async (lat: number, lng: number) => {
+    await transaction(this.ref, (partner: Partner.Interface) => {
+      if (partner == null) {
+        return {};
+      }
+      partner.current_latitude = lat.toString();
+      partner.current_longitude = lng.toString();
+      partner.status = Partner.Status.available;
+      return partner;
+    });
+  };
 }
 
 export namespace Partner {

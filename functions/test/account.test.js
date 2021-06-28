@@ -22,7 +22,7 @@ describe("account", () => {
   let defaultPartner;
   let defaultClient;
 
-  before(() => {
+  before(async () => {
     if (admin.apps.length == 0) {
       admin.initializeApp();
     }
@@ -62,6 +62,15 @@ describe("account", () => {
       },
       rating: "5",
     };
+
+    // clear database
+    const p = new Partner(defaultUID);
+    await p.remove();
+    const c = new Client(defaultUID);
+    await c.remove();
+
+    // clear authetication
+    await admin.auth().deleteUser(defaultUID);
   });
 
   describe("deletePartner", () => {

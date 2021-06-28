@@ -20,6 +20,7 @@ exports.trip = require("./trip");
 exports.database_events = require("./databaseEvents");
 exports.payment = require("./payment");
 exports.account = require("./account");
+exports.partner = require("./partner");
 
 // mocks
 exports.mock = require("./mock");
