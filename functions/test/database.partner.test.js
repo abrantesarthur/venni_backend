@@ -83,192 +83,192 @@ describe("Partner", () => {
       await admin.database().ref("past-trips").remove();
     });
 
-    // describe("getPartner", () => {
-    //   it("returns undefined if partner does not exist", async () => {
-    //     let result = await Partner.getPartner();
-    //     assert.isUndefined(result);
-    //   });
+    describe("getPartner", () => {
+      it("returns undefined if partner does not exist", async () => {
+        let result = await Partner.getPartner();
+        assert.isUndefined(result);
+      });
 
-    //   it("returns Partner.Interface if partner exists", async () => {
-    //     // add partner to database
-    //     await admin
-    //       .database()
-    //       .ref("partners")
-    //       .child(partnerID)
-    //       .set(defaultPartner);
+      it("returns Partner.Interface if partner exists", async () => {
+        // add partner to database
+        await admin
+          .database()
+          .ref("partners")
+          .child(partnerID)
+          .set(defaultPartner);
 
-    //     let result = await Partner.getPartner();
-    //     assert.isDefined(result);
+        let result = await Partner.getPartner();
+        assert.isDefined(result);
 
-    //     // clear database
-    //     await admin.database().ref("partners").remove();
-    //   });
-    // });
+        // clear database
+        await admin.database().ref("partners").remove();
+      });
+    });
 
-    // describe("free", () => {
-    //   it("sets the partner's status to available, empties its current_client_uid, and resets its idle_time to now", async () => {
-    //     // add partner to the database
-    //     await admin
-    //       .database()
-    //       .ref("partners")
-    //       .child(partnerID)
-    //       .set(defaultPartner);
+    describe("free", () => {
+      it("sets the partner's status to available, empties its current_client_uid, and resets its idle_time to now", async () => {
+        // add partner to the database
+        await admin
+          .database()
+          .ref("partners")
+          .child(partnerID)
+          .set(defaultPartner);
 
-    //     // assert partner hasn't been freed
-    //     let result = await Partner.getPartner();
-    //     assert.equal(result.uid, partnerID);
-    //     assert.equal(result.status, "busy");
-    //     assert.equal(result.current_client_uid, clientID);
-    //     assert.isBelow(Number(result.idle_since), Date.now() - 1000);
+        // assert partner hasn't been freed
+        let result = await Partner.getPartner();
+        assert.equal(result.uid, partnerID);
+        assert.equal(result.status, "busy");
+        assert.equal(result.current_client_uid, clientID);
+        assert.isBelow(Number(result.idle_since), Date.now() - 1000);
 
-    //     // call free
-    //     await Partner.free();
+        // call free
+        await Partner.free();
 
-    //     // assert partner has been freed
-    //     result = await Partner.getPartner();
-    //     assert.equal(result.uid, partnerID);
-    //     assert.equal(result.status, "available");
-    //     assert.equal(result.current_client_uid, "");
-    //     assert.isAbove(Number(result.idle_since), Date.now() - 1000);
+        // assert partner has been freed
+        result = await Partner.getPartner();
+        assert.equal(result.uid, partnerID);
+        assert.equal(result.status, "available");
+        assert.equal(result.current_client_uid, "");
+        assert.isAbove(Number(result.idle_since), Date.now() - 1000);
 
-    //     // clear database
-    //     await admin.database().ref("partners").remove();
-    //   });
-    // });
+        // clear database
+        await admin.database().ref("partners").remove();
+      });
+    });
 
-    // describe("pushPastTrip", () => {
-    //   it("pushes trip to partner's list of past trips", async () => {
-    //     // assert partner has no past trips
-    //     let ppt = new PartnerPastTrips(partnerID);
-    //     let pastTripsCount = await ppt.getPastTripsCount();
-    //     assert.equal(pastTripsCount, 0);
+    describe("pushPastTrip", () => {
+      it("pushes trip to partner's list of past trips", async () => {
+        // assert partner has no past trips
+        let ppt = new PartnerPastTrips(partnerID);
+        let pastTripsCount = await ppt.getPastTripsCount();
+        assert.equal(pastTripsCount, 0);
 
-    //     // call pushPastTrip
-    //     await Partner.pushPastTrip(defaultTrip);
+        // call pushPastTrip
+        await Partner.pushPastTrip(defaultTrip);
 
-    //     // assert partner has past trips
-    //     pastTripsCount = await ppt.getPastTripsCount();
-    //     assert.equal(pastTripsCount, 1);
+        // assert partner has past trips
+        pastTripsCount = await ppt.getPastTripsCount();
+        assert.equal(pastTripsCount, 1);
 
-    //     // clear database
-    //     await admin.database().ref("past-trips").remove();
-    //   });
+        // clear database
+        await admin.database().ref("past-trips").remove();
+      });
 
-    //   it("increments partner's total_trips", async () => {
-    //     // add partner to database
-    //     await admin
-    //       .database()
-    //       .ref("partners")
-    //       .child(partnerID)
-    //       .set(defaultPartner);
+      it("increments partner's total_trips", async () => {
+        // add partner to database
+        await admin
+          .database()
+          .ref("partners")
+          .child(partnerID)
+          .set(defaultPartner);
 
-    //     // assert partner has no total_trips
-    //     let result = await Partner.getPartner();
-    //     assert.isUndefined(result.total_trips);
+        // assert partner has no total_trips
+        let result = await Partner.getPartner();
+        assert.isUndefined(result.total_trips);
 
-    //     // call pushPastTrip
-    //     await Partner.pushPastTrip(defaultTrip);
+        // call pushPastTrip
+        await Partner.pushPastTrip(defaultTrip);
 
-    //     // assert partner has total_trips
-    //     result = await Partner.getPartner();
-    //     assert.equal(result.total_trips, "1");
+        // assert partner has total_trips
+        result = await Partner.getPartner();
+        assert.equal(result.total_trips, "1");
 
-    //     // clear database
-    //     await admin.database().ref("partners").remove();
-    //     await admin.database().ref("past-trips").remove();
-    //   });
-    // });
+        // clear database
+        await admin.database().ref("partners").remove();
+        await admin.database().ref("past-trips").remove();
+      });
+    });
 
-    // describe("getAmountOwed", () => {
-    //   before(async () => {
-    //     // clear database
-    //     await admin.database().ref("partners").remove();
-    //   });
+    describe("getAmountOwed", () => {
+      before(async () => {
+        // clear database
+        await admin.database().ref("partners").remove();
+      });
 
-    //   it("returns a number if partner has amount_owed", async () => {
-    //     // add partner to database with amount_owed defined
-    //     await admin
-    //       .database()
-    //       .ref("partners")
-    //       .child(partnerID)
-    //       .set(defaultPartner);
+      it("returns a number if partner has amount_owed", async () => {
+        // add partner to database with amount_owed defined
+        await admin
+          .database()
+          .ref("partners")
+          .child(partnerID)
+          .set(defaultPartner);
 
-    //     // get amount owed
-    //     let amountOwed = await Partner.getAmountOwed();
+        // get amount owed
+        let amountOwed = await Partner.getAmountOwed();
 
-    //     // assert amount equals 2
-    //     assert.equal(amountOwed, 2);
-    //   });
+        // assert amount equals 2
+        assert.equal(amountOwed, 2);
+      });
 
-    //   it("returns null if partner has no amount_owed", async () => {
-    //     // add partner to database without amount_owed
-    //     delete defaultPartner["amount_owed"];
-    //     await admin
-    //       .database()
-    //       .ref("partners")
-    //       .child(partnerID)
-    //       .set(defaultPartner);
+      it("returns null if partner has no amount_owed", async () => {
+        // add partner to database without amount_owed
+        delete defaultPartner["amount_owed"];
+        await admin
+          .database()
+          .ref("partners")
+          .child(partnerID)
+          .set(defaultPartner);
 
-    //     // get amount owed
-    //     let amountOwed = await Partner.getAmountOwed();
+        // get amount owed
+        let amountOwed = await Partner.getAmountOwed();
 
-    //     // assert amount owed is null
-    //     assert.isNull(amountOwed);
+        // assert amount owed is null
+        assert.isNull(amountOwed);
 
-    //     // rever defaultPartner
-    //     defaultPartner["amount_owed"] = 2;
-    //   });
-    // });
+        // rever defaultPartner
+        defaultPartner["amount_owed"] = 2;
+      });
+    });
 
-    // describe("increaseAmountOwedBy", () => {
-    //   it("increments amount owed by 'amount'", async () => {
-    //     // add partner to database with amount_owed equal 2
-    //     await admin
-    //       .database()
-    //       .ref("partners")
-    //       .child(partnerID)
-    //       .set(defaultPartner);
+    describe("increaseAmountOwedBy", () => {
+      it("increments amount owed by 'amount'", async () => {
+        // add partner to database with amount_owed equal 2
+        await admin
+          .database()
+          .ref("partners")
+          .child(partnerID)
+          .set(defaultPartner);
 
-    //     // get amount owed
-    //     let amountOwed = await Partner.getAmountOwed();
+        // get amount owed
+        let amountOwed = await Partner.getAmountOwed();
 
-    //     // assert amount equals 2
-    //     assert.equal(amountOwed, 2);
+        // assert amount equals 2
+        assert.equal(amountOwed, 2);
 
-    //     // increment amount owed by 3
-    //     await Partner.increaseAmountOwedBy(3);
+        // increment amount owed by 3
+        await Partner.increaseAmountOwedBy(3);
 
-    //     // get amount owed anad assert it's 5
-    //     amountOwed = await Partner.getAmountOwed();
-    //     assert.equal(amountOwed, 5);
-    //   });
+        // get amount owed anad assert it's 5
+        amountOwed = await Partner.getAmountOwed();
+        assert.equal(amountOwed, 5);
+      });
 
-    //   it("sets amount_owed if it is undefined", async () => {
-    //     // add partner to database with undefined amount_owed
-    //     delete defaultPartner["amount_owed"];
-    //     await admin
-    //       .database()
-    //       .ref("partners")
-    //       .child(partnerID)
-    //       .set(defaultPartner);
+      it("sets amount_owed if it is undefined", async () => {
+        // add partner to database with undefined amount_owed
+        delete defaultPartner["amount_owed"];
+        await admin
+          .database()
+          .ref("partners")
+          .child(partnerID)
+          .set(defaultPartner);
 
-    //     // get amount owed
-    //     let amountOwed = await Partner.getAmountOwed();
+        // get amount owed
+        let amountOwed = await Partner.getAmountOwed();
 
-    //     // assert amount is null
-    //     assert.isNull(amountOwed);
+        // assert amount is null
+        assert.isNull(amountOwed);
 
-    //     // increase amount owed by 2
-    //     await Partner.increaseAmountOwedBy(2);
+        // increase amount owed by 2
+        await Partner.increaseAmountOwedBy(2);
 
-    //     // get amount owed and assert it's 2
-    //     amountOwed = await Partner.getAmountOwed();
-    //     assert.equal(amountOwed, 2);
+        // get amount owed and assert it's 2
+        amountOwed = await Partner.getAmountOwed();
+        assert.equal(amountOwed, 2);
 
-    //     // reset amount_owed
-    //     defaultPartner["amount_owed"] = 2;
-    //   });
-    // });
+        // reset amount_owed
+        defaultPartner["amount_owed"] = 2;
+      });
+    });
 
     describe("decreaseAmountOwedBy", () => {
       it("increments amount owed by 'amount'", async () => {
@@ -336,7 +336,6 @@ describe("Partner", () => {
         let partner = await Partner.getPartner();
 
         assert.isDefined(partner);
-        console.log(partner);
         assert.equal(partner.status, "unavailable");
         assert.isUndefined(partner.current_latitude);
         assert.isUndefined(partner.current_longitude);
@@ -351,6 +350,31 @@ describe("Partner", () => {
         assert.equal(partner.status, "available");
         assert.equal(partner.current_latitude, "50.555555");
         assert.equal(partner.current_longitude, "10.111111");
+      });
+    });
+
+    describe("disconnect", () => {
+      it("sets partner as 'unavailable'", async () => {
+        // add 'available' partner to the databse
+        defaultPartner["status"] = "available";
+        await admin
+          .database()
+          .ref("partners")
+          .child(partnerID)
+          .set(defaultPartner);
+
+        // assert it worked
+        let partner = await Partner.getPartner();
+
+        assert.isDefined(partner);
+        assert.equal(partner.status, "available");
+        // request to disconnect partner
+        await Partner.disconnect();
+
+        // assert that partner was sucessfully disconnected
+        partner = await Partner.getPartner();
+        assert.isDefined(partner);
+        assert.equal(partner.status, "unavailable");
       });
     });
   });
