@@ -162,6 +162,7 @@ export class Partner extends Database {
       partner.current_latitude = lat.toString();
       partner.current_longitude = lng.toString();
       partner.status = Partner.Status.available;
+      partner.idle_since = Date.now().toString();
       return partner;
     });
   };
