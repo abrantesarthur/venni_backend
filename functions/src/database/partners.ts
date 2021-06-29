@@ -38,6 +38,10 @@ export class Partners extends Database {
     if (partners.length == 0) {
       return [];
     }
+
+    /// filter out partners with 'account_status' different from 'approved'
+    partners = this.filterByAccountStatus(partners);
+
     // filter partners nearby the client
     partners = this.filterByZone(tripRequest.origin_zone, partners);
 
@@ -62,10 +66,32 @@ export class Partners extends Database {
   // it first tries to find partners in the very zone where the origin is.
   // If it finds no partners there, it filters partners in adjacent zones.
   // If it still finds no partners there, it returns partners unchanged.
+  filterByAccountStatus = (
+    partners: Partner.Interface[]
+  ): Partner.Interface[] => {
+    let approvedPartners: Partner.Interface[] = [];
+
+    // filter partners in the origin zone
+    partners.forEach((partner) => {
+      if (partner.account_status === Partner.AccountStatus.approved) {
+        approvedPartners.push(partner);
+      }
+    });
+    return approvedPartners;
+  };
+
+  // filterByZone returns partners who are near the origin of the trip.
+  // it first tries to find partners in the very zone where the origin is.
+  // If it finds no partners there, it filters partners in adjacent zones.
+  // If it still finds no partners there, it returns partners unchanged.
   filterByZone = (
     originZone: ZoneName,
     partners: Partner.Interface[]
   ): Partner.Interface[] => {
+    if(partners.length == 0) {
+      return [];
+    }
+    
     let nearbyPartners: Partner.Interface[] = [];
 
     // filter partners in the origin zone

@@ -453,6 +453,70 @@ describe("partners", () => {
       await admin.database().ref("partners").remove();
     });
 
+    it("filters out partner's with account_status different from 'approved'", async () => {
+      let approvedPartner = {
+        uid: "approvedPartner",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+        current_zone: "DB",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      let blockedPartner = {
+        uid: "blockedPartner",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "blocked",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+        current_zone: "DB",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+
+      // add partners to database
+      await admin.database().ref("partners").set({
+        blockedPartner: blockedPartner,
+        approvedPartner: approvedPartner,
+      });
+
+      // find available partners near zone DC
+      const partners = await Partners.findAllAvailable({
+        origin_zone: "DC",
+        origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
+      });
+
+      assert.equal(partners.length, 1);
+      assert.equal(partners[0].uid, "approvedPartner");
+    });
+
     it("works", async () => {
       let availableOneInDB = {
         uid: "availableOneInDB",
@@ -460,7 +524,7 @@ describe("partners", () => {
         last_name: "de Tal",
         cpf: "00000000000",
         gender: "masculino",
-        account_status: "pending_documents",
+        account_status: "approved",
         total_trips: "123",
         member_since: Date.now().toString(),
         phone_number: "(38) 99999-9999",
@@ -483,7 +547,7 @@ describe("partners", () => {
         last_name: "de Tal",
         cpf: "00000000000",
         gender: "masculino",
-        account_status: "pending_documents",
+        account_status: "approved",
         total_trips: "123",
         member_since: Date.now().toString(),
         phone_number: "(38) 77777-8888",
@@ -506,7 +570,7 @@ describe("partners", () => {
         last_name: "de Fulano",
         cpf: "00000000000",
         gender: "masculino",
-        account_status: "pending_documents",
+        account_status: "approved",
         total_trips: "123",
         member_since: Date.now().toString(),
         phone_number: "(38) 77777-8888",
@@ -529,7 +593,7 @@ describe("partners", () => {
         last_name: "de Ciclano",
         cpf: "00000000000",
         gender: "masculino",
-        account_status: "pending_documents",
+        account_status: "approved",
         total_trips: "123",
         member_since: Date.now().toString(),
         phone_number: "(38) 77777-8888",

@@ -1,4 +1,3 @@
-import { BankAccount } from "pagarme-js-types/src/client/bankAccounts/responses";
 import { Database, transaction } from ".";
 import { ZoneName } from "../zones";
 import { PartnerPastTrips } from "./pastTrips";
