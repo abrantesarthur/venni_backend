@@ -17,7 +17,6 @@ describe("Partner", () => {
     let clientID;
     let partnerID;
     let defaultPartner;
-    let defaultClient;
     let defaultTrip;
     before(async () => {
       clientID = "clientID";
@@ -326,6 +325,7 @@ describe("Partner", () => {
         defaultPartner["status"] = "unavailable";
         delete defaultPartner["current_latitude"];
         delete defaultPartner["current_longitude"];
+        delete defaultPartner["idle_since"];
         await admin
           .database()
           .ref("partners")
@@ -339,6 +339,7 @@ describe("Partner", () => {
         assert.equal(partner.status, "unavailable");
         assert.isUndefined(partner.current_latitude);
         assert.isUndefined(partner.current_longitude);
+        assert.isUndefined(partner.idle_since);
 
         // request to connect partner
         await Partner.connect(50.555555, 10.111111);
@@ -350,6 +351,7 @@ describe("Partner", () => {
         assert.equal(partner.status, "available");
         assert.equal(partner.current_latitude, "50.555555");
         assert.equal(partner.current_longitude, "10.111111");
+        assert.isDefined(partner.idle_since);
       });
     });
 
