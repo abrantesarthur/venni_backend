@@ -481,18 +481,24 @@ const confirmTrip = async (
   // cancelRequest is a callback that is triggered if partners fail
   // to accept a trip in 30 seconds. It stops listening for their responses
   // and unrequests them, setting their statuses back to available.
-  const cancelRequest = () => {
+  const cancelRequest = async () => {
     // when timeout expires, stop listening for changes in partner_id
     tr.ref.off("value");
 
     const j = requestedPartnersUIDs.length;
     for (var i = 0; i < j; i++) {
       // set status of partners who failed to pick trip back to available
-      partnersRef.child(requestedPartnersUIDs[0]).transaction(unrequestPartner);
+      promises.push(
+        partnersRef
+          .child(requestedPartnersUIDs[0])
+          .transaction(unrequestPartner)
+      );
 
       // remove partner from list of requested partners.
       requestedPartnersUIDs = requestedPartnersUIDs.slice(1);
     }
+
+    await Promise.all(promises);
 
     // send failure response back
     throw new functions.https.HttpsError(

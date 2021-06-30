@@ -225,7 +225,7 @@ export const on_account_status_change = database
             rating: "5.0",
             total_trips: "0",
             status: "unavailable",
-            current_client_id: "",
+            current_client_uid: "",
             pagarme_recipient_id: recipient.id,
             amount_owed: 0,
           };
