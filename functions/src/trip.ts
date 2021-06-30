@@ -241,7 +241,9 @@ const clientCancelTrip = async (
   const partnerID = tripRequest.partner_id;
   if (partnerID != undefined && partnerID.length > 0) {
     const p = new Partner(partnerID);
-    p.free();
+    // don't reset idle since. it's not the partner's fault and he didn't earn
+    // anything here
+    p.free(false);
   }
 
   // set trip status to cancelled-by-client

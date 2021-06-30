@@ -35,14 +35,16 @@ export class Partner extends Database {
 
   // freePartner sets the partner's status to available, empties its current_client_uid,
   // and resets its idle_time to now.
-  free = async () => {
+  free = async (resetIdleSince = true) => {
     await transaction(this.ref, (partner: Partner.Interface) => {
       if (partner == null) {
         return {};
       }
       partner.status = Partner.Status.available;
       partner.current_client_uid = "";
-      partner.idle_since = Date.now().toString();
+      if(resetIdleSince) {
+        partner.idle_since = Date.now().toString();
+      }
       return partner;
     });
   };
