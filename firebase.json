@@ -4,7 +4,7 @@
       "enabled": "true"
     },
     "functions": {
-      "host": "192.168.0.104",
+      "host": "192.168.0.103",
       "port": "5001"
     }
   },
@@ -12,10 +12,10 @@
     "key": "ak_test_ab6YeGzWk37ySROFYPaTVN0J5uzBlh",
     "recipient_id": "re_ckof1xjj20mmy0h9tjw0t9kuc"
   },
-  "googleapi": {
-    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
-  },
   "functions": {
     "predeploy": "npm --prefix \"functions\" run build"
+  },
+  "googleapi": {
+    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
   }
 }
