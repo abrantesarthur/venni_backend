@@ -38,16 +38,6 @@ function validateRequestTripArguments(obj: any) {
   }
 }
 
-function validateAcceptTripArguments(obj: any) {
-  validateArgument(obj, ["client_id"], ["string"], [true]);
-  if (obj.client_id.length === 0) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "argument client_id must have length greater than 0."
-    );
-  }
-}
-
 function validateCompleteTripArguments(obj: any) {
   validateArgument(obj, ["client_rating"], ["number"], [true]);
   if (obj.client_rating > 5 || obj.client_rating < 0) {
@@ -712,10 +702,7 @@ const confirmTrip = async (
   return { trip_status: tripRequest.trip_status };
 };
 
-const acceptTrip = async (
-  data: any,
-  context: functions.https.CallableContext
-) => {
+const acceptTrip = async (_: any, context: functions.https.CallableContext) => {
   // validate authentication
   if (context.auth == null) {
     throw new functions.https.HttpsError(
@@ -724,11 +711,7 @@ const acceptTrip = async (
     );
   }
 
-  // validate data
-  validateAcceptTripArguments(data);
-
   const partnerID = context.auth.uid;
-  const clientID = data.client_id;
 
   // get a reference to partner data
   const partnerRef = firebaseAdmin.database().ref("partners").child(partnerID);
@@ -739,7 +722,8 @@ const acceptTrip = async (
   if (
     partner == null ||
     partner.status != Partner.Status.requested ||
-    partner.current_client_uid != clientID
+    partner.current_client_uid == undefined ||
+    partner.current_client_uid == ""
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -748,7 +732,7 @@ const acceptTrip = async (
   }
 
   // get a reference to user's trip request
-  const tr = new TripRequest(clientID);
+  const tr = new TripRequest(partner.current_client_uid);
 
   // set trip's partner_id in a transaction only if it is null or empty. Otherwise,
   // it means another partner already picked the trip ahead of us. Abort transaction in that case.

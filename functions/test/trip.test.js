@@ -540,10 +540,7 @@ describe("trip", () => {
 
       // partner accepts trip
       const wrappedAccept = test.wrap(trip.accept);
-      await wrappedAccept(
-        { client_id: clientID },
-        { auth: { uid: partnerID } }
-      );
+      await wrappedAccept({}, { auth: { uid: partnerID } });
 
       // wait enough time for confirmTrip to grant trip to the partner
       await sleep(100);
@@ -622,33 +619,6 @@ describe("trip", () => {
       );
     });
 
-    it("argument must contain client_id", async () => {
-      await genericTest(
-        {},
-        "invalid-argument",
-        "missing expected argument 'client_id'.",
-        defaultCtx
-      );
-    });
-
-    it("argument must contain client_id as a string", async () => {
-      await genericTest(
-        { client_id: 1 },
-        "invalid-argument",
-        "argument 'client_id' has invalid type. Expected 'string'. Received 'number'.",
-        defaultCtx
-      );
-    });
-
-    it("argument must contain client_id with length greater than 0", async () => {
-      await genericTest(
-        { client_id: "" },
-        "invalid-argument",
-        "argument client_id must have length greater than 0.",
-        defaultCtx
-      );
-    });
-
     it("fails if partner accepts a trip without having been requested", async () => {
       const partnerID1 = "partnerID1";
       const partnerID2 = "partnerID2";
@@ -716,10 +686,7 @@ describe("trip", () => {
       // partner 2 accepts trip, thus failing
       const wrappedAccept = test.wrap(trip.accept);
       try {
-        await wrappedAccept(
-          { client_id: defaultUID },
-          { auth: { uid: partnerID2 } }
-        );
+        await wrappedAccept({}, { auth: { uid: partnerID2 } });
         assert(false, "should have failed");
       } catch (e) {
         assert.strictEqual(e.code, "failed-precondition");
@@ -796,16 +763,10 @@ describe("trip", () => {
 
       const wrappedAccept = test.wrap(trip.accept);
       // partner 1 accepts trip first
-      let partner1Promise = wrappedAccept(
-        { client_id: defaultUID },
-        { auth: { uid: partnerID1 } }
-      );
+      let partner1Promise = wrappedAccept({}, { auth: { uid: partnerID1 } });
 
       // then, partner 2 also accepts the trip
-      let partner2Promise = wrappedAccept(
-        { client_id: defaultUID },
-        { auth: { uid: partnerID2 } }
-      );
+      let partner2Promise = wrappedAccept({}, { auth: { uid: partnerID2 } });
 
       // assert partner1 status is busy
       await partner1Promise;
@@ -1146,10 +1107,7 @@ describe("trip", () => {
 
       // partner one accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
-      await wrappedAccept(
-        { client_id: defaultUID },
-        { auth: { uid: partnerID1 } }
-      );
+      await wrappedAccept({}, { auth: { uid: partnerID1 } });
 
       // await for confirmTrip to return
       const confirmResult = await confirmPromise;
@@ -1236,10 +1194,7 @@ describe("trip", () => {
 
       // partner one accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
-      await wrappedAccept(
-        { client_id: defaultUID },
-        { auth: { uid: partnerID1 } }
-      );
+      await wrappedAccept({}, { auth: { uid: partnerID1 } });
 
       // await for confirmTrip to return
       const confirmResult = await confirmPromise;
@@ -1347,10 +1302,7 @@ describe("trip", () => {
 
       // partner one accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
-      await wrappedAccept(
-        { client_id: defaultUID },
-        { auth: { uid: partnerID1 } }
-      );
+      await wrappedAccept({}, { auth: { uid: partnerID1 } });
       await sleep(200);
 
       // assert confirm trip returned information about partner 1
@@ -1461,10 +1413,7 @@ describe("trip", () => {
 
       // partner 1 accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
-      await wrappedAccept(
-        { client_id: defaultUID },
-        { auth: { uid: partnerID1 } }
-      );
+      await wrappedAccept({}, { auth: { uid: partnerID1 } });
 
       // assert confirm trip accepted partner 1
       tripRequestSnapshot = await tripRequestRef.once("value");
@@ -1797,10 +1746,7 @@ describe("trip", () => {
 
       // partner 1 accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
-      await wrappedAccept(
-        { client_id: defaultUID },
-        { auth: { uid: partnerID1 } }
-      );
+      await wrappedAccept({}, { auth: { uid: partnerID1 } });
 
       // assert partner 1 is busy
       partner1Snapshot = await partner1Ref.once("value");
@@ -3168,10 +3114,7 @@ describe("trip", () => {
 
       // partner accepts the trip
       const wrappedAccept = test.wrap(trip.accept);
-      await wrappedAccept(
-        { client_id: defaultUID },
-        { auth: { uid: partnerID1 } }
-      );
+      await wrappedAccept({}, { auth: { uid: partnerID1 } });
 
       // partner starts the trip
       const wrappedStart = test.wrap(trip.start);
