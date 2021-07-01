@@ -346,7 +346,7 @@ const confirmTrip = async (
   if (creditCard == undefined) {
     // if paying with cash, update trip request's payment method
     tripRequest.payment_method = "cash";
-    promises.push(tr.ref.set(tripRequest));
+    await tr.ref.set(tripRequest);
   } else {
     // if paying with credit card
     const p = new Pagarme();
@@ -370,7 +370,7 @@ const confirmTrip = async (
         tripRequest.payment_method = "credit_card";
         tripRequest.credit_card = creditCard;
         tripRequest.transaction_id = transaction.tid.toString();
-        promises.push(tr.ref.set(tripRequest));
+        await tr.ref.set(tripRequest);
       }
     } catch (e) {
       paymentFailed = true;
@@ -1133,6 +1133,72 @@ const partnerGetTripRating = async (
   return;
 };
 
+const partnerGetCurrentTrip = async (
+  _: any,
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  // make sure partner has an active trip request
+  const partnerID = context.auth.uid;
+  const p = new Partner(partnerID);
+  const partner = await p.getPartner();
+  if (partner == undefined) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Could not find partner with uid " + partnerID
+    );
+  }
+  if (
+    (partner.status != Partner.Status.requested &&
+      partner.status != Partner.Status.busy) ||
+    partner.current_client_uid == undefined ||
+    partner.current_client_uid == ""
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "The partner with uid " +
+        partnerID +
+        " does not have any current trip requests"
+    );
+  }
+
+  // get partner's current trip
+  const clientID = partner.current_client_uid;
+  const tr = new TripRequest(clientID);
+  const trip = await tr.getTripRequest();
+  if (trip == null || trip == undefined) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Could not find the current trip of the partner with uid " + partnerID
+    );
+  }
+
+  // get information about client who requested the trip
+  let client;
+  try {
+    client = await firebaseAdmin.auth().getUser(trip.uid);
+  } catch (e) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "Could not find the client who requested the trip of the partner with uid " +
+        partnerID
+    );
+  }
+
+  let response: LooseObject = trip;
+  response["client_name"] = client.displayName;
+  response["client_phone"] = client.phoneNumber;
+
+  return response;
+};
+
 export const request = functions.https.onCall(requestTrip);
 export const edit = functions.https.onCall(editTrip);
 export const client_cancel = functions.https.onCall(clientCancelTrip);
@@ -1145,5 +1211,8 @@ export const client_get_past_trips = functions.https.onCall(clientGetPastTrips);
 export const partner_get_trip_rating =
   functions.https.onCall(partnerGetTripRating);
 export const client_get_past_trip = functions.https.onCall(clientGetPastTrip);
+export const partner_get_current_trip = functions.https.onCall(
+  partnerGetCurrentTrip
+);
 
 // TODO: request directions to get encoded points when partner reports his position
