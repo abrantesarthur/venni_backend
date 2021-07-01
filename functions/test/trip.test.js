@@ -3540,4 +3540,163 @@ describe("trip", () => {
       assert.equal(result.partner_rating, "4.00");
     });
   });
+
+  describe("partnerGetCurrentTrip", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(trip.partner_get_current_trip);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+    after(async () => {
+      // clear database
+      await admin.database().ref("trip-requests").remove();
+      await admin.database().ref("partners").remove();
+      // clear authentication
+      await admin.auth().deleteUser(defaultUID);
+    });
+
+    let defaultPartner;
+
+    beforeEach(() => {
+      defaultPartner = {
+        uid: defaultUID,
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        phone_number: "(38) 99999-9999",
+        member_since: Date.now().toString(),
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
+        current_zone: "AA",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+    });
+
+    it("fails if user is not authenticated", async () => {
+      // run generic test without context
+      await genericTest(
+        {},
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("throws 'nof-found' if partner does not exist", async () => {
+      await genericTest(
+        {},
+        "not-found",
+        "Could not find partner with uid defaultUID"
+      );
+    });
+
+    it("throws 'failed-precondition' if is neither 'requested' nor 'busy'", async () => {
+      // add partner do the database with 'available' status
+      const partnerRef = admin.database().ref("partners").child(defaultUID);
+      await partnerRef.set(defaultPartner);
+
+      // assert that function fails
+      await genericTest(
+        {},
+        "failed-precondition",
+        "The partner with uid defaultUID does not have any current trip requests"
+      );
+    });
+
+    it("throws 'failed-precondition' if 'current_client_uid' is not set", async () => {
+      // add partner do the database without 'current_client_uid' field
+      const partnerRef = admin.database().ref("partners").child(defaultUID);
+      defaultPartner["status"] = "requested";
+      await partnerRef.set(defaultPartner);
+
+      // assert that function fails
+      await genericTest(
+        {},
+        "failed-precondition",
+        "The partner with uid defaultUID does not have any current trip requests"
+      );
+    });
+
+    it("throws 'not-found' if can't find trip for client specified in 'current_client_id'", async () => {
+      // add partner do the database with 'current_client_uid' specifying client with inexisting trip
+      const partnerRef = admin.database().ref("partners").child(defaultUID);
+      defaultPartner["status"] = "requested";
+      defaultPartner["current_client_uid"] = defaultUID;
+      await partnerRef.set(defaultPartner);
+
+      // assert that function fails
+      await genericTest(
+        {},
+        "not-found",
+        "Could not find the current trip of the partner with uid defaultUID"
+      );
+    });
+
+    it("throws 'not-found' if can't find client who requested the trip", async () => {
+      // the partner we added in the previous test is valid for this test case
+
+      // add tripRequest for client with uid defaultUID and being handled
+      // by a partner with uid defaultUID
+      await createTripRequest("waiting-partner", defaultUID);
+
+      // assert that function fails
+      await genericTest(
+        {},
+        "not-found",
+        "Could not find the client who requested the trip of the partner with uid defaultUID"
+      );
+    });
+
+    it("works", async () => {
+      // the partner we added in the previous test is valid for this test case
+      // add tripRequest we added in the previous test case is valid for this test case
+
+      // add user to firebase authentication
+      await admin.auth().createUser({ uid: defaultUID });
+
+      // add a name to the user
+      await admin.auth().updateUser(defaultUID, {
+        displayName: "Fulano de Tal",
+        phoneNumber: "+5538123456789",
+      });
+
+      // send getCurrentTrip request
+      const getCurrentTrip = test.wrap(trip.partner_get_current_trip);
+      const response = await getCurrentTrip({}, defaultCtx);
+
+      assert.isDefined(response);
+      assert.equal(response.uid, defaultUID);
+      assert.equal(response.client_name, "Fulano de Tal");
+      assert.equal(response.client_phone, "+5538123456789");
+    });
+  });
 });
