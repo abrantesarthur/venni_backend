@@ -252,10 +252,83 @@ const clientCancelTrip = async (
       return {};
     }
     tripRequest.trip_status = TripRequest.Status.cancelledByClient;
+    tripRequest.partner_id = "";
     return tripRequest;
   });
 
   // return updated trip-request to client
+  return await tr.getTripRequest();
+};
+
+const partnerCancelTrip = async (
+  _: any,
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  // get partner
+  const partnerID = context.auth.uid;
+  const p = new Partner(partnerID);
+  const partner = await p.getPartner();
+  // make sure partner exists
+  if (partner == undefined) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "could not find partner with uid " + partnerID
+    );
+  }
+  // make sure partner is handling a trip
+  if (
+    partner.current_client_uid == undefined ||
+    partner.current_client_uid == "" ||
+    partner.status != Partner.Status.busy
+  ) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "partner with uid " + partnerID + " it not handling any trip"
+    );
+  }
+
+  // get trip request
+  const clientID = partner.current_client_uid;
+  const tr = new TripRequest(clientID);
+  const tripRequest = await tr.getTripRequest();
+
+  // trip must be in a valid status to be cancelled
+  if (
+    tripRequest == null ||
+    tripRequest == undefined ||
+    (tripRequest.trip_status != TripRequest.Status.waitingPartner &&
+      tripRequest.trip_status != TripRequest.Status.inProgress)
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Trip request can't be cancelled when in status '" +
+        tripRequest?.trip_status +
+        "'"
+    );
+  }
+
+  // free the partner to handle other trips and reset his idle_since
+  await p.free();
+
+  // set trip status to cancelled-by-partner
+  await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+    if (tripRequest == null) {
+      return {};
+    }
+    tripRequest.trip_status = TripRequest.Status.cancelledByPartner;
+    tripRequest.partner_id = "";
+    return tripRequest;
+  });
+
+  // return updated trip-request to partner
   return await tr.getTripRequest();
 };
 
@@ -1202,6 +1275,7 @@ const partnerGetCurrentTrip = async (
 export const request = functions.https.onCall(requestTrip);
 export const edit = functions.https.onCall(editTrip);
 export const client_cancel = functions.https.onCall(clientCancelTrip);
+export const partner_cancel = functions.https.onCall(partnerCancelTrip);
 export const confirm = functions.https.onCall(confirmTrip);
 export const accept = functions.https.onCall(acceptTrip);
 export const start = functions.https.onCall(startTrip);
