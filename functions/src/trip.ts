@@ -180,6 +180,10 @@ const requestTrip = async (
       leg.start_location.lng
     ),
     destination_place_id: body.destination_place_id,
+    origin_lat: leg.start_location.lat.toString(),
+    origin_lng: leg.start_location.lng.toString(),
+    destination_lat: leg.end_location.lat.toString(),
+    destination_lng: leg.end_location.lat.toString(),
     fare_price: calculateFare(leg.distance.value),
     distance_meters: leg.distance.value.toString(),
     distance_text: leg.distance.text,
