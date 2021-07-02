@@ -60,6 +60,10 @@ export namespace TripRequest {
     trip_status: Status;
     origin_place_id: string;
     destination_place_id: string;
+    origin_lat: string;
+    origin_lng: string;
+    destination_lat: string;
+    destination_lng: string;
     origin_zone: ZoneName;
     fare_price: number; // in cents
     distance_meters: string;
@@ -142,7 +146,8 @@ export namespace TripRequest {
         if (
           obj[field] == undefined ||
           typeof obj[field] != "string" ||
-          isNaN(parseInt(obj[field], 10))
+          isNaN(parseInt(obj[field], 10)) || 
+          isNaN(parseFloat(obj[field])) 
         ) {
           return false;
         }
@@ -151,7 +156,11 @@ export namespace TripRequest {
       if (
         !typeCheckNumericStringField("distance_meters") ||
         !typeCheckNumericStringField("duration_seconds") ||
-        !typeCheckNumericStringField("request_time")
+        !typeCheckNumericStringField("request_time") ||
+        !typeCheckNumericStringField("origin_lat") ||
+        !typeCheckNumericStringField("origin_lng") ||
+        !typeCheckNumericStringField("destination_lat") ||
+        !typeCheckNumericStringField("destination_lng")
       ) {
         return false;
       }
@@ -218,6 +227,10 @@ export namespace TripRequest {
         "encoded_points" in obj &&
         "origin_address" in obj &&
         "destination_address" in obj &&
+        "origin_lat" in obj &&
+        "origin_lng" in obj && 
+        "destination_lat" in obj &&
+        "destination_lng" in obj &&
         typeof obj.uid == "string" &&
         typeof obj.distance_text == "string" &&
         typeof obj.duration_text == "string" &&
@@ -226,7 +239,11 @@ export namespace TripRequest {
         typeof obj.destination_place_id == "string" &&
         typeof obj.encoded_points == "string" &&
         typeof obj.origin_address == "string" &&
-        typeof obj.destination_address == "string"
+        typeof obj.destination_address == "string" &&
+        typeof obj.origin_lat == "string" &&
+        typeof obj.origin_lng == "string" &&
+        typeof obj.destination_lat == "string" &&
+        typeof obj.destination_lng == "string"
       );
     };
 

@@ -13,6 +13,10 @@ describe("TripRequest.Interface", () => {
         trip_status: "waiting-confirmation",
         origin_place_id: "origin_place_id",
         destination_place_id: "destination_place_id",
+        origin_lat: "11.111111",
+        origin_lng: "22.222222",
+        destination_lat: "33.333333",
+        destination_lng: "44.444444",
         origin_zone: "AA",
         fare_price: 500,
         distance_meters: "123",
@@ -50,6 +54,10 @@ describe("TripRequest.Interface", () => {
     falseIfNotPresent("trip_status");
     falseIfNotPresent("origin_place_id");
     falseIfNotPresent("destination_place_id");
+    falseIfNotPresent("origin_lat");
+    falseIfNotPresent("origin_lng");
+    falseIfNotPresent("destination_lat");
+    falseIfNotPresent("destination_lng");
     falseIfNotPresent("origin_zone");
     falseIfNotPresent("fare_price");
     falseIfNotPresent("distance_meters");
@@ -84,6 +92,14 @@ describe("TripRequest.Interface", () => {
     falseIfWronglyTyped("request_time", "not numeric");
     falseIfWronglyTyped("origin_address", 123);
     falseIfWronglyTyped("destination_address", 123);
+    falseIfWronglyTyped("origin_lat", 123);
+    falseIfWronglyTyped("origin_lng", 123);
+    falseIfWronglyTyped("destination_lat", 123);
+    falseIfWronglyTyped("destination_lng", 123);
+    falseIfWronglyTyped("origin_lat", "not a float");
+    falseIfWronglyTyped("origin_lng", "not a float");
+    falseIfWronglyTyped("destination_lat", "not a float");
+    falseIfWronglyTyped("destination_lng", "not a float");
 
     // test optional fields types
     const falseIfOptionalWronglyTyped = (field, wrongValue) => {
@@ -141,6 +157,10 @@ describe("TripRequest.Interface", () => {
         trip_status: "waiting-confirmation",
         origin_place_id: "origin_place_id",
         destination_place_id: "destination_place_id",
+        origin_lat: "11.111111",
+        origin_lng: "22.222222",
+        destination_lat: "33.333333",
+        destination_lng: "44.444444",
         origin_zone: "AA",
         fare_price: 500,
         distance_meters: "123",
@@ -221,6 +241,10 @@ describe("TripRequest.Interface", () => {
       assert.equal(response.client_rating, "4.0");
       assert.isDefined(response.credit_card);
       assert.equal(response.transaction_id, "transaction_id");
+      assert.equal(response.origin_lat, "11.111111");
+      assert.equal(response.origin_lng, "22.222222");
+      assert.equal(response.destination_lat, "33.333333");
+      assert.equal(response.destination_lng, "44.444444");
     });
   });
 });
