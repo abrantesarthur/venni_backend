@@ -108,43 +108,43 @@ function validateClientGetPastTripsArguments(obj: any) {
 }
 
 function validatePartnerGetPastTripsArguments(obj: any) {
-    // it's ok if client passes no argument
-    if (obj == undefined || obj == null) {
-      return;
-    }
-    validateArgument(
-      obj,
-      ["page_size", "max_request_time", "min_request_time"],
-      ["number", "number", "number"],
-      [false, false, false]
+  // it's ok if client passes no argument
+  if (obj == undefined || obj == null) {
+    return;
+  }
+  validateArgument(
+    obj,
+    ["page_size", "max_request_time", "min_request_time"],
+    ["number", "number", "number"],
+    [false, false, false]
+  );
+  if (obj.page_size <= 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'page_size' must greater than 0."
     );
-    if (obj.page_size <= 0) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "argument 'page_size' must greater than 0."
-      );
-    }
-  
-    if (obj.max_request_time <= 0) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "argument 'max_request_time' must greater than 0."
-      );
-    }
+  }
 
-    if (obj.min_request_time <= 0) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "argument 'min_request_time' must greater than 0."
-      );
-    }
+  if (obj.max_request_time <= 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'max_request_time' must greater than 0."
+    );
+  }
 
-    if(obj.min_request_time >= obj.max_request_time) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "argument 'max_request_time' must greater than argument 'min_request_time'."
-      );
-    }
+  if (obj.min_request_time <= 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'min_request_time' must greater than 0."
+    );
+  }
+
+  if (obj.min_request_time >= obj.max_request_time) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'max_request_time' must greater than argument 'min_request_time'."
+    );
+  }
 }
 
 export interface RequestTripInterface {
@@ -1201,7 +1201,7 @@ const clientGetPastTrips = async (
   return await cpt.getPastTrips(data?.page_size, data?.max_request_time);
 };
 
-// clientGetPastTrips returns a list of the client's past trips.
+// partnerGetPastTrips returns a list of the client's past trips.
 const partnerGetPastTrips = async (
   data: any,
   context: functions.https.CallableContext
@@ -1218,7 +1218,11 @@ const partnerGetPastTrips = async (
   validatePartnerGetPastTripsArguments(data);
 
   const ppt = new PartnerPastTrips(context.auth.uid);
-  return await ppt.getPastTrips(data?.page_size, data?.max_request_time);
+  return await ppt.getPastTrips(
+    data?.page_size,
+    data?.max_request_time,
+    data?.min_request_time
+  );
 };
 
 // clientGetPastTrips returns the past trip specified by id

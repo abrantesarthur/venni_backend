@@ -22,23 +22,34 @@ export class PastTrips extends Database {
 
   // getPastTrips returns the past trips of the user sorted by request time in descending order.
   // That is, most recent trips come first. If 'limit' is defined, it returns at most 'limit' past trips.
-  // If 'maxVal' is defined, it returns trips whose request_time is less than 'maxVal'.
-  // By default, it returns all past trips.
+  // If 'maxVal' is defined, it returns trips whose request_time is less than 'maxVal'. 
+  // If 'minVal' is defined, it returns trips whose request_time is more than 'minVal'.
+  // You can combine both 'maxVal' and 'minVal'.
   getPastTrips = async (
     limit?: number,
-    maxVal?: number
+    maxVal?: number,
+    minVal?: number,
   ): Promise<TripRequest.Interface[]> => {
     let query = this.ref.orderByChild("request_time");
     if (maxVal != undefined) {
       query = query.endAt(maxVal.toString());
     }
-    if (limit != undefined && limit > 0) {
+    if (minVal != undefined) {
+      query = query.startAt(minVal.toString());
+    }
+
+    if (maxVal != undefined && limit != undefined && limit > 0) {
+      query = query.limitToLast(limit);
+    } else if (minVal != undefined && limit != undefined && limit > 0) {
+      query = query.limitToFirst(limit);
+    } else if (limit != undefined && limit > 0) {
       query = query.limitToLast(limit);
     }
+
     let snapshot = await query.once("value");
     let pastTrips = PastTrips.fromObjs(snapshot.val());
 
-    // more recent trips have the greatest request_time values
+    // most recent trips have the greatest request_time values
     return pastTrips.reverse();
   };
 
