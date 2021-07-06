@@ -4,8 +4,8 @@
   },
   "emulators": {
     "functions": {
-      "port": "5001",
-      "host": "192.168.0.103"
+      "host": "192.168.0.104",
+      "port": "5001"
     },
     "ui": {
       "enabled": "true"

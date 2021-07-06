@@ -20,7 +20,7 @@ export class PastTrips extends Database {
     await this.ref.child(key).update(values);
   };
 
-  // getPastTrips returns the past trips of the client sorted by request time in descending order.
+  // getPastTrips returns the past trips of the user sorted by request time in descending order.
   // That is, most recent trips come first. If 'limit' is defined, it returns at most 'limit' past trips.
   // If 'maxVal' is defined, it returns trips whose request_time is less than 'maxVal'.
   // By default, it returns all past trips.
