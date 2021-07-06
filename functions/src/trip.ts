@@ -1349,6 +1349,8 @@ export const start = functions.https.onCall(startTrip);
 export const complete = functions.https.onCall(completeTrip);
 export const rate_partner = functions.https.onCall(ratePartner);
 export const client_get_past_trips = functions.https.onCall(clientGetPastTrips);
+export const partner_get_past_trips =
+  functions.https.onCall(partnerGetPastTrips);
 export const partner_get_trip_rating =
   functions.https.onCall(partnerGetTripRating);
 export const client_get_past_trip = functions.https.onCall(clientGetPastTrip);
