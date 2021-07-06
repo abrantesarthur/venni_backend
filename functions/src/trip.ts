@@ -107,6 +107,46 @@ function validateClientGetPastTripsArguments(obj: any) {
   }
 }
 
+function validatePartnerGetPastTripsArguments(obj: any) {
+  // it's ok if client passes no argument
+  if (obj == undefined || obj == null) {
+    return;
+  }
+  validateArgument(
+    obj,
+    ["page_size", "max_request_time", "min_request_time"],
+    ["number", "number", "number"],
+    [false, false, false]
+  );
+  if (obj.page_size <= 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'page_size' must greater than 0."
+    );
+  }
+
+  if (obj.max_request_time <= 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'max_request_time' must greater than 0."
+    );
+  }
+
+  if (obj.min_request_time <= 0) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'min_request_time' must greater than 0."
+    );
+  }
+
+  if (obj.min_request_time >= obj.max_request_time) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "argument 'max_request_time' must greater than argument 'min_request_time'."
+    );
+  }
+}
+
 export interface RequestTripInterface {
   origin_place_id: string;
   destination_place_id: string;
@@ -1161,8 +1201,31 @@ const clientGetPastTrips = async (
   return await cpt.getPastTrips(data?.page_size, data?.max_request_time);
 };
 
+// partnerGetPastTrips returns a list of the client's past trips.
+const partnerGetPastTrips = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  // validate arguments
+  validatePartnerGetPastTripsArguments(data);
+
+  const ppt = new PartnerPastTrips(context.auth.uid);
+  return await ppt.getPastTrips(
+    data?.page_size,
+    data?.max_request_time,
+    data?.min_request_time
+  );
+};
+
 // clientGetPastTrips returns the past trip specified by id
-// TODO: test, specially when past trip doesn't exist
 const clientGetPastTrip = async (
   data: any,
   context: functions.https.CallableContext
@@ -1286,6 +1349,8 @@ export const start = functions.https.onCall(startTrip);
 export const complete = functions.https.onCall(completeTrip);
 export const rate_partner = functions.https.onCall(ratePartner);
 export const client_get_past_trips = functions.https.onCall(clientGetPastTrips);
+export const partner_get_past_trips =
+  functions.https.onCall(partnerGetPastTrips);
 export const partner_get_trip_rating =
   functions.https.onCall(partnerGetTripRating);
 export const client_get_past_trip = functions.https.onCall(clientGetPastTrip);

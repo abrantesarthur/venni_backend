@@ -3335,6 +3335,163 @@ describe("trip", () => {
     });
   });
 
+  describe("partnerGetPastTrips", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(trip.partner_get_past_trips);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "method finished successfully");
+        } else {
+          assert(false, "method didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+    after(async () => {
+      await admin.database().ref("trip-requests").remove();
+      await admin.database().ref("partners").remove();
+      await admin.database().ref("clients").remove();
+      await admin.database().ref("past-trips").remove();
+    });
+
+    it("fails if user is not authenticated", async () => {
+      // run generic test without context
+      await genericTest(
+        {},
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if argument 'page_size' is not greater than 0", async () => {
+      await genericTest(
+        { page_size: 0 },
+        "invalid-argument",
+        "argument 'page_size' must greater than 0."
+      );
+
+      await genericTest(
+        { page_size: -1 },
+        "invalid-argument",
+        "argument 'page_size' must greater than 0."
+      );
+    });
+
+    it("fails if argument 'max_request_time' is not greater than 0", async () => {
+      await genericTest(
+        { max_request_time: 0 },
+        "invalid-argument",
+        "argument 'max_request_time' must greater than 0."
+      );
+
+      await genericTest(
+        { max_request_time: -1 },
+        "invalid-argument",
+        "argument 'max_request_time' must greater than 0."
+      );
+    });
+
+    it("fails if argument 'min_request_time' is not greater than 0", async () => {
+      await genericTest(
+        { min_request_time: 0 },
+        "invalid-argument",
+        "argument 'min_request_time' must greater than 0."
+      );
+
+      await genericTest(
+        { min_request_time: -1 },
+        "invalid-argument",
+        "argument 'min_request_time' must greater than 0."
+      );
+    });
+
+    it("returns list of partner's past trips", async () => {
+      // clear database
+      await admin.database().ref("past-trips").remove();
+
+      // populate database with client's past trips
+      const ppt = new PartnerPastTrips(defaultUID);
+      let pastTrip = {
+        uid: defaultUID,
+        trip_status: "completed",
+        origin_place_id: valid_origin_place_id,
+        destination_place_id: valid_destination_place_id,
+        origin_lat: "11.111111",
+        origin_lng: "22.222222",
+        destination_lat: "33.333333",
+        destination_lng: "44.444444",
+        origin_zone: "AA",
+        fare_price: 500,
+        distance_meters: "123",
+        distance_text: "123 meters",
+        duration_seconds: "300",
+        duration_text: "5 minutes",
+        encoded_points: "encoded_points",
+        request_time: Date.now().toString(),
+        origin_address: "origin_address",
+        destination_address: "destination_address",
+        partner_id: "partnerID",
+      };
+      let now = Date.now();
+      for (var i = 0; i < 3; i++) {
+        pastTrip.request_time = (now + i * 10000).toString();
+        await ppt.pushPastTrip(pastTrip);
+      }
+
+      const wrapped = test.wrap(trip.partner_get_past_trips);
+
+      // request all partner's past trips
+      let pastTrips = await wrapped({}, defaultCtx);
+
+      // expect partner_get_past_trip to return 3 trips
+      assert.isNotEmpty(pastTrips);
+      assert.equal(pastTrips.length, 3);
+
+      // request partner's most recent trip
+      pastTrips = await wrapped({ page_size: 1 }, defaultCtx);
+
+      // expect partner_get_past_trip to return 1 trip1
+      assert.isNotEmpty(pastTrips);
+      assert.equal(pastTrips.length, 1);
+      assert.equal(pastTrips[0].request_time, now + 20000);
+
+      // request partner's least recent trip
+      pastTrips = await wrapped({ max_request_time: now }, defaultCtx);
+
+      // expect partner_get_past_trip to return 1 trips
+      assert.isNotEmpty(pastTrips);
+      assert.equal(pastTrips.length, 1);
+      assert.equal(pastTrips[0].request_time, now);
+
+      // request partner's most recent trip
+      pastTrips = await wrapped({ min_request_time: now + 20000 }, defaultCtx);
+
+      // expect partner_get_past_trip to return 1 trips
+      assert.isNotEmpty(pastTrips);
+      assert.equal(pastTrips.length, 1);
+
+      // request partner's past trips before very first trip
+      pastTrips = await wrapped({ max_request_time: now - 1 }, defaultCtx);
+
+      // expect partner_get_past_trip to return nothing
+      assert.isEmpty(pastTrips);
+    });
+  });
+
   describe("clientGetPastTrip", () => {
     const genericTest = async (
       data,
