@@ -127,7 +127,7 @@ export class Partner extends Database {
     }
   };
 
-  getAmountOwed = async (): Promise<number | null> => {
+  getOwedCommission = async (): Promise<number | null> => {
     return (await this.ref.child("amount_owed").once("value")).val();
   };
 

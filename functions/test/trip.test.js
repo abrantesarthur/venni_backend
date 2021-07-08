@@ -2242,6 +2242,9 @@ describe("trip", () => {
         assert.isDefined(p);
         assert.equal(p.amount_owed, amountOwed);
 
+        // clear past-trips
+        await admin.database().ref("past-trips").remove();
+
         // partner calls complete trip
         const wrappedComplete = test.wrap(trip.complete);
         await wrappedComplete(
@@ -2254,6 +2257,36 @@ describe("trip", () => {
         p = await partner.getPartner();
         assert.isDefined(p);
         assert.equal(p.amount_owed, amountOwed - expectedDiscountedAmount);
+
+        // assert partner's has a past trip
+        const ppt = new PartnerPastTrips(partnerID);
+        let partnerPastTrips = await ppt.getPastTrips();
+        assert.equal(partnerPastTrips.length, 1);
+        assert.equal(partnerPastTrips[0].uid, defaultUID);
+
+        // assert payment field has been added to partner's past trip
+        assert.isDefined(partnerPastTrips[0].payment);
+        assert.equal(partnerPastTrips[0].payment.success, true);
+        assert.equal(
+          partnerPastTrips[0].payment.venni_commission,
+          Math.round(0.2 * farePrice)
+        );
+        assert.equal(
+          partnerPastTrips[0].payment.previous_owed_commission,
+          amountOwed
+        );
+        assert.equal(
+          partnerPastTrips[0].payment.paid_owed_commission,
+          expectedDiscountedAmount
+        );
+        assert.equal(
+          partnerPastTrips[0].payment.current_owed_commission,
+          amountOwed - expectedDiscountedAmount
+        );
+        assert.equal(
+          partnerPastTrips[0].payment.partner_amount_received,
+          farePrice - Math.round(0.2 * farePrice) - expectedDiscountedAmount
+        );
       });
     };
 
@@ -2711,6 +2744,9 @@ describe("trip", () => {
       assert.equal(partnerPastTrips.length, 1);
       assert.equal(partnerPastTrips[0].uid, defaultUID);
       assert.equal(partnerSnapshot.val().total_trips, "1");
+
+      // assert that past trip has not payment field, since it was a credit card payment
+      assert.isUndefined(partnerPastTrips[0].payment);
 
       // assert client has been updated
       clientSnapshot = await clientRef.once("value");

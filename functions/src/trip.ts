@@ -1050,7 +1050,10 @@ const completeTrip = async (
     trip.transaction_id != undefined
   ) {
     // if payment is through credit card, capture payment
-    captureSucceeded = await captureTripPayment(trip);
+    let cpt = await captureTripPayment(trip);
+    captureSucceeded = cpt.success;
+    // add capture payment information to trip
+    trip.payment = cpt;
   } else {
     // if payment is cash, increase amount partner owes venni by 20% of fare price
     await p.increaseAmountOwedBy(Math.ceil(0.2 * trip.fare_price));
@@ -1064,13 +1067,18 @@ const completeTrip = async (
   let partnerPastTripRefKey = await p.pushPastTrip(trip);
 
   // save past trip's reference key in trip request's partner_past_trip_ref_key
-  // this is so the client can retrieve it later when rating the partner
+  // this is so the client can retrieve it later when rating the partner. Also,
+  // add payment info to it
   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
     if (tripRequest == null) {
       return {};
     }
     if (partnerPastTripRefKey != null) {
       tripRequest.partner_past_trip_ref_key = partnerPastTripRefKey;
+    }
+    if (trip?.payment != undefined) {
+      // TODO: test
+      tripRequest.payment = trip.payment;
     }
     return tripRequest;
   });

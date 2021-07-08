@@ -105,9 +105,9 @@ export class Pagarme {
     ];
 
     if (recipientID != undefined) {
-      // if venniAmount is specified, collaborator receives amount minus venniAmount.
-      // if venniAmount is not specified, collaborator receives 80%
-      // collaborator is liable to chargebacks
+      // if venniAmount is specified, partner receives amount minus venniAmount.
+      // if venniAmount is not specified, partner receives 80%
+      // partner is liable to chargebacks
       splitRules.push({
         liable: true,
         charge_processing_fee: false,

@@ -455,47 +455,49 @@ const captureUnpaidTrip = async (
   }
 
   // if capture succeeded, remove unpaid trip from client and return
-  let captureSucceeded = await captureTripPayment(unpaidTrip, creditCard);
-  if (captureSucceeded) {
+  let success = await captureTripPayment(unpaidTrip, creditCard);
+  if (success) {
     await c.unsetUnpaidTrip();
   }
 
-  return captureSucceeded;
+  return success;
 };
-
 export const captureTripPayment = async (
   trip: TripRequest.Interface,
   creditCard?: Client.Interface.Card
-): Promise<boolean> => {
+): Promise<TripRequest.Payment> => {
   // make sure trip has transaction_id and partner
   if (trip.partner_id == undefined || trip.transaction_id == undefined) {
-    return false;
+    return { success: false };
   }
+
+  // create response object
+  let response: TripRequest.Payment = {
+    success: false,
+  };
+
   // get partner who completed the trip
   let p = new Partner(trip.partner_id);
   let partner = await p.getPartner();
 
   // variable that will hold how much to discount from partner's receivables
-  let partnerReceivableDiscount;
+  let paidOwedCommission;
 
-  let amountOwed = await p.getAmountOwed();
+  let owedCommission = await p.getOwedCommission();
   let venniAmount;
   // if partner owes us money
-  if (amountOwed != null && amountOwed > 0) {
+  if (owedCommission != null && owedCommission > 0) {
     // decrease what partner receives by the rounded minimum between
     // 80% of fare price and what he owes us
-    partnerReceivableDiscount = Math.ceil(
-      Math.min(0.8 * trip.fare_price, amountOwed)
+    paidOwedCommission = Math.ceil(
+      Math.min(0.8 * trip.fare_price, owedCommission)
     );
 
     // venni should receive 20% + whatever was discounted from the partner.
     // we calculate Math.min here just to guarantee that client won't pay more than
     // trip.fare_price
     venniAmount = Math.floor(
-      Math.min(
-        trip.fare_price,
-        0.2 * trip.fare_price + partnerReceivableDiscount
-      )
+      Math.min(trip.fare_price, 0.2 * trip.fare_price + paidOwedCommission)
     );
   }
 
@@ -515,7 +517,7 @@ export const captureTripPayment = async (
     diffDays >= 5
   ) {
     if (creditCard == undefined) {
-      return false;
+      return { success: false };
     }
     let transaction;
     try {
@@ -527,10 +529,10 @@ export const captureTripPayment = async (
         creditCard.billing_address
       );
       if (transaction.status != "authorized") {
-        return false;
+        return { success: false };
       }
     } catch (e) {
-      return false;
+      return { success: false };
     }
     try {
       // capture new transaction
@@ -541,10 +543,10 @@ export const captureTripPayment = async (
         venniAmount
       );
       if (transaction.status != "paid") {
-        return false;
+        return { success: false };
       }
     } catch (e) {
-      return false;
+      return { success: false };
     }
   } else {
     // otherwise, simply capture trip's transactions
@@ -556,18 +558,40 @@ export const captureTripPayment = async (
         venniAmount
       );
       if (transaction.status != "paid") {
-        return false;
+        return { success: false };
       }
     } catch (e) {
-      return false;
+      return { success: false };
     }
   }
+
   // if capture succeeded and the partner paid some amount he owed us
-  if (partnerReceivableDiscount != undefined) {
+  if (paidOwedCommission != undefined) {
     // decrease amount owed
-    await p.decreaseAmountOwedBy(partnerReceivableDiscount);
+    await p.decreaseAmountOwedBy(paidOwedCommission);
+
+    // build response with information about the capture
+    response.venni_commission = Math.round(0.2 * trip.fare_price);
+    response.previous_owed_commission = owedCommission ?? 0;
+    response.paid_owed_commission = paidOwedCommission;
+    response.current_owed_commission =
+      response.previous_owed_commission - paidOwedCommission;
+    if (venniAmount != undefined) {
+      response.partner_amount_received = trip.fare_price - venniAmount;
+    }
+  } else {
+    response.previous_owed_commission = 0;
+    response.venni_commission = Math.round(0.2 * trip.fare_price);
+    response.paid_owed_commission = 0;
+    response.current_owed_commission = 0;
+    response.partner_amount_received =
+      trip.fare_price - response.venni_commission;
   }
-  return true;
+
+  // mark response as successfull
+  response.success = true;
+
+  return response;
 };
 
 const createBankAccount = async (

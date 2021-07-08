@@ -81,6 +81,54 @@ export namespace TripRequest {
     payment_method?: "cash" | "credit_card"; // added when the client confirms the trip
     credit_card?: Client.Interface.Card; // added when the client confirms the trip and if paying with credit card
     transaction_id?: string; // added when the client confirms the trip and if paying with credit card to allow capturing transaction later
+    payment?: Payment; // added when the partner completes (and captures) a trip paid with credit card
+  }
+
+  export interface Payment {
+    success: boolean;
+    venni_commission?: number;
+    previous_owed_commission?: number;
+    paid_owed_commission?: number;
+    current_owed_commission?: number;
+    partner_amount_received?: number;
+  }
+
+  export namespace Payment {
+    export const is = (obj: any): obj is Payment => {
+      if(obj == null || obj == undefined) {
+        return false;
+      }
+      // type check mandatory field
+      if(obj.success == undefined || typeof obj.success != "boolean") {
+        return false;
+      }
+
+      // type check optional fields
+      const typeCheckOptionalField = (field: string, expectedType: string) => {
+        if (obj[field] != undefined && typeof obj[field] != expectedType) {
+          return false;
+        }
+        return true;
+      };
+      if (
+        !typeCheckOptionalField("venni_commission", "number") ||
+        !typeCheckOptionalField("previous_owed_commission", "number") ||
+        !typeCheckOptionalField("paid_owed_commission", "number") ||
+        !typeCheckOptionalField("current_owed_commission", "number") ||
+        !typeCheckOptionalField("partner_amount_received", "number")
+      ) {
+        return false;
+      }
+
+      return true;
+    }
+
+    export const fromObj = (obj: any) => {
+      if (is(obj)) {
+        return obj as Payment;
+      }
+      return;
+    };
   }
 
   export interface PartnerRating {
@@ -199,6 +247,11 @@ export namespace TripRequest {
         return false;
       }
 
+      // type check optional payment
+      if(obj.payment != undefined && !Payment.is(obj.payment)) {
+        return false;
+      }
+
       // type check remaining optional fields
       const typeCheckOptionalField = (field: string, expectedType: string) => {
         if (obj[field] != undefined && typeof obj[field] != expectedType) {
@@ -249,12 +302,7 @@ export namespace TripRequest {
 
     export const fromObj = (obj: any): TripRequest.Interface | undefined => {
       if (is(obj)) {
-        let result: LooseObject = {};
-        result = obj;
-        if (obj.partner_rating != undefined) {
-          result.partner_rating = PartnerRating.fromObj(obj.partner_rating);
-        }
-        return result as TripRequest.Interface;
+        return obj as TripRequest.Interface;
       }
       return;
     };

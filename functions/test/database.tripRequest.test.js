@@ -7,6 +7,15 @@ describe("TripRequest.Interface", () => {
   describe("is", () => {
     let validArg;
 
+    // export interface Payment {
+    //   success: boolean;
+    //   venni_commission?: number;
+    //   previous_owed_commission?: number;
+    //   paid_owed_commission?: number;
+    //   current_owed_commission?: number;
+    //   partner_amount_received?: number;
+    // }
+
     beforeEach(() => {
       validArg = {
         uid: "uid",
@@ -32,6 +41,14 @@ describe("TripRequest.Interface", () => {
           safety_went_well: true,
           cleanliness_went_well: false,
           feedback: "good trip!",
+        },
+        payment: {
+          success: true,
+          venni_commission: 50,
+          previous_owed_commission: 40,
+          paid_owed_commission: 30,
+          current_owed_commission: 10,
+          partner_amount_received: 0,
         },
       };
     });
@@ -119,6 +136,7 @@ describe("TripRequest.Interface", () => {
     falseIfOptionalWronglyTyped("payment_method", "invalid");
     falseIfOptionalWronglyTyped("credit_card", { id: "card_id" });
     falseIfOptionalWronglyTyped("transaction_id", 123);
+    falseIfOptionalWronglyTyped("payment", { invalid_field: "invalid" });
 
     it("returns false if, partner_rating, if present, is not an object", () => {
       let invalidArg = validArg;
@@ -199,6 +217,14 @@ describe("TripRequest.Interface", () => {
           cleanliness_went_well: false,
           feedback: "good trip!",
         },
+        payment: {
+          success: true,
+          venni_commission: 50,
+          previous_owed_commission: 40,
+          paid_owed_commission: 30,
+          current_owed_commission: 10,
+          partner_amount_received: 0,
+        },
       };
     });
 
@@ -240,11 +266,17 @@ describe("TripRequest.Interface", () => {
       assert.equal(response.payment_method, "credit_card");
       assert.equal(response.client_rating, "4.0");
       assert.isDefined(response.credit_card);
+      assert.equal(response.credit_card.id, "card_id");
+      assert.isDefined(response.credit_card.billing_address);
+      assert.equal(response.credit_card.billing_address.country, "br");
       assert.equal(response.transaction_id, "transaction_id");
       assert.equal(response.origin_lat, "11.111111");
       assert.equal(response.origin_lng, "22.222222");
       assert.equal(response.destination_lat, "33.333333");
       assert.equal(response.destination_lng, "44.444444");
+      assert.isDefined(response.payment);
+      assert.equal(response.payment.success, true);
+      assert.equal(response.payment.venni_commission, 50);
     });
   });
 });

@@ -446,7 +446,7 @@ const mockTripComplete = async (partnerID: string) => {
     trip.payment_method == "credit_card" &&
     trip.transaction_id != undefined
   ) {
-    let amountOwed = await p.getAmountOwed();
+    let amountOwed = await p.getOwedCommission();
     let venniAmount;
     // if partner owes us money
     if (amountOwed != null && amountOwed > 0) {
