@@ -178,7 +178,7 @@ describe("Partner", () => {
       });
     });
 
-    describe("getAmountOwed", () => {
+    describe("getOwedCommission", () => {
       before(async () => {
         // clear database
         await admin.database().ref("partners").remove();
@@ -193,7 +193,7 @@ describe("Partner", () => {
           .set(defaultPartner);
 
         // get amount owed
-        let amountOwed = await Partner.getAmountOwed();
+        let amountOwed = await Partner.getOwedCommission();
 
         // assert amount equals 2
         assert.equal(amountOwed, 2);
@@ -209,7 +209,7 @@ describe("Partner", () => {
           .set(defaultPartner);
 
         // get amount owed
-        let amountOwed = await Partner.getAmountOwed();
+        let amountOwed = await Partner.getOwedCommission();
 
         // assert amount owed is null
         assert.isNull(amountOwed);
@@ -229,7 +229,7 @@ describe("Partner", () => {
           .set(defaultPartner);
 
         // get amount owed
-        let amountOwed = await Partner.getAmountOwed();
+        let amountOwed = await Partner.getOwedCommission();
 
         // assert amount equals 2
         assert.equal(amountOwed, 2);
@@ -238,7 +238,7 @@ describe("Partner", () => {
         await Partner.increaseAmountOwedBy(3);
 
         // get amount owed anad assert it's 5
-        amountOwed = await Partner.getAmountOwed();
+        amountOwed = await Partner.getOwedCommission();
         assert.equal(amountOwed, 5);
       });
 
@@ -252,7 +252,7 @@ describe("Partner", () => {
           .set(defaultPartner);
 
         // get amount owed
-        let amountOwed = await Partner.getAmountOwed();
+        let amountOwed = await Partner.getOwedCommission();
 
         // assert amount is null
         assert.isNull(amountOwed);
@@ -261,7 +261,7 @@ describe("Partner", () => {
         await Partner.increaseAmountOwedBy(2);
 
         // get amount owed and assert it's 2
-        amountOwed = await Partner.getAmountOwed();
+        amountOwed = await Partner.getOwedCommission();
         assert.equal(amountOwed, 2);
 
         // reset amount_owed
@@ -279,7 +279,7 @@ describe("Partner", () => {
           .set(defaultPartner);
 
         // get amount owed
-        let amountOwed = await Partner.getAmountOwed();
+        let amountOwed = await Partner.getOwedCommission();
 
         // assert amount equals 2
         assert.equal(amountOwed, 2);
@@ -288,7 +288,7 @@ describe("Partner", () => {
         await Partner.decreaseAmountOwedBy(1);
 
         // get amount owed anad assert it's 1
-        amountOwed = await Partner.getAmountOwed();
+        amountOwed = await Partner.getOwedCommission();
         assert.equal(amountOwed, 1);
       });
 
@@ -302,7 +302,7 @@ describe("Partner", () => {
           .set(defaultPartner);
 
         // get amount owed
-        let amountOwed = await Partner.getAmountOwed();
+        let amountOwed = await Partner.getOwedCommission();
 
         // assert amount is null
         assert.isNull(amountOwed);
@@ -311,7 +311,7 @@ describe("Partner", () => {
         await Partner.decreaseAmountOwedBy(1);
 
         // get amount owed and assert it's -1
-        amountOwed = await Partner.getAmountOwed();
+        amountOwed = await Partner.getOwedCommission();
         assert.equal(amountOwed, -1);
 
         // reset amount_owed
