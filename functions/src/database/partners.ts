@@ -60,10 +60,7 @@ export class Partners extends Database {
     );
   };
 
-  // filterByZone returns partners who are near the origin of the trip.
-  // it first tries to find partners in the very zone where the origin is.
-  // If it finds no partners there, it filters partners in adjacent zones.
-  // If it still finds no partners there, it returns partners unchanged.
+  // filterByAccountStatus filter out partners with 'account_status' different from 'approved'.
   filterByAccountStatus = (
     partners: Partner.Interface[]
   ): Partner.Interface[] => {

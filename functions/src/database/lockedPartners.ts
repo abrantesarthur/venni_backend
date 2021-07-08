@@ -32,6 +32,7 @@ export namespace LockedPartners {
     last_name: string;
     cpf: string;
     phone_number: string;
+    lock_reason: string;
   }
   export namespace Interface {
     export const fromObj = (obj: any): LockedPartners.Interface | undefined => {
@@ -42,6 +43,7 @@ export namespace LockedPartners {
           cpf: obj.cpf,
           last_name: obj.last_name,
           phone_number: obj.phone_number,
+          lock_reason: obj.lock_reason,
         };
       }
       return;

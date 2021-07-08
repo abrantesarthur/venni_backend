@@ -248,13 +248,13 @@ export const on_account_status_change = database
       ) {
         console.log("locked account of partner with uid " + partnerID);
 
-        // add partner to locked account list
         const p = new Partner(partnerID);
         const partner = await p.getPartner();
         if (partner == undefined) {
           return;
         }
         try {
+          // add partner to locked account list
           const lp = new LockedPartners();
           await lp.set({
             uid: partner.uid,
@@ -262,6 +262,7 @@ export const on_account_status_change = database
             cpf: partner.cpf,
             last_name: partner.last_name,
             phone_number: partner.phone_number,
+            lock_reason: partner.lock_reason ?? "",
           });
           console.log(
             "added partner with uid " + partnerID + " to locked-partners list"
