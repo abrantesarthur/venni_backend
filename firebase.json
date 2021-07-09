@@ -1,21 +1,21 @@
 {
+  "pagarmeapi": {
+    "key": "ak_test_ab6YeGzWk37ySROFYPaTVN0J5uzBlh",
+    "recipient_id": "re_ckof1xjj20mmy0h9tjw0t9kuc"
+  },
   "emulators": {
+    "functions": {
+      "port": "5001",
+      "host": "192.168.0.101"
+    },
     "ui": {
       "enabled": "true"
-    },
-    "functions": {
-      "host": "192.168.0.101",
-      "port": "5001"
     }
-  },
-  "pagarmeapi": {
-    "recipient_id": "re_ckof1xjj20mmy0h9tjw0t9kuc",
-    "key": "ak_test_ab6YeGzWk37ySROFYPaTVN0J5uzBlh"
-  },
-  "googleapi": {
-    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
   },
   "functions": {
     "predeploy": "npm --prefix \"functions\" run build"
+  },
+  "googleapi": {
+    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
   }
 }

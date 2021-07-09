@@ -285,8 +285,8 @@ export const on_account_status_change = database
       ) {
         console.log("unlocked account of partner with uid " + partnerID);
 
-        // remove partner from locked-account list
         try {
+          // remove partner from locked-account list
           const lp = new LockedPartners();
           await lp.deleteByID(partnerID);
           console.log(
@@ -294,6 +294,10 @@ export const on_account_status_change = database
               partnerID +
               " from locked-partners list"
           );
+
+          // unset partners's lock_reason
+          const p = new Partner(partnerID);
+          await p.update({lock_reason: ""});
         } catch (e) {
           console.log(
             "failed to remove partner with uid " +
