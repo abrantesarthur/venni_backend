@@ -112,5 +112,31 @@ const _disconnect = async (
   }
 };
 
+const getByID = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+  validateArgument(data, ["partner_id"], ["string"], [true]);
+
+  const p = new Partner(data.partner_id);
+  const partner = await p.getPartner();
+  if (partner == undefined) {
+    throw new functions.https.HttpsError(
+      "not-found",
+      "could not find partner with uid " + data.partner_id
+    );
+  }
+
+  return partner;
+};
+
 export const connect = functions.https.onCall(_connect);
 export const disconnect = functions.https.onCall(_disconnect);
+export const get_by_id = functions.https.onCall(getByID);
