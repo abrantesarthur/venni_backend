@@ -1364,7 +1364,10 @@ const clientGetCurrentTrip = async (
   const tr = new TripRequest(clientID);
   const trip = await tr.getTripRequest();
   if (trip == null || trip == undefined) {
-    return {};
+    throw new functions.https.HttpsError(
+      "not-found",
+      "the client has no current trip requests"
+    );
   }
   return trip;
 };
