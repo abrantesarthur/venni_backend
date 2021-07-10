@@ -1347,6 +1347,28 @@ const partnerGetCurrentTrip = async (
   return response;
 };
 
+const clientGetCurrentTrip = async (
+  _: any,
+  context: functions.https.CallableContext
+) => {
+  // validate authentication
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+
+  // get client's current trip
+  const clientID = context.auth.uid;
+  const tr = new TripRequest(clientID);
+  const trip = await tr.getTripRequest();
+  if (trip == null || trip == undefined) {
+    return {};
+  }
+  return trip;
+};
+
 export const request = functions.https.onCall(requestTrip);
 export const edit = functions.https.onCall(editTrip);
 export const client_cancel = functions.https.onCall(clientCancelTrip);
@@ -1365,5 +1387,6 @@ export const client_get_past_trip = functions.https.onCall(clientGetPastTrip);
 export const partner_get_current_trip = functions.https.onCall(
   partnerGetCurrentTrip
 );
+export const client_get_current_trip = functions.https.onCall(clientGetCurrentTrip);
 
 // TODO: request directions to get encoded points when partner reports his position
