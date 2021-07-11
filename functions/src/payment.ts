@@ -533,6 +533,7 @@ export const captureTripPayment = async (
         return { success: false };
       }
     } catch (e) {
+      console.log(e);
       return { success: false };
     }
     try {
@@ -547,6 +548,7 @@ export const captureTripPayment = async (
         return { success: false };
       }
     } catch (e) {
+      console.log(e);
       return { success: false };
     }
   } else {
@@ -562,6 +564,7 @@ export const captureTripPayment = async (
         return { success: false };
       }
     } catch (e) {
+      console.log(e);
       return { success: false };
     }
   }
@@ -591,7 +594,7 @@ export const captureTripPayment = async (
 
   // mark response as successfull
   response.success = true;
-  
+
   return response;
 };
 
