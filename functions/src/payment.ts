@@ -523,7 +523,6 @@ export const captureTripPayment = async (
     let transaction;
     try {
       // create a whole new transaction
-      console.log("create new transaction");
       transaction = await pagarme.createTransaction(
         creditCard.id,
         trip.fare_price,
@@ -538,14 +537,12 @@ export const captureTripPayment = async (
     }
     try {
       // capture new transaction
-      console.log("capture new transaction");
       transaction = await pagarme.captureTransaction(
         transaction.tid,
         trip.fare_price,
         partner?.pagarme_recipient_id,
         venniAmount
       );
-      console.log("transaction.status = " + transaction.status);
       if (transaction.status != "paid") {
         return { success: false };
       }
@@ -555,14 +552,12 @@ export const captureTripPayment = async (
   } else {
     // otherwise, simply capture trip's transactions
     try {
-      console.log("capture actual transactoin");
       let transaction = await pagarme.captureTransaction(
         trip.transaction_id,
         trip.fare_price,
         partner?.pagarme_recipient_id,
         venniAmount
       );
-      console.log("the status we got was " + transaction.status);
       if (transaction.status != "paid") {
         return { success: false };
       }
@@ -596,9 +591,7 @@ export const captureTripPayment = async (
 
   // mark response as successfull
   response.success = true;
-
-  console.log("return succesful response");
-
+  
   return response;
 };
 
