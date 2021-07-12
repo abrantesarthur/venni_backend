@@ -268,7 +268,8 @@ const clientCancelTrip = async (
     tripRequest == undefined ||
     (tripRequest.trip_status != TripRequest.Status.waitingConfirmation &&
       tripRequest.trip_status != TripRequest.Status.paymentFailed &&
-      tripRequest.trip_status != TripRequest.Status.noPartnersAvailable &&
+      tripRequest.trip_status != TripRequest.Status.noPartnersAvailable && 
+      tripRequest.trip_status != TripRequest.Status.cancelledByPartner && 
       tripRequest.trip_status != TripRequest.Status.lookingForPartner &&
       tripRequest.trip_status != TripRequest.Status.waitingPartner &&
       tripRequest.trip_status != TripRequest.Status.inProgress)

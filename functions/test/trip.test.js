@@ -433,11 +433,7 @@ describe("trip", () => {
     it("fails if trip has cancelled-by-client status", async () => {
       await failsWithStatus("cancelled-by-client");
     });
-
-    it("fails if trip has cancelled-by-partner status", async () => {
-      await failsWithStatus("cancelled-by-partner");
-    });
-
+    
     it("fails if trip has completed status", async () => {
       await failsWithStatus("completed");
     });
