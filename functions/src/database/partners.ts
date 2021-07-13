@@ -40,6 +40,12 @@ export class Partners extends Database {
     /// filter out partners with 'account_status' different from 'approved'
     partners = this.filterByAccountStatus(partners);
 
+    // filter out eventual partners without set coordinates
+    partners = this.filterByPosition(partners);
+
+    // filter out partners without pagarme_recipient_id if payment is 'credit_card'
+    partners = this.filterByRecipientID(partners, tripRequest);
+
     // filter partners nearby the client
     partners = this.filterByZone(tripRequest.origin_zone, partners);
 
@@ -65,14 +71,49 @@ export class Partners extends Database {
     partners: Partner.Interface[]
   ): Partner.Interface[] => {
     let approvedPartners: Partner.Interface[] = [];
-
-    // filter partners in the origin zone
     partners.forEach((partner) => {
       if (partner.account_status === Partner.AccountStatus.approved) {
         approvedPartners.push(partner);
       }
     });
     return approvedPartners;
+  };
+
+  // filterByPosition filters out partners without position
+  filterByPosition = (partners: Partner.Interface[]): Partner.Interface[] => {
+    let approvedPartners: Partner.Interface[] = [];
+    partners.forEach((partner) => {
+      if (
+        partner.current_latitude != undefined &&
+        partner.current_latitude.length > 0 &&
+        partner.current_longitude != undefined &&
+        partner.current_longitude.length > 0
+      ) {
+        approvedPartners.push(partner);
+      }
+    });
+    return approvedPartners;
+  };
+
+  // filterByRecipientID filters out partners without pagarme_recipient_id if payment is 'credit_card'
+  filterByRecipientID = (
+    partners: Partner.Interface[],
+    tripRequest: TripRequest.Interface
+  ): Partner.Interface[] => {
+    if (tripRequest.payment_method == "cash") {
+      return partners;
+    } else {
+      let approvedPartners: Partner.Interface[] = [];
+      partners.forEach((partner) => {
+        if (
+          partner.pagarme_recipient_id != undefined &&
+          partner.pagarme_recipient_id.length > 0
+        ) {
+          approvedPartners.push(partner);
+        }
+      });
+      return approvedPartners;
+    }
   };
 
   // filterByZone returns partners who are near the origin of the trip.
@@ -83,10 +124,10 @@ export class Partners extends Database {
     originZone: ZoneName,
     partners: Partner.Interface[]
   ): Partner.Interface[] => {
-    if(partners.length == 0) {
+    if (partners.length == 0) {
       return [];
     }
-    
+
     let nearbyPartners: Partner.Interface[] = [];
 
     // filter partners in the origin zone
