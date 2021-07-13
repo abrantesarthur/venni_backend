@@ -312,7 +312,7 @@ export const on_account_status_change = database
   );
 
 // on_position_change gets triggered whenever the partner reports a new latitude and uses
-// the new position to calculate and set the partner's current zone
+// the new position to calculate and set the partner's current zone.
 export const on_position_change = database
   .ref("partners/{partnerID}/current_latitude")
   .onUpdate(
