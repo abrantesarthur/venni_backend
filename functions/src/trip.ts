@@ -153,8 +153,6 @@ export interface RequestTripInterface {
 }
 
 // TODO: only accept requests departing from Paracatu
-// TODO: check that client doesn't have pending payments. If so, return cancelled status.
-// TODO: Update frontend to warn client even before he tries to request a trip. If they manage to request, warn again!
 const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
@@ -167,6 +165,20 @@ const requestTrip = async (
     );
   }
   validateRequestTripArguments(data);
+
+  // make sure the client doens't have an unpaid trip
+  const c = new Client(context.auth.uid);
+  const client = await c.getClient();
+  if (
+    client == undefined ||
+    (client.unpaid_past_trip_id != undefined &&
+      client.unpaid_past_trip_id.length > 0)
+  ) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "the client has an unpaid past trip"
+    );
+  }
 
   // type cast data
   const body = data as RequestTripInterface;
@@ -268,8 +280,8 @@ const clientCancelTrip = async (
     tripRequest == undefined ||
     (tripRequest.trip_status != TripRequest.Status.waitingConfirmation &&
       tripRequest.trip_status != TripRequest.Status.paymentFailed &&
-      tripRequest.trip_status != TripRequest.Status.noPartnersAvailable && 
-      tripRequest.trip_status != TripRequest.Status.cancelledByPartner && 
+      tripRequest.trip_status != TripRequest.Status.noPartnersAvailable &&
+      tripRequest.trip_status != TripRequest.Status.cancelledByPartner &&
       tripRequest.trip_status != TripRequest.Status.lookingForPartner &&
       tripRequest.trip_status != TripRequest.Status.waitingPartner &&
       tripRequest.trip_status != TripRequest.Status.inProgress)
@@ -1391,6 +1403,7 @@ export const client_get_past_trip = functions.https.onCall(clientGetPastTrip);
 export const partner_get_current_trip = functions.https.onCall(
   partnerGetCurrentTrip
 );
-export const client_get_current_trip = functions.https.onCall(clientGetCurrentTrip);
+export const client_get_current_trip =
+  functions.https.onCall(clientGetCurrentTrip);
 
 // TODO: request directions to get encoded points when partner reports his position
