@@ -1,21 +1,2 @@
-{
-  "googleapi": {
-    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
-  },
-  "pagarmeapi": {
-    "recipient_id": "re_ckof1xjj20mmy0h9tjw0t9kuc",
-    "key": "ak_test_ab6YeGzWk37ySROFYPaTVN0J5uzBlh"
-  },
-  "emulators": {
-    "ui": {
-      "enabled": "true"
-    },
-    "functions": {
-      "host": "192.168.0.103",
-      "port": "5001"
-    }
-  },
-  "functions": {
-    "predeploy": "npm --prefix \"functions\" run build"
-  }
-}
+
+[1m[31mError:[39m[22m Server Error. getaddrinfo ENOTFOUND runtimeconfig.googleapis.com

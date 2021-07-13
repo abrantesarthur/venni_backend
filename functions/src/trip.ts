@@ -152,7 +152,6 @@ export interface RequestTripInterface {
   destination_place_id: string;
 }
 
-// TODO: only accept requests departing from Paracatu
 const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
