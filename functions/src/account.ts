@@ -85,7 +85,7 @@ const deleteClient = async (
       .storage()
       .bucket()
       .getFiles({
-        prefix: "user-photos/" + uid,
+        prefix: "client-photos/" + uid,
       });
     getFilesResponse[0].forEach(async (file) => {
       await file.delete();
