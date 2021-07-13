@@ -100,7 +100,10 @@ export class Partners extends Database {
     partners: Partner.Interface[],
     tripRequest: TripRequest.Interface
   ): Partner.Interface[] => {
-    if (tripRequest.payment_method == "cash") {
+    if (
+      tripRequest.payment_method == "cash" ||
+      tripRequest.payment_method == undefined
+    ) {
       return partners;
     } else {
       let approvedPartners: Partner.Interface[] = [];

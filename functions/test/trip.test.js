@@ -36,8 +36,8 @@ describe("trip", () => {
   let valid_origin_place_id;
   let valid_destination_place_id;
   let defaultUID;
+  let defaultClient;
   let createTripRequest;
-  let getTripRequestByID;
 
   before(() => {
     if (admin.apps.length == 0) {
@@ -48,6 +48,13 @@ describe("trip", () => {
     defaultCtx = {
       auth: {
         uid: defaultUID,
+      },
+    };
+    defaultClient = {
+      uid: defaultUID,
+      rating: "5.0",
+      payment_method: {
+        default: "cash",
       },
     };
     valid_origin_place_id = "ChIJzY-urWVKqJQRGA8-aIMZJ4I";
@@ -76,6 +83,7 @@ describe("trip", () => {
         request_time: Date.now().toString(),
         origin_address: "origin_address",
         destination_address: "destination_address",
+        payment_method: "credit_card",
         partner_id: partnerID,
       };
 
@@ -109,14 +117,24 @@ describe("trip", () => {
   });
 
   describe("request", () => {
-    afterEach(() => {
+    afterEach(async () => {
       // reset the database
-      admin.database().ref("trip-requests").remove();
+      await admin.database().ref("trip-requests").remove();
     });
 
     after(async () => {
       // clean database
       await admin.database().ref("partners").remove();
+      await admin.database().ref("clients").remove();
+    });
+
+    before(async () => {
+      // add default client to database
+      await admin
+        .database()
+        .ref("clients")
+        .child(defaultUID)
+        .set(defaultClient);
     });
 
     const genericTest = async (
@@ -255,7 +273,6 @@ describe("trip", () => {
     });
 
     it("throws 'invalid-argument' if user provides invalid destination_place_id", async () => {
-      const uid = "some_uid";
       const invalid_destination = "invalid_destination_place_id";
 
       // run test with specified uid and destinatino and expect 'invalid-argument' error
@@ -267,17 +284,11 @@ describe("trip", () => {
         "invalid-argument",
         "Invalid request. Invalid 'destination' parameter. '" +
           invalid_destination +
-          "' is not a valid Place ID.",
-        {
-          auth: {
-            uid: uid,
-          },
-        }
+          "' is not a valid Place ID."
       );
     });
 
     it("throws 'invalid-argument' if user provides invalid origin_place_id", async () => {
-      const uid = "some_uid";
       const invalid_origin = "invalid_origin_place_id";
 
       // run test with specified uid and destinatino and expect 'invalid-argument' error
@@ -289,13 +300,38 @@ describe("trip", () => {
         "invalid-argument",
         "Invalid request. Invalid 'origin' parameter. '" +
           invalid_origin +
-          "' is not a valid Place ID.",
-        {
-          auth: {
-            uid: uid,
-          },
-        }
+          "' is not a valid Place ID."
       );
+    });
+
+    it("throws 'failed-precondition' if user has unpaid past trip", async () => {
+      const invalid_origin = "invalid_origin_place_id";
+
+      // set client with unpaid past trip in database
+      await admin
+        .database()
+        .ref("clients")
+        .child(defaultUID)
+        .child("unpaid_past_trip_id")
+        .set("trip_id");
+
+      // run test with specified uid and destinatino and expect 'invalid-argument' error
+      await genericTest(
+        {
+          origin_place_id: valid_origin_place_id,
+          destination_place_id: valid_destination_place_id,
+        },
+        "failed-precondition",
+        "the client has an unpaid past trip"
+      );
+
+      // unset unpaid past trip
+      await admin
+        .database()
+        .ref("clients")
+        .child(defaultUID)
+        .child("unpaid_past_trip_id")
+        .remove();
     });
 
     it("fails when the user already has a trip request with inProgress status", async () => {
@@ -312,10 +348,8 @@ describe("trip", () => {
     });
 
     it("succeed when all parameters are valid", async () => {
-      const uid = "some_uid";
-
       // expect database not to be populated
-      let db = admin.database().ref("trip-requests").child(uid);
+      let db = admin.database().ref("trip-requests").child(defaultUID);
       let snapshot = await db.once("value");
       assert.isTrue(
         snapshot.val() == null,
@@ -330,11 +364,7 @@ describe("trip", () => {
         },
         "",
         "",
-        {
-          auth: {
-            uid: uid,
-          },
-        },
+        defaultCtx,
         true
       );
 
@@ -433,7 +463,7 @@ describe("trip", () => {
     it("fails if trip has cancelled-by-client status", async () => {
       await failsWithStatus("cancelled-by-client");
     });
-    
+
     it("fails if trip has completed status", async () => {
       await failsWithStatus("completed");
     });
@@ -1255,6 +1285,7 @@ describe("trip", () => {
         current_latitude: "-17.217587",
         current_longitude: "-46.881064",
         current_zone: "AA",
+        pagarme_recipient_id: "pagarme_recipient_id",
         status: "available",
         vehicle: {
           brand: "honda",

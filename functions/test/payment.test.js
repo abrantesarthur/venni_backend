@@ -1099,7 +1099,8 @@ describe("payment", () => {
       // call 'captureUnpaidTrip' and assert it returns 'false'
       const wrapped = test.wrap(payment.capture_unpaid_trip);
       let result = await wrapped({ card_id: creditCard.id }, defaultCtx);
-      assert.isFalse(result);
+      assert.isDefined(result);
+      assert.isFalse(result.success);
 
       // after calling captureUnpaidTrip, assert client still has 'unpaid_past_trip_id' set
       client = await c.getClient();

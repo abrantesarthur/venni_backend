@@ -511,6 +511,7 @@ describe("partners", () => {
       const partners = await Partners.findAllAvailable({
         origin_zone: "DC",
         origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
+        payment_method: "cash",
       });
 
       assert.equal(partners.length, 1);
@@ -623,6 +624,7 @@ describe("partners", () => {
       const partners = await Partners.findAllAvailable({
         origin_zone: "DC",
         origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
+        payment_method: "cash",
       });
 
       assert.equal(partners.length, 3);
