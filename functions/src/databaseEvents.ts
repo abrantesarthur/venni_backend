@@ -6,6 +6,7 @@ import * as firebaseAdmin from "firebase-admin";
 import { Pagarme } from "./vendors/pagarme";
 import { Recipient } from "pagarme-js-types/src/client/recipients/responses";
 import { LockedPartners } from "./database/lockedPartners";
+import { getZoneNameFromCoordinate, ZoneName } from "./zones";
 
 // on_submitted_documents watches a partner's submitted documents. As
 // soon as the partners submits all required documents for onboarding, the function
@@ -297,7 +298,7 @@ export const on_account_status_change = database
 
           // unset partners's lock_reason
           const p = new Partner(partnerID);
-          await p.update({lock_reason: ""});
+          await p.update({ lock_reason: "" });
         } catch (e) {
           console.log(
             "failed to remove partner with uid " +
@@ -305,6 +306,49 @@ export const on_account_status_change = database
               " from locked-partners: " +
               e
           );
+        }
+      }
+    }
+  );
+
+// on_position_change gets triggered whenever the partner reports a new latitude and uses
+// the new position to calculate and set the partner's current zone
+export const on_position_change = database
+  .ref("partners/{partnerID}/current_latitude")
+  .onUpdate(
+    async (change: Change<database.DataSnapshot>, context: EventContext) => {
+      // get partner so we can get longitude
+      const partnerID = context.params.partnerID;
+      const p = new Partner(partnerID);
+      let partner;
+      try {
+        partner = await p.getPartner();
+      } catch (e) {
+        console.log("failed to get partner with uid " + partnerID);
+        return;
+      }
+
+      if (partner != undefined) {
+        // get coordiantes
+        const newLng = partner.current_longitude;
+        const newLat = change.after.val();
+
+        if (newLng != undefined && newLat != undefined) {
+          // calculate zone
+          const zone = getZoneNameFromCoordinate(
+            Number(newLat),
+            Number(newLng)
+          );
+
+          // persist zone
+          try {
+            await p.update({ current_zone: zone });
+          } catch (e) {
+            console.log(
+              "failed to update the zone of the partner with uid " + partnerID
+            );
+            return;
+          }
         }
       }
     }
