@@ -84,7 +84,7 @@ use-stag-project:
 	@$(FIREBASEUSE) venni-rider-staging
 
 use-prod-project:
-	@$(FIREBASEUSE) venni-rider-production
+	@$(FIREBASEUSE) venni-production
 
 deploy-config: check-deploy-env
 # create functions/.runtimeconfig.json file
