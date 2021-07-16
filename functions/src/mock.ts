@@ -547,14 +547,14 @@ const mockTripComplete = async (partnerID: string) => {
   });
 };
 
-// mock partner behaves as a partner accepting a trip request would behave
-// TODO: delete on production
-export const partner_handling_trip = database
-  .ref("partners/{partnerID}")
-  .onUpdate(
-    async (change: Change<database.DataSnapshot>, context: EventContext) => {
-      // make sure the status changed to requested and current_client_id did too
-      let partner = change.after.val();
-      await mockTripAccept(partner as Partner.Interface);
-    }
-  );
+// // mock partner behaves as a partner accepting a trip request would behave
+// // TODO: delete on production
+// export const partner_handling_trip = database
+//   .ref("partners/{partnerID}")
+//   .onUpdate(
+//     async (change: Change<database.DataSnapshot>, context: EventContext) => {
+//       // make sure the status changed to requested and current_client_id did too
+//       let partner = change.after.val();
+//       await mockTripAccept(partner as Partner.Interface);
+//     }
+//   );
