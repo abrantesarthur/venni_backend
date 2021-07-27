@@ -156,6 +156,7 @@ const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
+  console.log("requestTrip called");
   // validate authentication and request
   if (context.auth == null) {
     throw new functions.https.HttpsError(
