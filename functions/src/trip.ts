@@ -629,6 +629,12 @@ const confirmTrip = async (
       requestedPartnersUIDs = requestedPartnersUIDs.slice(1);
     }
 
+    // set trip status to noPartnersAvailable
+    if(tripRequest != undefined) {
+      tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
+      promises.push(tr.ref.set(tripRequest));
+    }
+
     await Promise.all(promises);
 
     // send failure response back
