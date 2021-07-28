@@ -92,6 +92,9 @@ export class Client extends Database {
   getCardByID = async (
     cardID: string
   ): Promise<Client.Interface.Card | undefined> => {
+    if (cardID == undefined) {
+      return undefined;
+    }
     let snapshot = await this.ref.child("cards").child(cardID).once("value");
     return Client.Interface.Card.fromObj(snapshot.val());
   };
@@ -156,6 +159,7 @@ export namespace Client {
       default: "cash" | "credit_card";
       card_id?: string;
     };
+    fcm_token?: string; // firebase cloud messaging token is updated when the user inits the app
     cards?: Client.Interface.Card[]; // is empty if customer has no cards
     unpaid_past_trip_id?: string; // reference key to the unpaid past trip
   }
@@ -181,6 +185,11 @@ export namespace Client {
         obj.unpaid_past_trip_id != undefined &&
         typeof obj.unpaid_past_trip_id != "string"
       ) {
+        return false;
+      }
+
+      // if fcm_token is present, make sure it's correctly typed
+      if (obj.fcm_token != undefined && typeof obj.fcm_token != "string") {
         return false;
       }
 
@@ -232,6 +241,7 @@ export namespace Client {
           payment_method: obj.payment_method,
           cards: cards,
           unpaid_past_trip_id: obj.unpaid_past_trip_id,
+          fcm_token: obj.fcm_token,
         };
       }
       return;

@@ -156,7 +156,6 @@ const requestTrip = async (
   data: any,
   context: functions.https.CallableContext
 ) => {
-  console.log("requestTrip called");
   // validate authentication and request
   if (context.auth == null) {
     throw new functions.https.HttpsError(
@@ -245,6 +244,7 @@ const requestTrip = async (
     request_time: Date.now().toString(),
     origin_address: leg.start_address,
     destination_address: leg.end_address,
+    partner_is_near: false,
   };
   await tr.ref.set(result);
 
@@ -385,6 +385,22 @@ const partnerCancelTrip = async (
     return tripRequest;
   });
 
+  // notify client about cancellation
+  const c = new Client(clientID);
+  let client = await c.getClient();
+  if (client != undefined && client.fcm_token != undefined) {
+    try {
+      await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
+        notification: {
+          title: "Corrida cancelada",
+          body: "O(a) piloto cancelou a corrida",
+          badge: "0",
+          sound: "default",
+        },
+      });
+    } catch (_) {}
+  }
+
   // return updated trip-request to partner
   return await tr.getTripRequest();
 };
@@ -444,31 +460,29 @@ const confirmTrip = async (
   tripRequest.trip_status = TripRequest.Status.waitingPayment;
   promises.push(tr.ref.set(tripRequest));
 
-  // make sure that 'card_id', if specified, corresponds to existing card
-  // TODO: use getCardByID instead
+  // make sure client exists
   const c = new Client(context.auth.uid);
   let client = await c.getClient();
-  let creditCard: Client.Interface.Card | undefined;
-  if (
-    data.card_id != undefined &&
-    client != undefined &&
-    client.cards != undefined
-  ) {
-    for (var i = 0; i < client.cards.length; i++) {
-      if (data.card_id === client.cards[i].id) {
-        creditCard = client.cards[i];
-        break;
-      }
-    }
-    if (creditCard === undefined) {
-      tripRequest.trip_status = TripRequest.Status.paymentFailed;
-      promises.push(tr.ref.set(tripRequest));
-      await Promise.all(promises);
-      throw new functions.https.HttpsError(
-        "failed-precondition",
-        "Could not find card with id '" + data.card_id + "'."
-      );
-    }
+  if (client == undefined) {
+    tripRequest.trip_status = TripRequest.Status.waitingConfirmation;
+    promises.push(tr.ref.set(tripRequest));
+    await Promise.all(promises);
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Could not find client with id '" + context.auth.uid + "'"
+    );
+  }
+
+  // make sure that 'card_id', if specified, corresponds to existing card
+  let creditCard = await c.getCardByID(data.card_id);
+  if (data.card_id != undefined && creditCard == undefined) {
+    tripRequest.trip_status = TripRequest.Status.paymentFailed;
+    promises.push(tr.ref.set(tripRequest));
+    await Promise.all(promises);
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Could not find card with id '" + data.card_id + "'."
+    );
   }
 
   let paymentFailed = false;
@@ -519,6 +533,7 @@ const confirmTrip = async (
       pagarmeError?.response.errors[0]
     );
   }
+
   // change trip-request status to lookingForPartner
   tripRequest.trip_status = TripRequest.Status.lookingForPartner;
   promises.push(tr.ref.set(tripRequest));
@@ -630,13 +645,26 @@ const confirmTrip = async (
       requestedPartnersUIDs = requestedPartnersUIDs.slice(1);
     }
 
-    // set trip status to noPartnersAvailable
-    if(tripRequest != undefined) {
+    // set tripRequest status to noPartnersAvailable
+    promises.push(
+      transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+        if (tripRequest == null) {
+          return {};
+        }
+        tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
+        return tripRequest;
+      })
+    );
+
+    if (tripRequest != undefined) {
       tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
       promises.push(tr.ref.set(tripRequest));
     }
 
     await Promise.all(promises);
+
+    // wait a bit to make sure all states are persisted
+    await sleep(300);
 
     // send failure response back
     throw new functions.https.HttpsError(
@@ -830,7 +858,20 @@ const confirmTrip = async (
     } while (confirmTripResponse == undefined);
     // pupulate response with trip status
     confirmTripResponse.trip_status = tripRequest.trip_status;
+
     await Promise.all(promises);
+
+    // notify client that partner is on his way
+    try {
+      await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
+        notification: {
+          title: "Piloto a caminho",
+          body: "Dirija-se ao local de encontro",
+          badge: "0",
+          sound: "default",
+        },
+      });
+    } catch (_) {}
     return confirmTripResponse;
   }
 
@@ -1136,6 +1177,18 @@ const completeTrip = async (
     tripRequest.trip_status = TripRequest.Status.completed;
     return tripRequest;
   });
+
+  // notify the client to rate trip
+  try {
+    await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
+      notification: {
+        title: "Corrida finalizada",
+        body: "Avalie a sua experiência",
+        badge: "0",
+        sound: "default",
+      },
+    });
+  } catch (_) {}
 };
 
 const ratePartner = async (
@@ -1411,5 +1464,3 @@ export const partner_get_current_trip = functions.https.onCall(
 );
 export const client_get_current_trip =
   functions.https.onCall(clientGetCurrentTrip);
-
-// TODO: request directions to get encoded points when partner reports his position

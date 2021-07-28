@@ -526,6 +526,17 @@ describe("trip", () => {
       const partnerRef = admin.database().ref("partners").child(partnerID);
       await partnerRef.set(defaultPartner);
 
+      // add client to the datbase
+      let defaultClient = {
+        uid: clientID,
+        rating: "5.0",
+        payment_method: {
+          default: "cash",
+        },
+      };
+      const clientRef = admin.database().ref("clients").child(clientID);
+      await clientRef.set(defaultClient);
+
       // add trip request to database with status waiting-confirmation
       let tripRequest = {
         uid: clientID,
@@ -656,7 +667,6 @@ describe("trip", () => {
     it("fails if partner accepts a trip without having been requested", async () => {
       const partnerID1 = "partnerID1";
       const partnerID2 = "partnerID2";
-      const clientID = "clientID";
 
       // add two available partners to the database
       await admin.database().ref("partners").remove();
@@ -697,6 +707,11 @@ describe("trip", () => {
 
       // add trip request to database
       await createTripRequest();
+
+      // add client to datbase
+
+      const clientRef = admin.database().ref("clients").child(defaultUID);
+      await clientRef.set(defaultClient);
 
       // confirm trip
       const wrappedConfirm = test.wrap(trip.confirm);
@@ -774,6 +789,10 @@ describe("trip", () => {
 
       // add trip request to database
       await createTripRequest();
+
+      // add client to the datbase
+      const clientRef = admin.database().ref("clients").child(defaultUID);
+      await clientRef.set(defaultClient);
 
       // confirm trip
       const wrappedConfirm = test.wrap(trip.confirm);
@@ -1255,6 +1274,10 @@ describe("trip", () => {
       // populate database with trip request with valid status
       await createTripRequest("waiting-confirmation");
 
+      // add client to the datbase
+      const clientRef = admin.database().ref("clients").child(defaultUID);
+      await clientRef.set(defaultClient);
+
       // expect confirmTrip to fail
       await genericTest(
         "failed-precondition",
@@ -1306,6 +1329,10 @@ describe("trip", () => {
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
+
+      // add client to the datbase
+      const clientRef = admin.database().ref("clients").child(defaultUID);
+      await clientRef.set(defaultClient);
 
       // confirm trip
       const wrappedConfirm = test.wrap(trip.confirm);
@@ -1413,6 +1440,10 @@ describe("trip", () => {
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
+
+      // add client to the datbase
+      const clientRef = admin.database().ref("clients").child(defaultUID);
+      await clientRef.set(defaultClient);
 
       // confirm trip
       const wrappedConfirm = test.wrap(trip.confirm);
@@ -1724,6 +1755,10 @@ describe("trip", () => {
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
+
+      // add client to the datbase
+      const clientRef = admin.database().ref("clients").child(defaultUID);
+      await clientRef.set(defaultClient);
 
       // user confirms trip
       const wrappedConfirm = test.wrap(trip.confirm);
@@ -2117,6 +2152,9 @@ describe("trip", () => {
       await clientRef.set({
         uid: clientID,
         rating: "5",
+        payment_method: {
+          default: "cash",
+        },
       });
 
       // add a partner to the database supposedly handing a trip for clientID
@@ -2542,6 +2580,9 @@ describe("trip", () => {
       await clientRef.set({
         uid: defaultUID,
         rating: "5",
+        payment_method: {
+          default: "cash",
+        },
       });
 
       // add trip request for defaultUID with status different from in-progress
@@ -2602,6 +2643,9 @@ describe("trip", () => {
       await clientRef.set({
         uid: defaultUID,
         rating: "5",
+        payment_method: {
+          default: "cash",
+        },
       });
 
       // add trip request for clientID being handled by a different partner
@@ -3204,6 +3248,10 @@ describe("trip", () => {
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
+
+      // add client to the datbase
+      const clientRef = admin.database().ref("clients").child(defaultUID);
+      await clientRef.set(defaultClient);
 
       // user confirms trip
       const wrappedConfirm = test.wrap(trip.confirm);
