@@ -82,6 +82,7 @@ export namespace TripRequest {
     credit_card?: Client.Interface.Card; // added when the client confirms the trip and if paying with credit card
     transaction_id?: string; // added when the client confirms the trip and if paying with credit card to allow capturing transaction later
     payment?: Payment; // added when the partner completes (and captures) a trip paid with credit card
+    partner_is_near?: boolean; // modified when partner gets near or far from client. Used to notify client
   }
 
   export interface Payment {
@@ -95,11 +96,11 @@ export namespace TripRequest {
 
   export namespace Payment {
     export const is = (obj: any): obj is Payment => {
-      if(obj == null || obj == undefined) {
+      if (obj == null || obj == undefined) {
         return false;
       }
       // type check mandatory field
-      if(obj.success == undefined || typeof obj.success != "boolean") {
+      if (obj.success == undefined || typeof obj.success != "boolean") {
         return false;
       }
 
@@ -121,7 +122,7 @@ export namespace TripRequest {
       }
 
       return true;
-    }
+    };
 
     export const fromObj = (obj: any) => {
       if (is(obj)) {
@@ -194,8 +195,8 @@ export namespace TripRequest {
         if (
           obj[field] == undefined ||
           typeof obj[field] != "string" ||
-          isNaN(parseInt(obj[field], 10)) || 
-          isNaN(parseFloat(obj[field])) 
+          isNaN(parseInt(obj[field], 10)) ||
+          isNaN(parseFloat(obj[field]))
         ) {
           return false;
         }
@@ -248,7 +249,7 @@ export namespace TripRequest {
       }
 
       // type check optional payment
-      if(obj.payment != undefined && !Payment.is(obj.payment)) {
+      if (obj.payment != undefined && !Payment.is(obj.payment)) {
         return false;
       }
 
@@ -263,7 +264,8 @@ export namespace TripRequest {
         !typeCheckOptionalField("partner_past_trip_ref_key", "string") ||
         !typeCheckOptionalField("partner_id", "string") ||
         !typeCheckOptionalField("client_rating", "string") ||
-        !typeCheckOptionalField("transaction_id", "string")
+        !typeCheckOptionalField("transaction_id", "string") ||
+        !typeCheckOptionalField("partner_is_near", "boolean")
       ) {
         return false;
       }
@@ -281,7 +283,7 @@ export namespace TripRequest {
         "origin_address" in obj &&
         "destination_address" in obj &&
         "origin_lat" in obj &&
-        "origin_lng" in obj && 
+        "origin_lng" in obj &&
         "destination_lat" in obj &&
         "destination_lng" in obj &&
         typeof obj.uid == "string" &&

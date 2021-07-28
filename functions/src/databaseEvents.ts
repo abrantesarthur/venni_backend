@@ -7,6 +7,10 @@ import { Pagarme } from "./vendors/pagarme";
 import { Recipient } from "pagarme-js-types/src/client/recipients/responses";
 import { LockedPartners } from "./database/lockedPartners";
 import { getZoneNameFromCoordinate, ZoneName } from "./zones";
+import { LatLng } from "./utils";
+import { TripRequest } from "./database/tripRequest";
+import { Client } from "./database/client";
+const haversie = require("haversine-distance");
 
 // on_submitted_documents watches a partner's submitted documents. As
 // soon as the partners submits all required documents for onboarding, the function
@@ -312,7 +316,8 @@ export const on_account_status_change = database
   );
 
 // on_position_change gets triggered whenever the partner reports a new latitude and uses
-// the new position to calculate and set the partner's current zone.
+// the new position to calculate and set the partner's current zone and to send notifications
+// to the client when partner is nearby
 export const on_position_change = database
   .ref("partners/{partnerID}/current_latitude")
   .onUpdate(
@@ -349,6 +354,33 @@ export const on_position_change = database
             );
             return;
           }
+        }
+      }
+    }
+  );
+
+export const on_partner_nearby = database
+  .ref("trip-requests/{clientID}/partner_is_near")
+  .onUpdate(
+    async (change: Change<database.DataSnapshot>, context: EventContext) => {
+      const partnerIsNear: boolean = change.after.val();
+      // notify client if partner is near
+      if (partnerIsNear == true) {
+        const c = new Client(context.params.clientID);
+        const client = await c.getClient();
+        if (client != undefined) {
+          try {
+            await firebaseAdmin
+              .messaging()
+              .sendToDevice(client.fcm_token ?? "", {
+                notification: {
+                  title: "Piloto próximo(a)",
+                  body: "Vá ao local de encontro",
+                  badge: "0",
+                  sound: "default",
+                },
+              });
+          } catch (_) {}
         }
       }
     }

@@ -238,6 +238,8 @@ export namespace Partner {
     bank_account?: AppBankAccount;
     pagarme_recipient_id?: string; // used to identify partner in pagarme API
     amount_owed?: number; // in cents. increased when partner handles trip paid in cash and decreased when paid in credit_card.
+    fcm_token?: string; // firebase cloud messaging token is updated when the user inits the app
+
   }
   export namespace Interface {
     export const fromObj = (obj: any): Partner.Interface | undefined => {
@@ -267,6 +269,7 @@ export namespace Partner {
           bank_account: obj.bank_account,
           pagarme_recipient_id: obj.pagarme_recipient_id,
           amount_owed: obj.amount_owed,
+          fcm_token: obj.fcm_token,
         };
       }
       return;
@@ -311,7 +314,8 @@ export namespace Partner {
         !typeCheckOptionalField("current_longitude", "string") ||
         !typeCheckOptionalField("current_client_uid", "string") ||
         !typeCheckOptionalField("idle_since", "string") ||
-        !typeCheckOptionalField("rating", "string")
+        !typeCheckOptionalField("rating", "string") ||
+        !typeCheckOptionalField("fcm_token", "string")
       ) {
         return false;
       }
