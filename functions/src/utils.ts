@@ -167,8 +167,3 @@ export function phoneHasE164Format(phoneNumber: string) {
 export const toTwoFixedNumber = (n: number) => {
   return Number((Math.round(n * 100) / 100).toFixed(2));
 };
-
-export interface LatLng {
-  latitude: number;
-  longitude: number;
-}
