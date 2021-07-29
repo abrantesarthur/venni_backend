@@ -571,7 +571,7 @@ const confirmTrip = async (
 
   // requestPartner is the callback used to update partners' statuses to requested.
   // it tires to set availablePartner's status to 'requested' and current_client_id to client's uid
-  const requestPartner = (partner: Partner.Interface) => {
+  const requestPartner = async (partner: Partner.Interface) => {
     if (partner == null) {
       // this will run in a transaction. When running a function in a transaction,
       // we should always check for null even if there is data at this reference in the server.
@@ -598,6 +598,18 @@ const confirmTrip = async (
 
       // mark partner as requested.
       requestedPartnersUIDs.push(partner.uid);
+
+      // notify partner
+      try {
+        await firebaseAdmin.messaging().sendToDevice(partner.fcm_token ?? "", {
+          notification: {
+            title: "Novo pedido de corrida",
+            body: "Abra o aplicativo para aceitar",
+            badge: "0",
+            sound: "default",
+          },
+        });
+      } catch (_) {}
 
       return partner;
     } else {
