@@ -571,7 +571,7 @@ const confirmTrip = async (
 
   // requestPartner is the callback used to update partners' statuses to requested.
   // it tires to set availablePartner's status to 'requested' and current_client_id to client's uid
-  const requestPartner = async (partner: Partner.Interface) => {
+  const requestPartner =  (partner: Partner.Interface) => {
     if (partner == null) {
       // this will run in a transaction. When running a function in a transaction,
       // we should always check for null even if there is data at this reference in the server.
@@ -599,17 +599,17 @@ const confirmTrip = async (
       // mark partner as requested.
       requestedPartnersUIDs.push(partner.uid);
 
-      // notify partner
-      try {
-        await firebaseAdmin.messaging().sendToDevice(partner.fcm_token ?? "", {
-          notification: {
-            title: "Novo pedido de corrida",
-            body: "Abra o aplicativo para aceitar",
-            badge: "0",
-            sound: "default",
-          },
-        });
-      } catch (_) {}
+      // // notify partner
+      // try {
+      //   await firebaseAdmin.messaging().sendToDevice(partner.fcm_token ?? "", {
+      //     notification: {
+      //       title: "Novo pedido de corrida",
+      //       body: "Abra o aplicativo para aceitar",
+      //       badge: "0",
+      //       sound: "default",
+      //     },
+      //   });
+      // } catch (_) {}
 
       return partner;
     } else {
@@ -804,7 +804,8 @@ const confirmTrip = async (
     }
 
     promises.push(
-      partnersRef.child(nearbyPartners[i].uid).transaction(requestPartner)
+      // TODO: notify on complete
+      partnersRef.child(nearbyPartners[i].uid).transaction(requestPartner,)
     );
 
     // wait at most 4 seconds before tring to turn next partner into 'requested'
@@ -875,7 +876,9 @@ const confirmTrip = async (
 
     // notify client that partner is on his way
     try {
-      await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
+
+      console.log("about to send notification to client");
+      let response = await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
         notification: {
           title: "Piloto a caminho",
           body: "Dirija-se ao local de encontro",
@@ -883,7 +886,14 @@ const confirmTrip = async (
           sound: "default",
         },
       });
-    } catch (_) {}
+      console.log("message sent?");
+      console.log(response.successCount);
+      console.log(response.failureCount);
+      console.log(response.results[0].error);
+    } catch (e) {
+      console.log("caught error");
+      console.log(e);
+    }
     return confirmTripResponse;
   }
 
