@@ -38,40 +38,6 @@ const validDigits = (digits: string, length: number, exactLength = true) => {
   return true;
 };
 
-const validateCreateTransferArguments = (args: any) => {
-  validateArgument(
-    args,
-    ["amount", "pagarme_recipient_id"],
-    ["string", "string"],
-    [true, true]
-  );
-
-  // 'amount' in cents must have at most 6 digits
-  if (!validDigits(args.amount, 6, false)) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "argument 'number' must have at most 6 digits."
-    );
-  }
-};
-
-const validateCreateAnticipationArguments = (args: any) => {
-  validateArgument(
-    args,
-    ["amount", "pagarme_recipient_id"],
-    ["number", "string"],
-    [true, true]
-  );
-
-  // 'amount' in cents must be at most 999999
-  if (args.amount > 999999) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "argument 'number' must be at most '999999'."
-    );
-  }
-};
-
 const validateCreateCardArguments = (args: any) => {
   validateArgument(
     args,
@@ -458,7 +424,7 @@ const captureUnpaidTrip = async (
   let response = await captureTripPayment(unpaidTrip, creditCard);
   if (response.success == true) {
     await c.unsetUnpaidTrip();
-  } 
+  }
 
   return response;
 };
@@ -696,76 +662,6 @@ const getBalance = async (
   return balance;
 };
 
-const createTransfer = async (
-  data: any,
-  context: functions.https.CallableContext
-) => {
-  // do validations
-  if (context.auth == null) {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Missing authentication credentials."
-    );
-  }
-  validateCreateTransferArguments(data);
-
-  let transfer: Transfer;
-  try {
-    const pagarme = new Pagarme();
-    await pagarme.ensureInitialized();
-    transfer = await pagarme.createTransfer({
-      amount: data.amount,
-      recipientId: data.pagarme_recipient_id,
-    });
-  } catch (e) {
-    console.log(e.response.errors[0]);
-    throw new functions.https.HttpsError(
-      "unknown",
-      "Falha ao criar transferência para recipiente com id " +
-        data.pagarme_recipient_id,
-      e.response.errors[0]
-    );
-  }
-  return transfer;
-};
-
-const createAnticipation = async (
-  data: any,
-  context: functions.https.CallableContext
-) => {
-  // do validations
-  if (context.auth == null) {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Missing authentication credentials."
-    );
-  }
-  validateCreateAnticipationArguments(data);
-
-  let anticipation: BulkAnticipation;
-  try {
-    const pagarme = new Pagarme();
-    await pagarme.ensureInitialized();
-    anticipation = await pagarme.createAnticipation({
-      requested_amount: data.amount,
-      recipientId: data.pagarme_recipient_id,
-      payment_date: (Date.now() + 24 * 60 * 60 * 1000).toString(),
-      timeframe: "start",
-      build: false,
-      automatic_transfer: true,
-    });
-  } catch (e) {
-    console.log(e.response.errors[0]);
-    throw new functions.https.HttpsError(
-      "unknown",
-      "Falha ao criar antecipação para recipiente com id " +
-        data.pagarme_recipient_id,
-      e.response.errors[0]
-    );
-  }
-  return anticipation;
-};
-
 export const create_card = functions.https.onCall(createCard);
 export const delete_card = functions.https.onCall(deleteCard);
 export const get_card_hash_key = functions.https.onCall(getCardHashKey);
@@ -775,5 +671,3 @@ export const set_default_payment_method = functions.https.onCall(
 export const capture_unpaid_trip = functions.https.onCall(captureUnpaidTrip);
 export const create_bank_account = functions.https.onCall(createBankAccount);
 export const get_balance = functions.https.onCall(getBalance);
-export const create_transfer = functions.https.onCall(createTransfer);
-export const create_anticipation = functions.https.onCall(createAnticipation);

@@ -184,11 +184,22 @@ export const on_account_status_change = database
         await pagarme.ensureInitialized();
         let recipient: Recipient;
         try {
+          /**
+           * Partners receive bank transfers automatically and weekly on Thursdays.
+           * Anticipations are also automatic and  happen daily on a D+15 model.
+           * This means that, everyday, their available balance gets increased by
+           * the amount anticipated that day, which refers to payments made 15 days prior.
+           */
           recipient = await pagarme.createRecipient({
+            transfer_enabled: true,
             transfer_interval: "weekly",
-            transfer_day: "1",
-            transfer_enabled: false,
+            transfer_day: "4",
             bank_account_id: partner.bank_account.id.toString(),
+            automatic_anticipation_enabled: "true",
+            automatic_anticipation_type: "1025",
+            automatic_anticipation_days:
+              "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]",
+            automatic_anticipation_1025_delay: "15",
             anticipatable_volume_percentage: "100",
             register_information: {
               type: "individual",
@@ -213,7 +224,6 @@ export const on_account_status_change = database
               ": " +
               e
           );
-          const p = new Partner(partner.uid);
           await p.lockAccount(
             "failed to create pagarme recipient when 'account_status' transitioned to 'approved'"
           );
@@ -235,7 +245,6 @@ export const on_account_status_change = database
         } catch (e) {
           // on failure, lock partner's account
           console.log("failed to update partner with UID " + partnerID);
-          const p = new Partner(partner.uid);
           await p.lockAccount(
             "failed to add more info when 'account_status' transitioned to 'approved'"
           );
