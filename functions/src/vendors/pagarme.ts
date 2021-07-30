@@ -164,18 +164,6 @@ export class Pagarme {
     return await this._client.balance.find(opts);
   };
 
-  // TRANSFERS
-  createTransfer = async (opts: TransferCreateOptions): Promise<Transfer> => {
-    return await this._client.transfers.create(opts);
-  };
-
-  // ANTICIPATION
-  createAnticipation = async (
-    opts: BulkAnticipationsCreateOptions
-  ): Promise<BulkAnticipation> => {
-    return await this._client.bulkAnticipations.create(opts);
-  };
-
   // SECURITY
 
   encrypt = async (card: {
