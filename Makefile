@@ -74,14 +74,10 @@ endif
 ################################################################################
 ## FIREBASE CONFIGS
 ################################################################################
-.PHONY: use-dev-project use-stag-project use-prod-project deploy-config emulator-config test-config
+.PHONY: use-dev-project use-prod-project deploy-config emulator-config test-config
 
 use-dev-project:
-# use development project
 	@$(FIREBASEUSE) venni-rider-development-8a3f8
-
-use-stag-project:
-	@$(FIREBASEUSE) venni-rider-staging
 
 use-prod-project:
 	@$(FIREBASEUSE) venni-production
@@ -143,11 +139,11 @@ emulator: use-dev-project emulator-config build
 	
 
 # start online testing with services pointing to test project
-# should we want to update files to be tested, don't forget to set the
-# GOOGLE_APPLICATION_CREDENTIALS and run $(NPMRUN) buid
-# test: use-dev-project test-dependencies test-config build
+# the environment used for tests is development, which is determined when we initialize
+# "firebaseFunctionsTest" in trip.test.js, where we pass the path to devAdminCredentials.json
+# test: test-dependencies test-config build
 # 	$(NPMTEST)
-test: build
+test: functions/devAdminCredentials.json build
 	$(NPMTEST)
 
 
@@ -168,7 +164,5 @@ endif
 endif
 
 deploy-dev: use-dev-project deploy-config deploy
-
-deploy-stag: use-stag-project deploy-config deploy
 
 deploy-prod: use-prod-project deploy-config deploy

@@ -7,10 +7,7 @@ import { Pagarme } from "./vendors/pagarme";
 import { Recipient } from "pagarme-js-types/src/client/recipients/responses";
 import { LockedPartners } from "./database/lockedPartners";
 import { getZoneNameFromCoordinate, ZoneName } from "./zones";
-import { LatLng } from "./utils";
-import { TripRequest } from "./database/tripRequest";
 import { Client } from "./database/client";
-const haversie = require("haversine-distance");
 
 // on_submitted_documents watches a partner's submitted documents. As
 // soon as the partners submits all required documents for onboarding, the function

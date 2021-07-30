@@ -792,7 +792,26 @@ const confirmTrip = async (
     }
 
     promises.push(
-      partnersRef.child(nearbyPartners[i].uid).transaction(requestPartner)
+      // request partners and notify them on success
+      partnersRef
+        .child(nearbyPartners[i].uid)
+        .transaction(requestPartner, async (_, completed, snapshot) => {
+          if (completed) {
+            let partner: Partner.Interface = snapshot?.val();
+            try {
+              await firebaseAdmin
+                .messaging()
+                .sendToDevice(partner?.fcm_token ?? "", {
+                  notification: {
+                    title: "Novo pedido de corrida",
+                    body: "Abra o aplicativo para aceitar",
+                    badge: "0",
+                    sound: "default",
+                  },
+                });
+            } catch (e) {}
+          }
+        })
     );
 
     // wait at most 4 seconds before tring to turn next partner into 'requested'
