@@ -1412,4 +1412,102 @@ describe("payment", () => {
       assert.isDefined(balance.transferred);
     });
   });
+
+  describe("getTransfers", () => {
+    const genericTest = async (
+      data,
+      expectedCode,
+      expectedMessage,
+      ctx = defaultCtx,
+      succeeed = false
+    ) => {
+      const wrapped = test.wrap(payment.get_transfers);
+      try {
+        await wrapped(data, ctx);
+        if (succeeed) {
+          assert(true, "get_transfers finished successfully");
+        } else {
+          assert(false, "get_transfers didn't throw expected error");
+        }
+      } catch (e) {
+        assert.strictEqual(e.code, expectedCode, "receive correct error code");
+        assert.strictEqual(
+          e.message,
+          expectedMessage,
+          "receive correct error message"
+        );
+      }
+    };
+
+    it("fails if user is not authenticated", async () => {
+      // pass empty context as a parameter
+      await genericTest(
+        { count: 10, page: 1, pagarme_recipient_id: "pagarme_recipient_id" },
+        "failed-precondition",
+        "Missing authentication credentials.",
+        {}
+      );
+    });
+
+    it("fails if 'pagarme_recipient_id' argument is missing", async () => {
+      await genericTest(
+        { count: 10, page: 1 },
+        "invalid-argument",
+        "missing expected argument 'pagarme_recipient_id'."
+      );
+    });
+
+    it("fails if 'pagarme_recipient_id' argument has wrong type", async () => {
+      await genericTest(
+        { count: 10, page: 1, pagarme_recipient_id: 1 },
+        "invalid-argument",
+        "argument 'pagarme_recipient_id' has invalid type. Expected 'string'. Received 'number'."
+      );
+    });
+
+    it("fails if 'count' argument is missing", async () => {
+      await genericTest(
+        { page: 1, pagarme_recipient_id: 1 },
+        "invalid-argument",
+        "missing expected argument 'count'."
+      );
+    });
+
+    it("fails if 'count' argument has wrong type", async () => {
+      await genericTest(
+        { count: "10", page: 1, pagarme_recipient_id: 1 },
+        "invalid-argument",
+        "argument 'count' has invalid type. Expected 'number'. Received 'string'."
+      );
+    });
+
+    it("fails if 'page' argument is missing", async () => {
+      await genericTest(
+        { count: 10, pagarme_recipient_id: 1 },
+        "invalid-argument",
+        "missing expected argument 'page'."
+      );
+    });
+
+    it("fails if 'page' argument has wrong type", async () => {
+      await genericTest(
+        { count: 10, page: "1", pagarme_recipient_id: 1 },
+        "invalid-argument",
+        "argument 'page' has invalid type. Expected 'number'. Received 'string'."
+      );
+    });
+
+    it("returns a recipient transfers on success", async () => {
+      // request balance of existing pagarme recipient
+      const getTransfers = test.wrap(payment.get_transfers);
+      let transfers = await getTransfers(
+        { pagarme_recipient_id: "re_ckq08x3ec0gsj0h9twldhs9zm" },
+        defaultCtx
+      );
+
+      // assert partner has no bank account info
+      assert.isDefined(transfers);
+      assert.equal(transfers.length, 0);
+    });
+  });
 });
