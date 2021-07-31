@@ -1501,7 +1501,11 @@ describe("payment", () => {
       // request balance of existing pagarme recipient
       const getTransfers = test.wrap(payment.get_transfers);
       let transfers = await getTransfers(
-        { pagarme_recipient_id: "re_ckq08x3ec0gsj0h9twldhs9zm" },
+        {
+          count: 10,
+          page: 1,
+          pagarme_recipient_id: "re_ckq08x3ec0gsj0h9twldhs9zm",
+        },
         defaultCtx
       );
 
