@@ -125,10 +125,10 @@ const validateCreateBankAccountArguments = (args: any) => {
     args,
     [
       "bank_code",
-      "agency",
-      "agency_dv",
-      "account",
-      "account_dv",
+      "agencia",
+      "agencia_dv",
+      "conta",
+      "conta_dv",
       "type",
       "document_number",
       "legal_name",
@@ -154,27 +154,27 @@ const validateCreateBankAccountArguments = (args: any) => {
     );
   }
 
-  // agency must have at most 4 digits
-  if (!validDigits(args.agency, 4, false)) {
+  // agencia must have at most 4 digits
+  if (!validDigits(args.agencia, 4, false)) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "argument 'agency' must have at most 4 digits."
+      "argument 'agencia' must have at most 4 digits."
     );
   }
 
-  // account must have at most 13 digits
-  if (!validDigits(args.account, 13, false)) {
+  // conta must have at most 13 digits
+  if (!validDigits(args.conta, 13, false)) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "argument 'account' must have at most 13 digits."
+      "argument 'conta' must have at most 13 digits."
     );
   }
 
-  // account_dv must have at most 2 digits
-  if (!validDigits(args.account_dv, 2, false)) {
+  // conta_dv must have at most 2 digits
+  if (!validDigits(args.conta_dv, 2, false)) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "argument 'account_dv' must have at most 2 digits."
+      "argument 'conta_dv' must have at most 2 digits."
     );
   }
 
@@ -583,16 +583,16 @@ const createBankAccount = async (
   let bankAccount: BankAccount;
   try {
     let opts: BankAccountCreateOptions = {
-      agencia: data.agency,
+      agencia: data.agencia,
       bank_code: data.bank_code,
-      conta: data.account,
-      conta_dv: data.account_dv,
+      conta: data.conta,
+      conta_dv: data.conta_dv,
       document_number: data.document_number,
       legal_name: data.legal_name,
       type: data.type,
     };
-    if (data.agency_dv != undefined) {
-      opts["agencia_dv"] = data.agency_dv;
+    if (data.agencia_dv != undefined) {
+      opts["agencia_dv"] = data.agencia_dv;
     }
     bankAccount = await p.createBankAccount(opts);
   } catch (e) {
@@ -610,10 +610,10 @@ const createBankAccount = async (
   try {
     appBankAccount = {
       id: bankAccount.id,
-      agency: bankAccount.agencia,
-      agency_dv: bankAccount.agencia_dv,
-      account: bankAccount.conta,
-      account_dv: bankAccount.conta_dv,
+      agencia: bankAccount.agencia,
+      agencia_dv: bankAccount.agencia_dv,
+      conta: bankAccount.conta,
+      conta_dv: bankAccount.conta_dv,
       type: bankAccount.type,
       charge_transfer_fees: bankAccount.charge_transfer_fees,
       bank_code: bankAccount.bank_code,

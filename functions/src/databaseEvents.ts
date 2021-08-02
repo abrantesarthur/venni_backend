@@ -220,10 +220,9 @@ export const on_account_status_change = database
           // on failure, lock partner's account
           console.log(
             "failed to create a pagarme recipient for partner with UID " +
-              partnerID +
-              ": " +
-              e
+              partnerID
           );
+          console.log(e.response.errors[0]);
           await p.lockAccount(
             "failed to create pagarme recipient when 'account_status' transitioned to 'approved'"
           );

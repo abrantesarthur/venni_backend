@@ -679,9 +679,8 @@ const confirmTrip = async (
   // partners are listening for changes in their 'status'. When they see its value
   // change to 'requested' they can accept the trip by sending an accept-trip request
   // which will update the trip-request's partner_id field with the uid of the partner.
-  // we detect that change to partner_id here. It's important to note that we continue
-  // listening even if confirmTrip returns. The only way to stop listening is by calling
-  // tripRequestRef.off
+  // we detect that change to partner_id here. We continue listening until we call
+  // tr.ref.off()
   let cancelFurtherPartnerRequests = false;
   let asyncTimeout = new AsyncTimeout();
   let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
@@ -888,6 +887,7 @@ const confirmTrip = async (
           body: "Dirija-se ao local de encontro",
           badge: "0",
           sound: "default",
+          icon: "notification_icon.png",
         },
       });
     } catch (_) {}
