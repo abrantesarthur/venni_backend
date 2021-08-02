@@ -1114,10 +1114,10 @@ describe("payment", () => {
     beforeEach(async () => {
       validArg = {
         bank_code: "000",
-        agency: "0000",
-        agency_dv: "0",
-        account: "00000",
-        account_dv: "0",
+        agencia: "0000",
+        agencia_dv: "0",
+        conta: "00000",
+        conta_dv: "0",
         type: "conta_corrente",
         document_number: "00000000000",
         legal_name: "Joao da Silva",
@@ -1177,9 +1177,9 @@ describe("payment", () => {
     };
 
     failsIfMissingArg("bank_code");
-    failsIfMissingArg("agency");
-    failsIfMissingArg("account");
-    failsIfMissingArg("account_dv");
+    failsIfMissingArg("agencia");
+    failsIfMissingArg("conta");
+    failsIfMissingArg("conta_dv");
     failsIfMissingArg("type");
     failsIfMissingArg("document_number");
     failsIfMissingArg("legal_name");
@@ -1203,10 +1203,10 @@ describe("payment", () => {
     };
 
     failsIfWrongType("bank_code", "string", 123);
-    failsIfWrongType("agency", "string", 123);
-    failsIfWrongType("agency_dv", "string", 123);
-    failsIfWrongType("account", "string", 123);
-    failsIfWrongType("account_dv", "string", 123);
+    failsIfWrongType("agencia", "string", 123);
+    failsIfWrongType("agencia_dv", "string", 123);
+    failsIfWrongType("conta", "string", 123);
+    failsIfWrongType("conta_dv", "string", 123);
     failsIfWrongType("type", "string", 123);
     failsIfWrongType("legal_name", "string", 123);
     failsIfWrongType("document_number", "string", 123);
@@ -1231,63 +1231,63 @@ describe("payment", () => {
       );
     });
 
-    it("fails if 'agency' argument has length greater than 4", async () => {
+    it("fails if 'agencia' argument has length greater than 4", async () => {
       let invalidArg = validArg;
-      invalidArg["agency"] = "00000";
+      invalidArg["agencia"] = "00000";
       await genericTest(
         invalidArg,
         "invalid-argument",
-        "argument 'agency' must have at most 4 digits."
+        "argument 'agencia' must have at most 4 digits."
       );
     });
 
-    it("fails if 'agency' argument is not all digits", async () => {
+    it("fails if 'agencia' argument is not all digits", async () => {
       let invalidArg = validArg;
-      invalidArg["agency"] = "000a";
+      invalidArg["agencia"] = "000a";
       await genericTest(
         invalidArg,
         "invalid-argument",
-        "argument 'agency' must have at most 4 digits."
+        "argument 'agencia' must have at most 4 digits."
       );
     });
 
-    it("fails if 'account' argument has length greater than 13", async () => {
+    it("fails if 'conta' argument has length greater than 13", async () => {
       let invalidArg = validArg;
-      invalidArg["account"] = "00000000000000";
+      invalidArg["conta"] = "00000000000000";
       await genericTest(
         invalidArg,
         "invalid-argument",
-        "argument 'account' must have at most 13 digits."
+        "argument 'conta' must have at most 13 digits."
       );
     });
 
-    it("fails if 'account' argument is not all digits", async () => {
+    it("fails if 'conta' argument is not all digits", async () => {
       let invalidArg = validArg;
-      invalidArg["account"] = "000000000000x";
+      invalidArg["conta"] = "000000000000x";
       await genericTest(
         invalidArg,
         "invalid-argument",
-        "argument 'account' must have at most 13 digits."
+        "argument 'conta' must have at most 13 digits."
       );
     });
 
-    it("fails if 'account_dv' argument has length greater than 2", async () => {
+    it("fails if 'conta_dv' argument has length greater than 2", async () => {
       let invalidArg = validArg;
-      invalidArg["account_dv"] = "000";
+      invalidArg["conta_dv"] = "000";
       await genericTest(
         invalidArg,
         "invalid-argument",
-        "argument 'account_dv' must have at most 2 digits."
+        "argument 'conta_dv' must have at most 2 digits."
       );
     });
 
-    it("fails if 'account_dv' argument is not all digits", async () => {
+    it("fails if 'conta_dv' argument is not all digits", async () => {
       let invalidArg = validArg;
-      invalidArg["account_dv"] = "0x";
+      invalidArg["conta_dv"] = "0x";
       await genericTest(
         invalidArg,
         "invalid-argument",
-        "argument 'account_dv' must have at most 2 digits."
+        "argument 'conta_dv' must have at most 2 digits."
       );
     });
 
@@ -1330,10 +1330,10 @@ describe("payment", () => {
       assert.isDefined(partner.bank_account);
       assert.isDefined(partner.bank_account.id);
       assert.equal(partner.bank_account.bank_code, validArg.bank_code);
-      assert.equal(partner.bank_account.agency, validArg.agency);
-      assert.equal(partner.bank_account.agency_dv, validArg.agency_dv);
-      assert.equal(partner.bank_account.account, validArg.account);
-      assert.equal(partner.bank_account.account_dv, validArg.account_dv);
+      assert.equal(partner.bank_account.agencia, validArg.agencia);
+      assert.equal(partner.bank_account.agencia_dv, validArg.agencia_dv);
+      assert.equal(partner.bank_account.conta, validArg.conta);
+      assert.equal(partner.bank_account.conta_dv, validArg.conta_dv);
       assert.equal(partner.bank_account.type, validArg.type);
       assert.equal(
         partner.bank_account.document_number,

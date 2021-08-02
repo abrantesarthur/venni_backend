@@ -416,10 +416,10 @@ export namespace Partner {
   export interface AppBankAccount {
     id?: number;
     bank_code: string;
-    agency: string;
-    agency_dv?: string;
-    account: string;
-    account_dv: string;
+    agencia: string;
+    agencia_dv?: string;
+    conta: string;
+    conta_dv: string;
     type: string;
     document_type?: string;
     document_number: string;
@@ -438,10 +438,10 @@ export namespace Partner {
         if (
           keys[i] != "id" &&
           keys[i] != "bank_code" &&
-          keys[i] != "agency" &&
-          keys[i] != "agency_dv" &&
-          keys[i] != "account" &&
-          keys[i] != "account_dv" &&
+          keys[i] != "agencia" &&
+          keys[i] != "agencia_dv" &&
+          keys[i] != "conta" &&
+          keys[i] != "conta_dv" &&
           keys[i] != "type" &&
           keys[i] != "document_type" &&
           keys[i] != "document_number" &&
@@ -461,7 +461,7 @@ export namespace Partner {
       };
       if (
         !typeCheckOptionalField("id", "number") ||
-        !typeCheckOptionalField("agency_dv", "string") ||
+        !typeCheckOptionalField("agencia_dv", "string") ||
         !typeCheckOptionalField("document_type", "string") ||
         !typeCheckOptionalField("charge_transfer_fees", "boolean")
       ) {
@@ -470,9 +470,9 @@ export namespace Partner {
 
       return (
         "bank_code" in obj &&
-        "agency" in obj &&
-        "account" in obj &&
-        "account_dv" in obj &&
+        "agencia" in obj &&
+        "conta" in obj &&
+        "conta_dv" in obj &&
         "type" in obj &&
         "document_number" in obj &&
         "legal_name" in obj

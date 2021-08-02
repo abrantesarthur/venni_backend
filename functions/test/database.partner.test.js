@@ -543,10 +543,10 @@ describe("Partner", () => {
       validBankAccount = {
         id: 1,
         bank_code: "000",
-        agency: "0000",
-        agency_dv: "0",
-        account: "00000",
-        account_dv: "0",
+        agencia: "0000",
+        agencia_dv: "0",
+        conta: "00000",
+        conta_dv: "0",
         type: "conta_corrente",
         document_type: "cpf",
         document_number: "00000000000",
@@ -586,7 +586,7 @@ describe("Partner", () => {
       };
 
       falseIfOptionalWronglyTyped("id", "not a number");
-      falseIfOptionalWronglyTyped("agency_dv", 1);
+      falseIfOptionalWronglyTyped("agencia_dv", 1);
       falseIfOptionalWronglyTyped("document_type", 1);
       falseIfOptionalWronglyTyped("charge_transfer_fees", "true");
 
