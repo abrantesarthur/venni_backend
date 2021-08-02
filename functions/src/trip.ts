@@ -683,7 +683,7 @@ const confirmTrip = async (
   // tr.ref.off()
   let cancelFurtherPartnerRequests = false;
   let asyncTimeout = new AsyncTimeout();
-  let timeoutPromise = asyncTimeout.set(cancelRequest, 30000);
+  let timeoutPromise = asyncTimeout.set(cancelRequest, 40000);
   let confirmTripResponse: LooseObject = {};
   tr.ref.on("value", async (snapshot) => {
     if (snapshot.val() == null) {
@@ -813,10 +813,10 @@ const confirmTrip = async (
         })
     );
 
-    // wait at most 4 seconds before tring to turn next partner into 'requested'
-    // this is so that first partner to receive request has 5 seconds of
-    // advantage to respond. Don't wait after runnign transactoin for last partner, though.
-    // in case cancelFurtherPartnerRequests is set to true, we stop waiting.
+    // wait 11 seconds before request next partner. This way, each partner has ~10 seconds
+    // to accept request, before it is sent to another partner. Don't wait after
+    // runnign transactoin for last partner, though. In case cancelFurtherPartnerRequests
+    // is set to true, we stop waiting.
     if (i != nearbyPartners.length - 1) {
       let msPassed = 0;
       do {
@@ -825,7 +825,7 @@ const confirmTrip = async (
           break;
         }
         msPassed += 1;
-      } while (msPassed < 4000);
+      } while (msPassed < 11000);
     }
   }
 
