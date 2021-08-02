@@ -800,7 +800,7 @@ describe("trip", () => {
 
       // wait enough for confirm to send out request to partner 1 and 2
       // TODO: may have to increase this once process payments is implemented
-      await sleep(7000);
+      await sleep(17000);
 
       // assert partner1 has been requested
       let partner1Ref = admin.database().ref("partners").child(partnerID1);
@@ -1339,7 +1339,7 @@ describe("trip", () => {
       const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
       // wait enough time for confirm to send request to partner1 and partner 2
-      await sleep(8500);
+      await sleep(17000);
 
       // assert trip has looking-for-partner status
       let tripRequestSnapshot = await tripRequestRef.once("value");
