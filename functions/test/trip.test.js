@@ -2297,7 +2297,8 @@ describe("trip", () => {
           idle_since: Date.now().toString(),
           rating: "5.0",
           amount_owed: amountOwed,
-          pagarme_recipient_id: "re_cko91zvv600b60i9tv2qvf24o",
+          // this value is pre-created. In extenuating circumstances (new pagarme account) it may have to be changed
+          pagarme_recipient_id: "re_cks2kc5540cqy0i9tfbmgorgo",
         };
         const partnerRef = admin.database().ref("partners").child(partnerID);
         await partnerRef.set(defaultPartner);

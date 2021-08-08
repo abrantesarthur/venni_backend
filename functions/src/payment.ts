@@ -531,6 +531,7 @@ export const captureTripPayment = async (
       }
     } catch (e) {
       console.log(e);
+      console.log(e.response.errors[0]);
       return { success: false };
     }
   }

@@ -171,7 +171,6 @@ export namespace Client {
     full_name?: string; // added by event listener
     email?: string; // added by event listener
     phone_number?: string; // added by event listener
-    pagarme_customer_id?: string; // client's pagarme customer id. created by a database listener as soon as the client creates an account
   }
 
   export namespace Interface {
@@ -200,7 +199,6 @@ export namespace Client {
       if (
         !typeCheckOptionalField("unpaid_past_trip_id", "string") ||
         !typeCheckOptionalField("fcm_token", "string") ||
-        !typeCheckOptionalField("pagarme_customer_id", "string") ||
         !typeCheckOptionalField("payment_method", "object") ||
         !typeCheckOptionalField("name", "string") ||
         !typeCheckOptionalField("last_name", "string") ||
@@ -256,7 +254,6 @@ export namespace Client {
           full_name: obj.full_name,
           email: obj.email,
           phone_number: obj.phone_number,
-          pagarme_customer_id: obj.pagarme_customer_id,
           rating: obj.rating,
           payment_method: obj.payment_method,
           cards: cards,

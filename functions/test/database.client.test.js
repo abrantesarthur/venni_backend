@@ -576,7 +576,6 @@ describe("Client", () => {
           full_name: "fullName",
           email: "email",
           phone_number: "9999",
-          pagarme_customer_id: "pagarme_customer_id",
           rating: "5",
           payment_method: {
             default: "cash",
@@ -611,7 +610,6 @@ describe("Client", () => {
         assert.equal(response.full_name, "fullName");
         assert.equal(response.email, "email");
         assert.equal(response.phone_number, "9999");
-        assert.equal(response.pagarme_customer_id, "pagarme_customer_id");
         assert.equal(response.rating, "5");
         assert.isDefined(response.cards);
         assert.equal(response.cards.length, 1);
