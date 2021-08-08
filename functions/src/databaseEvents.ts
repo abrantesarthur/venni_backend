@@ -8,6 +8,7 @@ import { Recipient } from "pagarme-js-types/src/client/recipients/responses";
 import { LockedPartners } from "./database/lockedPartners";
 import { getZoneNameFromCoordinate, ZoneName } from "./zones";
 import { Client } from "./database/client";
+import { client } from "pagarme";
 
 // on_submitted_documents watches a partner's submitted documents. As
 // soon as the partners submits all required documents for onboarding, the function
@@ -390,3 +391,21 @@ export const on_partner_nearby = database
       }
     }
   );
+
+// on_create_client adds the client's authenticaiton credentials to database
+export const on_create_client = database
+  .ref("clients/{clientID}")
+  .onCreate(async (_: database.DataSnapshot, context: EventContext) => {
+    const clientID = context.params.clientID;
+    //
+    const authClient = await firebaseAdmin.auth().getUser(clientID);
+    await new Client(clientID).update({
+      name: authClient.displayName?.split(" ")[0],
+      last_name: authClient.displayName?.substring(
+        authClient.displayName.indexOf(" ") + 1
+      ),
+      full_name: authClient.displayName,
+      email: authClient.email,
+      phone_number: authClient.phoneNumber,
+    });
+  });
