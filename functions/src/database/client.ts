@@ -26,6 +26,10 @@ export class Client extends Database {
     return await this.ref.remove();
   };
 
+  update = async (values: Object) => {
+    return await this.ref.update(values);
+  };
+
   // rateByID sets client's as average of last 100 ratings
   private rate = async () => {
     let client = await this.getClient();
@@ -162,6 +166,12 @@ export namespace Client {
     fcm_token?: string; // firebase cloud messaging token is updated when the user inits the app
     cards?: Client.Interface.Card[]; // is empty if customer has no cards
     unpaid_past_trip_id?: string; // reference key to the unpaid past trip
+    name?: string; // added by event listener
+    last_name?: string; // added by event listener
+    full_name?: string; // added by event listener
+    email?: string; // added by event listener
+    phone_number?: string; // added by event listener
+    pagarme_customer_id?: string; // client's pagarme customer id. created by a database listener as soon as the client creates an account
   }
 
   export namespace Interface {
@@ -180,38 +190,42 @@ export namespace Client {
         }
       }
 
-      // if unpaid_past_trip_id is present, make sure it's correctly typed
+      // type check optional fields
+      const typeCheckOptionalField = (field: string, expectedType: string) => {
+        if (obj[field] != undefined && typeof obj[field] != expectedType) {
+          return false;
+        }
+        return true;
+      };
       if (
-        obj.unpaid_past_trip_id != undefined &&
-        typeof obj.unpaid_past_trip_id != "string"
+        !typeCheckOptionalField("unpaid_past_trip_id", "string") ||
+        !typeCheckOptionalField("fcm_token", "string") ||
+        !typeCheckOptionalField("pagarme_customer_id", "string") ||
+        !typeCheckOptionalField("payment_method", "object") ||
+        !typeCheckOptionalField("name", "string") ||
+        !typeCheckOptionalField("last_name", "string") ||
+        !typeCheckOptionalField("full_name", "string") ||
+        !typeCheckOptionalField("email", "string") ||
+        !typeCheckOptionalField("phone_number", "string")
       ) {
-        return false;
-      }
-
-      // if fcm_token is present, make sure it's correctly typed
-      if (obj.fcm_token != undefined && typeof obj.fcm_token != "string") {
         return false;
       }
 
       // type check obj.payment_method
-      if (
-        obj.payment_method == undefined ||
-        typeof obj.payment_method != "object"
-      ) {
-        return false;
-      }
-      if (
-        obj.payment_method.default == undefined ||
-        (obj.payment_method.default != "cash" &&
-          obj.payment_method.default != "credit_card")
-      ) {
-        return false;
-      }
-      if (
-        obj.payment_method.default == "credit_card" &&
-        obj.payment_method.card_id == undefined
-      ) {
-        return false;
+      if (obj.payment_method != undefined) {
+        if (
+          obj.payment_method.default == undefined ||
+          (obj.payment_method.default != "cash" &&
+            obj.payment_method.default != "credit_card")
+        ) {
+          return false;
+        }
+        if (
+          obj.payment_method.default == "credit_card" &&
+          obj.payment_method.card_id == undefined
+        ) {
+          return false;
+        }
       }
 
       return (
@@ -237,6 +251,12 @@ export namespace Client {
 
         return {
           uid: obj.uid,
+          name: obj.name,
+          last_name: obj.last_name,
+          full_name: obj.full_name,
+          email: obj.email,
+          phone_number: obj.phone_number,
+          pagarme_customer_id: obj.pagarme_customer_id,
           rating: obj.rating,
           payment_method: obj.payment_method,
           cards: cards,

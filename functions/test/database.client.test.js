@@ -454,6 +454,11 @@ describe("Client", () => {
         );
       };
       falseIfOptionalWronglyTyped("unpaid_past_trip_id", 123);
+      falseIfOptionalWronglyTyped("name", 123);
+      falseIfOptionalWronglyTyped("last_name", 123);
+      falseIfOptionalWronglyTyped("full_name", 123);
+      falseIfOptionalWronglyTyped("email", 123);
+      falseIfOptionalWronglyTyped("phone_number", 123);
 
       it("returns false if 'cards' field is present and incorrect", () => {
         let invalidArg = validArg;
@@ -566,6 +571,12 @@ describe("Client", () => {
       it("returns Client.Interface if obj is Client.Interface III", () => {
         const obj = {
           uid: "clientUID",
+          name: "name",
+          last_name: "lastName",
+          full_name: "fullName",
+          email: "email",
+          phone_number: "9999",
+          pagarme_customer_id: "pagarme_customer_id",
           rating: "5",
           payment_method: {
             default: "cash",
@@ -595,6 +606,12 @@ describe("Client", () => {
         const response = Client.Client.Interface.fromObj(obj);
         assert.isDefined(response);
         assert.equal(response.uid, "clientUID");
+        assert.equal(response.name, "name");
+        assert.equal(response.last_name, "lastName");
+        assert.equal(response.full_name, "fullName");
+        assert.equal(response.email, "email");
+        assert.equal(response.phone_number, "9999");
+        assert.equal(response.pagarme_customer_id, "pagarme_customer_id");
         assert.equal(response.rating, "5");
         assert.isDefined(response.cards);
         assert.equal(response.cards.length, 1);
