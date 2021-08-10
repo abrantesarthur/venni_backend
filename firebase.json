@@ -1,12 +1,12 @@
 {
+  "functions": {
+    "predeploy": "npm --prefix \"functions\" run build"
+  },
   "googleapi": {
     "key": "AIzaSyBtRAUX6DzmRSirasZueL4wR1m--8Wjg8Q"
   },
   "pagarmeapi": {
-    "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ",
-    "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq"
-  },
-  "functions": {
-    "predeploy": "npm --prefix \"functions\" run build"
+    "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq",
+    "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ"
   }
 }

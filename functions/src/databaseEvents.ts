@@ -194,7 +194,7 @@ export const on_account_status_change = database
           recipient = await pagarme.createRecipient({
             transfer_enabled: true,
             transfer_interval: "weekly",
-            transfer_day: "4",
+            transfer_day: "1",
             bank_account_id: partner.bank_account.id.toString(),
             automatic_anticipation_enabled: "true",
             automatic_anticipation_type: "1025",
