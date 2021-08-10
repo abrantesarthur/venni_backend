@@ -200,7 +200,7 @@ export const on_account_status_change = database
             automatic_anticipation_type: "1025",
             automatic_anticipation_days:
               "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]",
-            automatic_anticipation_1025_delay: "15",
+            automatic_anticipation_1025_delay: "14",
             anticipatable_volume_percentage: "100",
             register_information: {
               type: "individual",
