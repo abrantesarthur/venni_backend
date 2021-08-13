@@ -18,9 +18,12 @@ export class Partners extends Database {
     super();
     this.ref = this.DB.ref("partners");
   }
-  // TODO: filter out partners without pagarme_recipient_id.
+
+  // findAllAvailable finds all available partners in client's zones or in nearby
+  // zones as well if trying again after not having found partners
   findAllAvailable = async (
-    tripRequest: TripRequest.Interface
+    tripRequest: TripRequest.Interface,
+    tryingAgain: boolean
   ): Promise<Partner.Interface[]> => {
     // retrieve all available partners
     const snapshot = await this.ref
@@ -47,7 +50,11 @@ export class Partners extends Database {
     partners = this.filterByRecipientID(partners, tripRequest);
 
     // filter partners nearby the client
-    partners = this.filterByZone(tripRequest.origin_zone, partners);
+    partners = this.filterByZone(
+      tripRequest.origin_zone,
+      partners,
+      tryingAgain
+    );
 
     // assing positions to the partners
     partners = await this.assignDistances(
@@ -125,7 +132,8 @@ export class Partners extends Database {
   // If it still finds no partners there, it returns partners unchanged.
   filterByZone = (
     originZone: ZoneName,
-    partners: Partner.Interface[]
+    partners: Partner.Interface[],
+    tryingAgain: boolean
   ): Partner.Interface[] => {
     if (partners.length == 0) {
       return [];
@@ -140,8 +148,9 @@ export class Partners extends Database {
       }
     });
 
-    // if found less than 3 partners in client's zone
-    if (nearbyPartners.length < 3) {
+    // if found no partners in client's zone or the client is trying again after
+    // finding no partners
+    if (nearbyPartners.length == 0 || tryingAgain) {
       // try to find partners in adjacent zones
       let adjacentZones: ZoneName[] = getZonesAdjacentTo(originZone);
       adjacentZones.forEach((adjacentZone) => {
@@ -153,8 +162,8 @@ export class Partners extends Database {
       });
     }
 
-    // if found less than three partners in client's zone and adjacent zones
-    if (nearbyPartners.length < 3) {
+    // if found no partners in client's zone and adjacent zones
+    if (nearbyPartners.length == 0) {
       // return partners unfiltered
       return partners;
     }
@@ -268,7 +277,7 @@ export class Partners extends Database {
   };
 
   // calculateDistanceScores returns 50 points for partners no farther
-  // than 100 meters, 0 points for partners farther than 4999 meters,
+  // than 100 meters, 0 points for partners farther than 1999 meters,
   // and lineraly decrements points for partners in between.
   distanceScore = (distanceMeters?: number) => {
     if (distanceMeters == undefined) {
@@ -277,18 +286,18 @@ export class Partners extends Database {
     if (distanceMeters <= 100) {
       return 50;
     }
-    if (distanceMeters > 4999) {
+    if (distanceMeters > 1999) {
       return 0;
     }
-    return (5000 - distanceMeters) / 98;
+    return (2000 - distanceMeters) / 38;
   };
 
   // IdleTimeScore linearly and indefinitely increments partner score
   // such that partners idle for 0 seconds receive 0 points and partners idle for
-  // 5 minutes receive 40 points. Time idle can potentially give unlimited points.
+  // 15 minutes receive 40 points. Time idle can potentially give unlimited points.
   // This way, no matter a partner's distance and score, at some point they will receive a ride.
   idleTimeScore = (timeSeconds: number) => {
-    return (timeSeconds * 4) / 30;
+    return (timeSeconds * 4) / 90;
   };
 
   // RatingScore such that partners with less than 3 starts receive 0

@@ -215,9 +215,9 @@ describe("partners", () => {
   });
 
   describe("distanceScore", () => {
-    it("yields 0 points for distances greater than 4999 meters", () => {
-      assert.isBelow(Partners.distanceScore(4999), 1);
-      assert.equal(Partners.distanceScore(5000), 0);
+    it("yields 0 points for distances greater than 1999 meters", () => {
+      assert.isBelow(Partners.distanceScore(1999), 1);
+      assert.equal(Partners.distanceScore(2000), 0);
       assert.equal(Partners.distanceScore(10000), 0);
     });
 
@@ -226,8 +226,8 @@ describe("partners", () => {
       assert.equal(Partners.distanceScore(0), 50);
     });
 
-    it("yields between 0 and 50 points for distances between 100 and 5000 meters", () => {
-      for (var i = 150; i < 5000; i = i + 50) {
+    it("yields between 0 and 50 points for distances between 100 and 2000 meters", () => {
+      for (var i = 150; i < 2000; i = i + 50) {
         assert.isAbove(Partners.distanceScore(i), 0);
         assert.isBelow(Partners.distanceScore(i), 50);
       }
@@ -258,19 +258,19 @@ describe("partners", () => {
       assert.equal(Partners.idleTimeScore(0), 0);
     });
 
-    it("yields 40 points for idleness equal to 5 minutes", () => {
-      assert.equal(Partners.idleTimeScore(300), 40);
+    it("yields 40 points for idleness equal to 15 minutes", () => {
+      assert.equal(Partners.idleTimeScore(900), 40);
     });
 
-    it("yields between 0 and 40 points for idleness between 0 and 5 minutes", () => {
-      for (var i = 10; i < 300; i = i + 10) {
+    it("yields between 0 and 40 points for idleness between 0 and 15 minutes", () => {
+      for (var i = 10; i < 900; i = i + 10) {
         assert.isAbove(Partners.idleTimeScore(i), 0);
         assert.isBelow(Partners.idleTimeScore(i), 40);
       }
     });
 
-    it("yields more than 40 points for idleness longer than 5 minutes", () => {
-      for (var i = 310; i < 3000; i = i + 10) {
+    it("yields more than 40 points for idleness longer than 15 minutes", () => {
+      for (var i = 910; i < 3000; i = i + 10) {
         assert.isAbove(Partners.idleTimeScore(i), 40);
       }
     });
@@ -381,62 +381,63 @@ describe("partners", () => {
       };
     });
 
-    it("returns only partners in current zone if found at least three partners in zone", () => {
+    it("returns only partners in current zone if not trying again", () => {
+      // there are two partners in BB and we are not trying again
       let twoPartnersInBB = [partnerBB, partnerBB, partnerCC];
-      let filteredPartners = Partners.filterByZone("BB", twoPartnersInBB);
+      let filteredPartners = Partners.filterByZone(
+        "BB",
+        twoPartnersInBB,
+        false
+      );
 
-      // function returns partner in zone CC since zone BB has only two partners
+      // function doesn't returns partner in zone CC
+      assert.equal(filteredPartners.length, 2);
+      assert.equal(filteredPartners[0].uid, "partnerBB");
+      assert.equal(filteredPartners[1].uid, "partnerBB");
+
+      // however, if tryingAgain argument is true
+      filteredPartners = Partners.filterByZone("BB", twoPartnersInBB, true);
+
+      // function also returns partner in zone CC
       assert.equal(filteredPartners.length, 3);
       assert.equal(filteredPartners[0].uid, "partnerBB");
       assert.equal(filteredPartners[1].uid, "partnerBB");
       assert.equal(filteredPartners[2].uid, "partnerCC");
 
-      let threePartnersInBB = [partnerBB, partnerBB, partnerBB, partnerCC];
-      filteredPartners = Partners.filterByZone("BB", threePartnersInBB);
+      // if there is one partner in BB and not trying again
+      let onePartnerInBB = [partnerBB, partnerCC, partnerCC, partnerCC];
+      filteredPartners = Partners.filterByZone("BB", onePartnerInBB, false);
 
-      // function doesn't return partner in zone CC since zone BB three partners
-      assert.equal(filteredPartners.length, 3);
+      // returns only the partner in zone BB
+      assert.equal(filteredPartners.length, 1);
       assert.equal(filteredPartners[0].uid, "partnerBB");
-      assert.equal(filteredPartners[1].uid, "partnerBB");
-      assert.equal(filteredPartners[2].uid, "partnerBB");
 
-      let fourPartnersInBB = [partnerBB, partnerBB, partnerBB, partnerBB];
-      filteredPartners = Partners.filterByZone("BB", fourPartnersInBB);
+      // but if tryingAgain
+      filteredPartners = Partners.filterByZone("BB", onePartnerInBB, true);
 
-      // function returns all partners in zone BB
+      // even though there is one partner in BB, we also return those in CC since we're trying again
       assert.equal(filteredPartners.length, 4);
-      assert.equal(filteredPartners[0].uid, "partnerBB");
-      assert.equal(filteredPartners[1].uid, "partnerBB");
-      assert.equal(filteredPartners[2].uid, "partnerBB");
-      assert.equal(filteredPartners[3].uid, "partnerBB");
-    });
-
-    it("returns only partners in current + adjacent zones if found at least three partners there", () => {
-      let onePartnerInBBOneInCC = [partnerBB, partnerCC, partnerHD];
-      let filteredPartners = Partners.filterByZone("BB", onePartnerInBBOneInCC);
-
-      // function returns partner in zone HD since zone + adjacent have only two partners
-      assert.equal(filteredPartners.length, 3);
       assert.equal(filteredPartners[0].uid, "partnerBB");
       assert.equal(filteredPartners[1].uid, "partnerCC");
-      assert.equal(filteredPartners[2].uid, "partnerHD");
-
-      let threePartnersInBBAndCC = [partnerBB, partnerBB, partnerCC, partnerHD];
-      filteredPartners = Partners.filterByZone("BB", threePartnersInBBAndCC);
-
-      // function doesn't return partner in zone HD since zone + adjacent have three partners
-      assert.equal(filteredPartners.length, 3);
-      assert.equal(filteredPartners[0].uid, "partnerBB");
-      assert.equal(filteredPartners[1].uid, "partnerBB");
       assert.equal(filteredPartners[2].uid, "partnerCC");
+      assert.equal(filteredPartners[3].uid, "partnerCC");
 
-      let fourPartnersInBBAndCC = [partnerBB, partnerBB, partnerCC, partnerCC];
-      filteredPartners = Partners.filterByZone("BB", fourPartnersInBBAndCC);
+      // if there are no partners in BB, we return those in CC regardless of
+      // whether trying again or not
+      let noPartnersInBB = [partnerCC, partnerCC, partnerCC, partnerCC];
+      filteredPartners = Partners.filterByZone("BB", noPartnersInBB, false);
 
-      // function returns all partners in zone + adjacent
+      // since there is no partners in BB, function returns partners in zone CC
       assert.equal(filteredPartners.length, 4);
-      assert.equal(filteredPartners[0].uid, "partnerBB");
-      assert.equal(filteredPartners[1].uid, "partnerBB");
+      assert.equal(filteredPartners[0].uid, "partnerCC");
+      assert.equal(filteredPartners[1].uid, "partnerCC");
+      assert.equal(filteredPartners[2].uid, "partnerCC");
+      assert.equal(filteredPartners[3].uid, "partnerCC");
+
+      filteredPartners = Partners.filterByZone("BB", noPartnersInBB, true);
+      assert.equal(filteredPartners.length, 4);
+      assert.equal(filteredPartners[0].uid, "partnerCC");
+      assert.equal(filteredPartners[1].uid, "partnerCC");
       assert.equal(filteredPartners[2].uid, "partnerCC");
       assert.equal(filteredPartners[3].uid, "partnerCC");
     });
@@ -508,11 +509,14 @@ describe("partners", () => {
       });
 
       // find available partners near zone DC
-      const partners = await Partners.findAllAvailable({
-        origin_zone: "DC",
-        origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
-        payment_method: "cash",
-      });
+      const partners = await Partners.findAllAvailable(
+        {
+          origin_zone: "DC",
+          origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
+          payment_method: "cash",
+        },
+        false
+      );
 
       assert.equal(partners.length, 1);
       assert.equal(partners[0].uid, "approvedPartner");
@@ -621,16 +625,19 @@ describe("partners", () => {
       });
 
       // find available partners near zone DC
-      const partners = await Partners.findAllAvailable({
-        origin_zone: "DC",
-        origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
-        payment_method: "cash",
-      });
+      const partners = await Partners.findAllAvailable(
+        {
+          origin_zone: "DC",
+          origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
+          payment_method: "cash",
+        },
+        false
+      );
 
-      assert.equal(partners.length, 3);
+      // because we are not trying again, returns one those in DC
+      assert.equal(partners.length, 2);
       assert.equal(partners[0].uid, "availableTwoInDC");
       assert.equal(partners[1].uid, "availableThreeInDC");
-      assert.equal(partners[2].uid, "availableOneInDB");
     });
   });
 });

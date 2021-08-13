@@ -433,11 +433,11 @@ const confirmTrip = async (
   // throw error if trip request is not waiting confirmation
   // or any status that mean the user is trying again
   if (
-    tripRequest.trip_status != "waiting-confirmation" &&
-    tripRequest.trip_status != "payment-failed" &&
-    tripRequest.trip_status != "no-partners-available" &&
-    tripRequest.trip_status != "looking-for-partner" &&
-    tripRequest.trip_status != "cancelled-by-partner"
+    tripRequest.trip_status != TripRequest.Status.waitingConfirmation &&
+    tripRequest.trip_status != TripRequest.Status.paymentFailed &&
+    tripRequest.trip_status != TripRequest.Status.noPartnersAvailable &&
+    tripRequest.trip_status != TripRequest.Status.lookingForPartner &&
+    tripRequest.trip_status != TripRequest.Status.cancelledByPartner
   ) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -447,6 +447,13 @@ const confirmTrip = async (
         tripRequest.trip_status +
         "'"
     );
+  }
+
+  // see whether user is trying again after not having found a partner
+  // so we can properly use findAllAvailable
+  let tryingToFindPartnersAgain = false;
+  if (tripRequest.trip_status == TripRequest.Status.noPartnersAvailable) {
+    tryingToFindPartnersAgain = true;
   }
 
   // variable that will store promises to await all before returning
@@ -542,7 +549,10 @@ const confirmTrip = async (
   let nearbyPartners: Partner.Interface[];
   let ps = new Partners();
   try {
-    nearbyPartners = await ps.findAllAvailable(tripRequest);
+    nearbyPartners = await ps.findAllAvailable(
+      tripRequest,
+      tryingToFindPartnersAgain
+    );
   } catch (e) {
     let error: HttpsError = e as HttpsError;
     // if failed to find partners, update trip-request status to no-partners-available
