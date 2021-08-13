@@ -23,12 +23,20 @@ FIREBASEDEPLOY ?= $(FIREBASE) deploy
 ################################################################################
 ## ENVIRONMENT CHECKS
 ################################################################################
-.PHONY: check-deploy-env check-emulator-env check-test-env
+.PHONY: check-deploy-prod-env check-deploy-dev-env check-emulator-env check-test-env
 
-check-deploy-env:
-ifndef FUNCTIONS_PREDEPLOY
-	$(error FUNCTIONS_PREDEPLOY is undefined)
+check-dev-api-keys:
+ifndef DEV_GOOGLE_MAPS_API_KEY
+	$(error DEV_GOOGLE_MAPS_API_KEY is undefined)
 endif
+ifndef DEV_PAGARME_API_KEY
+	$(error DEV_PAGARME_API_KEY is undefined)
+endif
+ifndef DEV_PAGARME_API_RECIPIENT_ID
+	$(error DEV_PAGARME_API_RECIPIENT_ID is undefined)
+endif
+
+check-prod-api-keys:
 ifndef GOOGLE_MAPS_API_KEY
 	$(error GOOGLE_MAPS_API_KEY is undefined)
 endif
@@ -39,10 +47,18 @@ ifndef PAGARME_API_RECIPIENT_ID
 	$(error PAGARME_API_RECIPIENT_ID is undefined)
 endif
 
-check-emulator-env:
-ifndef GOOGLE_MAPS_API_KEY
-	$(error GOOGLE_MAPS_API_KEY is undefined)
+check-deploy-prod-env: check-prod-api-keys
+ifndef FUNCTIONS_PREDEPLOY
+	$(error FUNCTIONS_PREDEPLOY is undefined)
 endif
+
+
+check-deploy-dev-env: check-dev-api-keys
+ifndef FUNCTIONS_PREDEPLOY
+	$(error FUNCTIONS_PREDEPLOY is undefined)
+endif
+
+check-emulator-env: check-dev-api-keys
 ifndef EMULATORS_FUNCTIONS_PORT
 	$(error EMULATORS_FUNCTIONS_PORT is undefined)
 endif
@@ -52,29 +68,13 @@ endif
 ifndef EMULATORS_UI_ENABLED
 	$(error EMULATORS_UI_ENABLED is undefined)
 endif
-ifndef PAGARME_API_KEY
-	$(error PAGARME_API_KEY is undefined)
-endif
-ifndef PAGARME_API_RECIPIENT_ID
-	$(error PAGARME_API_RECIPIENT_ID is undefined)
-endif
 
-check-test-env:
-ifndef GOOGLE_MAPS_API_KEY
-	$(error GOOGLE_MAPS_API_KEY is undefined)
-endif
-ifndef PAGARME_API_KEY
-	$(error PAGARME_API_KEY is undefined)
-endif
-ifndef PAGARME_API_RECIPIENT_ID
-	$(error PAGARME_API_RECIPIENT_ID is undefined)
-endif
 
 
 ################################################################################
 ## FIREBASE CONFIGS
 ################################################################################
-.PHONY: use-dev-project use-prod-project deploy-config emulator-config test-config
+.PHONY: use-dev-project use-prod-project deploy-prod-config deploy-dev-config emulator-config test-config
 
 use-dev-project:
 	@$(FIREBASEUSE) venni-rider-development-8a3f8
@@ -82,7 +82,7 @@ use-dev-project:
 use-prod-project:
 	@$(FIREBASEUSE) venni-production
 
-deploy-config: check-deploy-env
+deploy-prod-config: check-deploy-prod-env
 # create functions/.runtimeconfig.json file
 	@$(FIREBASESET) functions.predeploy=$(FUNCTIONS_PREDEPLOY) && \
 	$(FIREBASEGET) > firebase.json && \
@@ -91,21 +91,30 @@ deploy-config: check-deploy-env
 	$(FIREBASESET) pagarmeapi.recipient_id=$(PAGARME_API_RECIPIENT_ID) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
+deploy-dev-config: check-deploy-dev-env
+# create functions/.runtimeconfig.json file
+	@$(FIREBASESET) functions.predeploy=$(FUNCTIONS_PREDEPLOY) && \
+	$(FIREBASEGET) > firebase.json && \
+	$(FIREBASESET) googleapi.key=$(DEV_GOOGLE_MAPS_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.key=$(DEV_PAGARME_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.recipient_id=$(DEV_PAGARME_API_RECIPIENT_ID) && \
+	$(FIREBASEGET) > functions/.runtimeconfig.json
+
 emulator-config: check-emulator-env
 # create firebase.json and functions/.runtimeconfig.json files
 	@$(FIREBASESET) emulators.functions.port=$(EMULATORS_FUNCTIONS_PORT) \
 	emulators.functions.host=$(EMULATORS_FUNCTIONS_HOST) \
 	emulators.ui.enabled=$(EMULATORS_UI_ENABLED) && \
 	$(FIREBASEGET) > firebase.json && \
-	$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
-	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
-	$(FIREBASESET) pagarmeapi.recipient_id=$(PAGARME_API_RECIPIENT_ID) && \
+	$(FIREBASESET) googleapi.key=$(DEV_GOOGLE_MAPS_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.key=$(DEV_PAGARME_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.recipient_id=$(DEV_PAGARME_API_RECIPIENT_ID) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
-test-config: check-test-env
-	@$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
-	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
-	$(FIREBASESET) pagarmeapi.recipient_id=$(PAGARME_API_RECIPIENT_ID) && \
+test-config: check-dev-api-keys
+	@$(FIREBASESET) googleapi.key=$(DEV_GOOGLE_MAPS_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.key=$(DEV_PAGARME_API_KEY) && \
+	$(FIREBASESET) pagarmeapi.recipient_id=$(DEV_PAGARME_API_RECIPIENT_ID) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 
@@ -153,8 +162,8 @@ test: functions/devAdminCredentials.json test-config build
 .PHONY: deploy-dev deploy-stag deploy-prod deploy
 
 deploy:
-ifdef FUNCTIONNAME
-	$(FIREBASEDEPLOY) --only functions:$(FUNCTIONNAME)
+ifdef DEPLOYFUNCTION
+	$(FIREBASEDEPLOY) --only functions:$(DEPLOYFUNCTION)
 else 
 ifdef DEPLOYGROUP
 	$(FIREBASEDEPLOY) --only functions:$(DEPLOYGROUP)
@@ -163,6 +172,6 @@ else
 endif
 endif
 
-deploy-dev: use-dev-project deploy-config deploy
+deploy-dev: use-dev-project deploy-dev-config deploy
 
-deploy-prod: use-prod-project deploy-config deploy
+deploy-prod: use-prod-project deploy-prod-config deploy
