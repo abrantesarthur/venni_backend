@@ -72,6 +72,5 @@ node_modules/
 .yarn-integrity
 
 # environment variables files
-.env
 functions/test/mocha.env.js
 
