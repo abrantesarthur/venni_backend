@@ -3,6 +3,7 @@ const assert = chai.assert;
 const expect = chai.expect;
 const admin = require("firebase-admin");
 let p = require("../lib/database/partners");
+const { ZoneName } = require("../lib/zones");
 
 describe("partners", () => {
   let Partners;
@@ -11,7 +12,6 @@ describe("partners", () => {
       admin.initializeApp();
     }
     Partners = new p.Partners();
-    p;
   });
 
   describe("fromObjs", () => {
@@ -214,154 +214,6 @@ describe("partners", () => {
     });
   });
 
-  describe("distanceScore", () => {
-    it("yields 0 points for distances greater than 1999 meters", () => {
-      assert.isBelow(Partners.distanceScore(1999), 1);
-      assert.equal(Partners.distanceScore(2000), 0);
-      assert.equal(Partners.distanceScore(10000), 0);
-    });
-
-    it("yields 50 points for distances smaller than 100 meters", () => {
-      assert.equal(Partners.distanceScore(100), 50);
-      assert.equal(Partners.distanceScore(0), 50);
-    });
-
-    it("yields between 0 and 50 points for distances between 100 and 2000 meters", () => {
-      for (var i = 150; i < 2000; i = i + 50) {
-        assert.isAbove(Partners.distanceScore(i), 0);
-        assert.isBelow(Partners.distanceScore(i), 50);
-      }
-    });
-  });
-
-  describe("ratingScore", () => {
-    it("yields 0 points for ratings smaller than 3", () => {
-      assert.equal(Partners.ratingScore(3), 0);
-      assert.equal(Partners.ratingScore(0), 0);
-    });
-
-    it("yields 10 points for ratings greater or equal to 5", () => {
-      assert.equal(Partners.ratingScore(5), 10);
-      assert.equal(Partners.ratingScore(7), 10);
-    });
-
-    it("yields between 0 and 10 points for ratings between 3 and 5 meters", () => {
-      for (var i = 3.1; i < 5; i = i + 0.1) {
-        assert.isAbove(Partners.ratingScore(i), 0);
-        assert.isBelow(Partners.ratingScore(i), 10);
-      }
-    });
-  });
-
-  describe("idleTimeScore", () => {
-    it("yields 0 points for idleness equal to 0 seconds", () => {
-      assert.equal(Partners.idleTimeScore(0), 0);
-    });
-
-    it("yields 40 points for idleness equal to 15 minutes", () => {
-      assert.equal(Partners.idleTimeScore(900), 40);
-    });
-
-    it("yields between 0 and 40 points for idleness between 0 and 15 minutes", () => {
-      for (var i = 10; i < 900; i = i + 10) {
-        assert.isAbove(Partners.idleTimeScore(i), 0);
-        assert.isBelow(Partners.idleTimeScore(i), 40);
-      }
-    });
-
-    it("yields more than 40 points for idleness longer than 15 minutes", () => {
-      for (var i = 910; i < 3000; i = i + 10) {
-        assert.isAbove(Partners.idleTimeScore(i), 40);
-      }
-    });
-  });
-
-  describe("rank", () => {
-    let defaultPartner1;
-    let defaultPartner2;
-    let now;
-    before(() => {
-      now = Date.now();
-      // just finished a trip, is right next to client, and has maximum rating
-      defaultPartner1 = {
-        uid: "partner1",
-        name: "Fulano",
-        last_name: "de Tal",
-        total_trips: "123",
-        member_since: Date.now().toString(),
-        phone_number: "(38) 99999-9999",
-        current_latitude: "-17.217587",
-        current_longitude: "-46.881064",
-        current_zone: "AA",
-        status: "status",
-        vehicle: {},
-        idle_since: now.toString(),
-        rating: "5.0",
-        position: {
-          distance_value: 0,
-        },
-      };
-      // just finished a trip, is right next to client, and has maximum rating
-      defaultPartner2 = {
-        uid: "partner2",
-        name: "Beltrano",
-        last_name: "de Tal",
-        total_trips: "123",
-        member_since: Date.now().toString(),
-        phone_number: "(38) 88888-8888",
-        current_latitude: "-17.217587",
-        current_longitude: "-46.881064",
-        current_zone: "AA",
-        status: "status",
-        vehicle: {},
-        idle_since: now.toString(),
-        rating: "5.0",
-        position: {
-          distance_value: 0,
-        },
-      };
-    });
-
-    it("partner with more idle time is ranked higher", () => {
-      // partner 1 has more idle time
-      defaultPartner1.idle_since = (now - 300).toString();
-
-      // partner 2 comes first initially
-      let partners = [defaultPartner2, defaultPartner1];
-
-      const rankedPartners = Partners.rank(partners);
-
-      // now, partner 1 comes first
-      assert.equal(rankedPartners[0].uid, "partner1");
-    });
-
-    it("partner with more higher rating is ranked higher", () => {
-      // partner 2 has lower rating
-      defaultPartner2.rating = "4";
-
-      // partner 2 comes first initially
-      let partners = [defaultPartner2, defaultPartner1];
-
-      const rankedPartners = Partners.rank(partners);
-
-      // now, partner 1 comes first
-      assert.equal(rankedPartners[0].uid, "partner1");
-    });
-
-    it("partner closer to the client is ranked higher", () => {
-      // partner 2 is farther away from client
-      defaultPartner2.position.distance_value = 1000;
-
-      // partner 2 comes first initially
-      let partners = [defaultPartner2, defaultPartner1];
-
-      const rankedPartners = Partners.rank(partners);
-
-      // now, partner 1 comes first
-      assert.equal(rankedPartners[0].uid, "partner1");
-    });
-  });
-
   describe("filterByZone", () => {
     let partnerBB;
     let partnerCC;
@@ -443,6 +295,566 @@ describe("partners", () => {
     });
   });
 
+  describe("countAvailablePartnersByZone", () => {
+    beforeEach(async () => {
+      // clear partners from database
+      await admin.database().ref("partners").remove();
+    });
+
+    after(async () => {
+      // clear partners from database
+      await admin.database().ref("partners").remove();
+    });
+
+    it("returns count 0 for every ZoneName if there are no partners available at all", async () => {
+      const map = await Partners.countAvailablePartnersByZone();
+      for (zoneName in ZoneName) {
+        if (zoneName != "is" && zoneName != "fromString") {
+          assert.equal(map.get(zoneName), 0);
+        }
+      }
+    });
+
+    it("does not count partners whose status is not 'available'", async () => {
+      // add unavailable partner to zone DB
+      let unavailableInDB = {
+        uid: "unavailableInDB",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+        current_zone: "DB",
+        status: "unavailable",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      await admin.database().ref("partners").set({
+        unavailableInDB: unavailableInDB,
+      });
+
+      // count partners
+      let map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in DB is not counted, since he is unavailable
+      assert.equal(map.get("DB"), 0);
+
+      // now update partner in DB to be available
+      await admin
+        .database()
+        .ref("partners")
+        .child("unavailableInDB")
+        .child("status")
+        .set("available");
+
+      // count partners again
+      map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in DB is now counted
+      assert.equal(map.get("DB"), 1);
+    });
+
+    it("does not count partners whose account is not 'approved'", async () => {
+      // add unapproved partner to zone DB
+      let unapprovedInDC = {
+        uid: "unapprovedInDC",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_review",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+        current_zone: "DC",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      await admin.database().ref("partners").set({
+        unapprovedInDC: unapprovedInDC,
+      });
+
+      // count partners
+      let map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in DC is not counted, since he is unavailable
+      assert.equal(map.get("DC"), 0);
+
+      // now update partner to be available
+      await admin
+        .database()
+        .ref("partners")
+        .child("unapprovedInDC")
+        .child("account_status")
+        .set("approved");
+
+      // count partners again
+      map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in DC is now counted
+      assert.equal(map.get("DC"), 1);
+    });
+
+    it("does not count partners whose position is not set", async () => {
+      // add partner without set position in GH
+      let withoutPosInGH = {
+        uid: "withoutPosInGH",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "",
+        current_longitude: "",
+        current_zone: "GH",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      await admin.database().ref("partners").set({
+        withoutPosInGH: withoutPosInGH,
+      });
+
+      // count partners
+      let map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in GH is not counted, since he is unavailable
+      assert.equal(map.get("GH"), 0);
+
+      // now update partner so his position is set
+      await admin.database().ref("partners").child("withoutPosInGH").update({
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+      });
+
+      // count partners again
+      map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in GH is now counted
+      assert.equal(map.get("GH"), 1);
+    });
+
+    it("returns number of partners available in a given zone", async () => {
+      let availableOneInFC = {
+        uid: "availableOneInFC",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+        current_zone: "FC",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      let availableTwoInFC = {
+        uid: "availableTwoInFC",
+        name: "Ciclano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 77777-8888",
+        current_latitude: "-17.221035",
+        current_longitude: "-46.863207",
+        current_zone: "FC",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      let availableThreeInFC = {
+        uid: "availableThreeInFC",
+        name: "Ciclano",
+        last_name: "de Fulano",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 77777-8888",
+        current_latitude: "-17.221471",
+        current_longitude: "-46.86266",
+        current_zone: "FC",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      let busyInFC = {
+        uid: "busyInFC",
+        name: "Betrano",
+        last_name: "de Ciclano",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 77777-8888",
+        current_latitude: "-17.222722",
+        current_longitude: "-46.861959",
+        current_zone: "FC",
+        status: "busy",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+
+      // assert there are no partners in FC
+      let map = await Partners.countAvailablePartnersByZone();
+      assert.equal(map.get("FC"), 0);
+
+      // add partners to FC
+      await admin.database().ref("partners").set({
+        availableOneInFC: availableOneInFC,
+        availableTwoInFC: availableTwoInFC,
+        availableThreeInFC: availableThreeInFC,
+        busyInFC: busyInFC,
+      });
+
+      // assert there are three available partners in FC
+      map = await Partners.countAvailablePartnersByZone();
+      assert.equal(map.get("FC"), 3);
+    });
+  });
+
+  describe("countAvailablePartnersByZone", () => {
+    beforeEach(async () => {
+      // clear partners from database
+      await admin.database().ref("partners").remove();
+    });
+
+    after(async () => {
+      // clear partners from database
+      await admin.database().ref("partners").remove();
+    });
+
+    it("returns count 0 for every ZoneName if there are no partners available at all", async () => {
+      const map = await Partners.countAvailablePartnersByZone();
+      for (zoneName in ZoneName) {
+        if (zoneName != "is" && zoneName != "fromString") {
+          assert.equal(map.get(zoneName), 0);
+        }
+      }
+    });
+
+    it("does not count partners whose status is not 'available'", async () => {
+      // add unavailable partner to zone DB
+      let unavailableInDB = {
+        uid: "unavailableInDB",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+        current_zone: "DB",
+        status: "unavailable",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      await admin.database().ref("partners").set({
+        unavailableInDB: unavailableInDB,
+      });
+
+      // count partners
+      let map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in DB is not counted, since he is unavailable
+      assert.equal(map.get("DB"), 0);
+
+      // now update partner in DB to be available
+      await admin
+        .database()
+        .ref("partners")
+        .child("unavailableInDB")
+        .child("status")
+        .set("available");
+
+      // count partners again
+      map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in DB is now counted
+      assert.equal(map.get("DB"), 1);
+    });
+
+    it("does not count partners whose account is not 'approved'", async () => {
+      // add unapproved partner to zone DB
+      let unapprovedInDC = {
+        uid: "unapprovedInDC",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "pending_review",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+        current_zone: "DC",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      await admin.database().ref("partners").set({
+        unapprovedInDC: unapprovedInDC,
+      });
+
+      // count partners
+      let map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in DC is not counted, since he is unavailable
+      assert.equal(map.get("DC"), 0);
+
+      // now update partner to be available
+      await admin
+        .database()
+        .ref("partners")
+        .child("unapprovedInDC")
+        .child("account_status")
+        .set("approved");
+
+      // count partners again
+      map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in DC is now counted
+      assert.equal(map.get("DC"), 1);
+    });
+
+    it("does not count partners whose position is not set", async () => {
+      // add partner without set position in GH
+      let withoutPosInGH = {
+        uid: "withoutPosInGH",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "",
+        current_longitude: "",
+        current_zone: "GH",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      await admin.database().ref("partners").set({
+        withoutPosInGH: withoutPosInGH,
+      });
+
+      // count partners
+      let map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in GH is not counted, since he is unavailable
+      assert.equal(map.get("GH"), 0);
+
+      // now update partner so his position is set
+      await admin.database().ref("partners").child("withoutPosInGH").update({
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+      });
+
+      // count partners again
+      map = await Partners.countAvailablePartnersByZone();
+
+      // assert partner in GH is now counted
+      assert.equal(map.get("GH"), 1);
+    });
+
+    it("returns number of partners available in a given zone", async () => {
+      let availableOneInFC = {
+        uid: "availableOneInFC",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.221879",
+        current_longitude: "-46.875143",
+        current_zone: "FC",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      let availableTwoInFC = {
+        uid: "availableTwoInFC",
+        name: "Ciclano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 77777-8888",
+        current_latitude: "-17.221035",
+        current_longitude: "-46.863207",
+        current_zone: "FC",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      let availableThreeInFC = {
+        uid: "availableThreeInFC",
+        name: "Ciclano",
+        last_name: "de Fulano",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 77777-8888",
+        current_latitude: "-17.221471",
+        current_longitude: "-46.86266",
+        current_zone: "FC",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      let busyInFC = {
+        uid: "busyInFC",
+        name: "Betrano",
+        last_name: "de Ciclano",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        total_trips: "123",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 77777-8888",
+        current_latitude: "-17.222722",
+        current_longitude: "-46.861959",
+        current_zone: "FC",
+        status: "busy",
+        vehicle: {
+          brand: "honda",
+          year: 2015,
+          model: "cg-150",
+          plate: "aaa-0000",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+
+      // assert there are no partners in FC
+      let map = await Partners.countAvailablePartnersByZone();
+      assert.equal(map.get("FC"), 0);
+
+      // add partners to FC
+      await admin.database().ref("partners").set({
+        availableOneInFC: availableOneInFC,
+        availableTwoInFC: availableTwoInFC,
+        availableThreeInFC: availableThreeInFC,
+        busyInFC: busyInFC,
+      });
+
+      // assert there are three available partners in FC
+      map = await Partners.countAvailablePartnersByZone();
+      assert.equal(map.get("FC"), 3);
+    });
+  });
+
   describe("findAllAvailable", () => {
     beforeEach(async () => {
       // clear partners from database
@@ -509,14 +921,12 @@ describe("partners", () => {
       });
 
       // find available partners near zone DC
-      const partners = await Partners.findAllAvailable(
-        {
-          origin_zone: "DC",
-          origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
-          payment_method: "cash",
-        },
-        false
-      );
+
+      const partners = await Partners.findAllAvailable({
+        origin_zone: "DC",
+        origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
+        payment_method: "cash",
+      });
 
       assert.equal(partners.length, 1);
       assert.equal(partners[0].uid, "approvedPartner");
@@ -625,14 +1035,11 @@ describe("partners", () => {
       });
 
       // find available partners near zone DC
-      const partners = await Partners.findAllAvailable(
-        {
-          origin_zone: "DC",
-          origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
-          payment_method: "cash",
-        },
-        false
-      );
+      const partners = await Partners.findAllAvailable({
+        origin_zone: "DC",
+        origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
+        payment_method: "cash",
+      });
 
       // because we are not trying again, returns one those in DC
       assert.equal(partners.length, 2);

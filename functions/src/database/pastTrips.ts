@@ -22,13 +22,13 @@ export class PastTrips extends Database {
 
   // getPastTrips returns the past trips of the user sorted by request time in descending order.
   // That is, most recent trips come first. If 'limit' is defined, it returns at most 'limit' past trips.
-  // If 'maxVal' is defined, it returns trips whose request_time is less than 'maxVal'. 
+  // If 'maxVal' is defined, it returns trips whose request_time is less than 'maxVal'.
   // If 'minVal' is defined, it returns trips whose request_time is more than 'minVal'.
   // You can combine both 'maxVal' and 'minVal'.
   getPastTrips = async (
     limit?: number,
     maxVal?: number,
-    minVal?: number,
+    minVal?: number
   ): Promise<TripRequest.Interface[]> => {
     let query = this.ref.orderByChild("request_time");
     if (maxVal != undefined) {

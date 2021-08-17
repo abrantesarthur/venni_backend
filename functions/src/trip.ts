@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
 import * as firebaseAdmin from "firebase-admin";
-import { calculateFare } from "./fare";
+import { calculateFare } from "./algorithms";
 import {
   Client as GoogleMapsClient,
   Language,
@@ -18,6 +18,7 @@ import { Partners } from "./database/partners";
 import { ClientPastTrips, PartnerPastTrips } from "./database/pastTrips";
 import { Pagarme } from "./vendors/pagarme";
 import { captureTripPayment } from "./payment";
+import { DemandByZone } from "./database/demandByZone";
 // initialize google maps API client
 const googleMaps = new GoogleMapsClient({});
 
@@ -540,6 +541,13 @@ const confirmTrip = async (
       pagarmeError?.response.errors[0]
     );
   }
+
+  // now that trip meets all requirements to look for a partner,
+  // push its confirmation timestamp to the appropriate demand-by-zone/{zoneName} path
+  const dbz = new DemandByZone();
+  promises.push(
+    dbz.pushTripTimestampToZone(Date.now(), tripRequest.origin_zone)
+  );
 
   // change trip-request status to lookingForPartner
   tripRequest.trip_status = TripRequest.Status.lookingForPartner;
