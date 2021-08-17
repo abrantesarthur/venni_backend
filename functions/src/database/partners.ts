@@ -5,11 +5,11 @@ import {
   LatLngLiteral,
   Status,
 } from "@googlemaps/google-maps-services-js";
-import { createMockPartners } from "../mock";
 import { getZonesAdjacentTo, ZoneName } from "../zones";
 import { TripRequest } from "./tripRequest";
 import { Partner } from "./partner";
 import { Database } from ".";
+import { calculatePartnerScore, rankPartners } from "../algorithms";
 
 export class Partners extends Database {
   readonly ref: Database.Reference;
@@ -19,8 +19,54 @@ export class Partners extends Database {
     this.ref = this.DB.ref("partners");
   }
 
-  // findAllAvailable finds all available partners in client's zones or in nearby
-  // zones as well if trying again after not having found partners
+  // countAvailablePartnersByZone finds the number of available partners by zone
+  countAvailablePartnersByZone = async (): Promise<Map<ZoneName, number>> => {
+    // retrieve all available partners
+    const snapshot = await this.ref
+      .orderByChild("status")
+      .equalTo("available")
+      .once("value");
+
+    // initialize response
+    let response = new Map<ZoneName, number>();
+    for (var str in ZoneName) {
+      response.set(ZoneName.fromString(str), 0);
+    }
+
+    // return response if there are no available partners
+    if (snapshot.val() == null) {
+      return response;
+    }
+    let partners = this.fromObjs(snapshot.val());
+    if (partners.length == 0) {
+      return response;
+    }
+
+    // filter out partners with 'account_status' different from 'approved'
+    partners = this.filterByAccountStatus(
+      partners,
+      Partner.AccountStatus.approved
+    );
+
+    // filter out eventual partners without set coordinates
+    partners = this.filterByPosition(partners);
+
+    // iterate over partners building response
+    partners.forEach((partner) => {
+      if (partner.current_zone != undefined) {
+        // get current amount of partners in partner.current_zone
+        let currentAmount = response.get(partner.current_zone);
+        if (currentAmount != undefined) {
+          response.set(partner.current_zone, currentAmount + 1);
+        } else {
+          response.set(partner.current_zone, 0);
+        }
+      }
+    });
+    return response;
+  };
+
+  // TODO: filter out partners without pagarme_recipient_id.
   findAllAvailable = async (
     tripRequest: TripRequest.Interface,
     tryingAgain: boolean
@@ -41,7 +87,10 @@ export class Partners extends Database {
     }
 
     /// filter out partners with 'account_status' different from 'approved'
-    partners = this.filterByAccountStatus(partners);
+    partners = this.filterByAccountStatus(
+      partners,
+      Partner.AccountStatus.approved
+    );
 
     // filter out eventual partners without set coordinates
     partners = this.filterByPosition(partners);
@@ -64,7 +113,7 @@ export class Partners extends Database {
     );
 
     // rank partners according to their position and other criteria
-    let rankedPartners = this.rank(partners);
+    let rankedPartners = rankPartners(partners);
 
     // return three best ranked partners
     return rankedPartners.slice(
@@ -73,13 +122,28 @@ export class Partners extends Database {
     );
   };
 
-  // filterByAccountStatus filter out partners with 'account_status' different from 'approved'.
+  // filterByPartnerStatus filters out partners without the given status
+  filterByPartnerStatus = (
+    partners: Partner.Interface[],
+    status: Partner.Status
+  ) => {
+    let filteredPartners: Partner.Interface[] = [];
+    partners.forEach((partner) => {
+      if (partner.status == status) {
+        filteredPartners.push(partner);
+      }
+    });
+    return filteredPartners;
+  };
+
+  // filterByAccountStatus filters out partners without the specified 'account_status'
   filterByAccountStatus = (
-    partners: Partner.Interface[]
+    partners: Partner.Interface[],
+    accountStatus: Partner.AccountStatus
   ): Partner.Interface[] => {
     let approvedPartners: Partner.Interface[] = [];
     partners.forEach((partner) => {
-      if (partner.account_status === Partner.AccountStatus.approved) {
+      if (partner.account_status === accountStatus) {
         approvedPartners.push(partner);
       }
     });
@@ -251,66 +315,6 @@ export class Partners extends Database {
     });
 
     return partners;
-  };
-
-  // rank partners according to distance from client, time spent idle, and rating
-  rank = (partners: Partner.Interface[]): Partner.Interface[] => {
-    // calculate each partner's score
-    const now = Date.now();
-    partners.forEach((partner) => {
-      let partnerIdleSeconds = (now - Number(partner.idle_since)) / 1000;
-      partner.score =
-        this.distanceScore(partner.distance_to_client?.distance_value) +
-        this.idleTimeScore(partnerIdleSeconds) +
-        this.ratingScore(Number(partner.rating));
-    });
-
-    // sort partners by score
-    let rankedPartners = partners.sort((partnerOne, partnerTwo) => {
-      if (partnerOne.score != undefined && partnerTwo.score != undefined) {
-        return partnerTwo.score - partnerOne.score;
-      }
-      return 0;
-    });
-
-    return rankedPartners;
-  };
-
-  // calculateDistanceScores returns 50 points for partners no farther
-  // than 100 meters, 0 points for partners farther than 1999 meters,
-  // and lineraly decrements points for partners in between.
-  distanceScore = (distanceMeters?: number) => {
-    if (distanceMeters == undefined) {
-      return 0;
-    }
-    if (distanceMeters <= 100) {
-      return 50;
-    }
-    if (distanceMeters > 1999) {
-      return 0;
-    }
-    return (2000 - distanceMeters) / 38;
-  };
-
-  // IdleTimeScore linearly and indefinitely increments partner score
-  // such that partners idle for 0 seconds receive 0 points and partners idle for
-  // 15 minutes receive 40 points. Time idle can potentially give unlimited points.
-  // This way, no matter a partner's distance and score, at some point they will receive a ride.
-  idleTimeScore = (timeSeconds: number) => {
-    return (timeSeconds * 4) / 90;
-  };
-
-  // RatingScore such that partners with less than 3 starts receive 0
-  // points and those with 5 starts receive 10 points, and those in between
-  // receive incrementally more points the higher their ratings.
-  ratingScore = (rating: number) => {
-    if (rating < 3) {
-      return 0;
-    }
-    if (rating > 5) {
-      return 10;
-    }
-    return 5 * rating - 15;
   };
 
   // transform an object of partners in an array of partners

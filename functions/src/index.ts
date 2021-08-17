@@ -20,6 +20,8 @@ exports.database_events = require("./databaseEvents");
 exports.payment = require("./payment");
 exports.account = require("./account");
 exports.partner = require("./partner");
+exports.scheduled_function = require("./scheduledFunctions");
+exports.demand_by_zone = require("./demandByZone");
 
 // mocks
 exports.mock = require("./mock");
