@@ -1230,7 +1230,7 @@ describe("trip", () => {
       const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
       // wait enough time for confirm to send request to partner
-      await sleep(3000);
+      await sleep(5000);
 
       // assert trip has looking-for-partner status
       let tripRequestSnapshot = await tripRequestRef.once("value");
@@ -1339,7 +1339,7 @@ describe("trip", () => {
       const confirmPromise = wrappedConfirm({}, { auth: { uid: defaultUID } });
 
       // wait enough time for confirm to send request to partner1 and partner 2
-      await sleep(17000);
+      await sleep(18000);
 
       // assert trip has looking-for-partner status
       let tripRequestSnapshot = await tripRequestRef.once("value");

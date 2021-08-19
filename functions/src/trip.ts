@@ -231,10 +231,6 @@ const requestTrip = async (
       leg.start_location.lat,
       leg.start_location.lng
     ),
-    destination_zone: getZoneNameFromCoordinate(
-      leg.end_location.lat,
-      leg.end_location.lng
-    ),
     destination_place_id: body.destination_place_id,
     origin_lat: leg.start_location.lat.toString(),
     origin_lng: leg.start_location.lng.toString(),
