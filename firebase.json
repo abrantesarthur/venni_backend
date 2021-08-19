@@ -1,21 +1,24 @@
 {
-  "googleapi": {
-    "key": "AIzaSyBtRAUX6DzmRSirasZueL4wR1m--8Wjg8Q"
+  "pagarmeapi": {
+    "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq",
+    "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ"
   },
   "functions": {
     "predeploy": "npm --prefix \"functions\" run build"
   },
+  "amplitudeapi": {
+    "key": "051ddadc6f2ae780306feee4c375f007"
+  },
   "emulators": {
     "functions": {
-      "host": "192.168.0.104",
-      "port": "5001"
+      "port": "5001",
+      "host": "192.168.0.104"
     },
     "ui": {
       "enabled": "true"
     }
   },
-  "pagarmeapi": {
-    "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq",
-    "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ"
+  "googleapi": {
+    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
   }
 }

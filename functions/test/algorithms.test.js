@@ -8,6 +8,7 @@ describe("partners", () => {
   let ratingScore;
   let idleTimeScore;
   let rankPartners;
+  let roundToMultipleOfFifty;
 
   before(() => {
     if (admin.apps.length == 0) {
@@ -20,6 +21,7 @@ describe("partners", () => {
     ratingScore = algorithms.ratingScore;
     idleTimeScore = algorithms.idleTimeScore;
     rankPartners = algorithms.rankPartners;
+    roundToMultipleOfFifty = algorithms.roundToMultipleOfFifty;
   });
 
   describe("distanceScore", () => {
@@ -81,6 +83,23 @@ describe("partners", () => {
       for (var i = 310; i < 3000; i = i + 10) {
         assert.isAbove(idleTimeScore(i), 40);
       }
+    });
+  });
+
+  describe("roundToMultipleOfFifty", () => {
+    it("rounds a number to multiples of 50", () => {
+      assert.equal(roundToMultipleOfFifty(500), 500);
+      assert.equal(roundToMultipleOfFifty(510), 500);
+      assert.equal(roundToMultipleOfFifty(524), 500);
+      assert.equal(roundToMultipleOfFifty(525), 550);
+      assert.equal(roundToMultipleOfFifty(550), 550);
+      assert.equal(roundToMultipleOfFifty(551), 550);
+      assert.equal(roundToMultipleOfFifty(574), 550);
+      assert.equal(roundToMultipleOfFifty(575), 600);
+      assert.equal(roundToMultipleOfFifty(580), 600);
+      assert.equal(roundToMultipleOfFifty(599), 600);
+      assert.equal(roundToMultipleOfFifty(600), 600);
+      assert.equal(roundToMultipleOfFifty(601), 600);
     });
   });
 
