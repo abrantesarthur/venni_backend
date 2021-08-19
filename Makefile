@@ -35,6 +35,9 @@ endif
 ifndef DEV_PAGARME_API_RECIPIENT_ID
 	$(error DEV_PAGARME_API_RECIPIENT_ID is undefined)
 endif
+ifndef DEV_AMPLITUDE_API_KEY
+	$(error DEV_AMPLITUDE_API_KEY is undefined)
+endif
 
 check-prod-api-keys:
 ifndef GOOGLE_MAPS_API_KEY
@@ -45,6 +48,9 @@ ifndef PAGARME_API_KEY
 endif
 ifndef PAGARME_API_RECIPIENT_ID
 	$(error PAGARME_API_RECIPIENT_ID is undefined)
+endif
+ifndef AMPLITUDE_API_KEY
+	$(error AMPLITUDE_API_KEY is undefined)
 endif
 
 check-deploy-prod-env: check-prod-api-keys
@@ -89,6 +95,7 @@ deploy-prod-config: check-deploy-prod-env
 	$(FIREBASESET) googleapi.key=$(GOOGLE_MAPS_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.key=$(PAGARME_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.recipient_id=$(PAGARME_API_RECIPIENT_ID) && \
+	$(FIREBASESET) amplitudeapi.key=$(AMPLITUDE_API_KEY) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 deploy-dev-config: check-deploy-dev-env
@@ -98,6 +105,7 @@ deploy-dev-config: check-deploy-dev-env
 	$(FIREBASESET) googleapi.key=$(DEV_GOOGLE_MAPS_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.key=$(DEV_PAGARME_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.recipient_id=$(DEV_PAGARME_API_RECIPIENT_ID) && \
+	$(FIREBASESET) amplitudeapi.key=$(DEV_AMPLITUDE_API_KEY) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 emulator-config: check-emulator-env
@@ -109,12 +117,14 @@ emulator-config: check-emulator-env
 	$(FIREBASESET) googleapi.key=$(DEV_GOOGLE_MAPS_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.key=$(DEV_PAGARME_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.recipient_id=$(DEV_PAGARME_API_RECIPIENT_ID) && \
+	$(FIREBASESET) amplitudeapi.key=$(DEV_AMPLITUDE_API_KEY) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 test-config: check-dev-api-keys
 	@$(FIREBASESET) googleapi.key=$(DEV_GOOGLE_MAPS_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.key=$(DEV_PAGARME_API_KEY) && \
 	$(FIREBASESET) pagarmeapi.recipient_id=$(DEV_PAGARME_API_RECIPIENT_ID) && \
+	$(FIREBASESET) amplitudeapi.key=$(DEV_AMPLITUDE_API_KEY) && \
 	$(FIREBASEGET) > functions/.runtimeconfig.json
 
 
@@ -152,7 +162,7 @@ emulator: use-dev-project emulator-config build
 # "firebaseFunctionsTest" in trip.test.js, where we pass the path to devAdminCredentials.json
 # test: test-dependencies test-config build
 # 	$(NPMTEST)
-test: functions/devAdminCredentials.json
+test: functions/devAdminCredentials.json build
 	$(NPMTEST)
 
 

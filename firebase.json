@@ -1,4 +1,8 @@
 {
+  "googleapi": {
+    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+  },
+
   "pagarmeapi": {
     "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq",
     "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ"
@@ -17,6 +21,10 @@
     "ui": {
       "enabled": "true"
     }
+  },
+  "pagarmeapi": {
+    "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ",
+    "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq"
   },
   "googleapi": {
     "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"

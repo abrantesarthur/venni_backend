@@ -57,6 +57,7 @@ describe("Client", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "AA",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",

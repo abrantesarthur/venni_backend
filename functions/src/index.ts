@@ -22,6 +22,7 @@ exports.account = require("./account");
 exports.partner = require("./partner");
 exports.scheduled_function = require("./scheduledFunctions");
 exports.demand_by_zone = require("./demandByZone");
+exports.amplitude = require("./vendors/amplitude");
 
 // mocks
 exports.mock = require("./mock");

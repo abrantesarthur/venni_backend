@@ -74,6 +74,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -449,6 +450,9 @@ describe("trip", () => {
       snapshot = await tripRequestRef.once("value");
       assert.isNotNull(snapshot.val());
       assert.equal(snapshot.val().trip_status, "cancelled-by-client");
+
+      // expect client_cancel_time to be set
+      assert.isDefined(snapshot.val().trip_status);
     };
 
     it("user must be authenticated", async () => {
@@ -548,6 +552,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -832,6 +837,14 @@ describe("trip", () => {
       partner2Snapshot = await partner2Ref.once("value");
       assert.isNotNull(partner2Snapshot.val());
       assert.equal(partner2Snapshot.val().status, "available");
+
+      // assert accept_time is set
+      const tripRequestRef = admin
+        .database()
+        .ref("trip-requests")
+        .child(defaultUID);
+      let tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isDefined(tripRequestSnapshot.val().accept_time);
     });
   });
 
@@ -1153,6 +1166,9 @@ describe("trip", () => {
         "looking-for-partner"
       );
 
+      // assert confirm_time has been set
+      assert.isDefined(tripRequestSnapshot.val().confirm_time);
+
       // assert partner was requested
       let partner1Snapshot = await partnersRef.child(partnerID1).once("value");
       assert.isNotNull(partner1Snapshot.val());
@@ -1239,6 +1255,9 @@ describe("trip", () => {
         tripRequestSnapshot.val().trip_status,
         "looking-for-partner"
       );
+
+      // assert confirm_time has been set
+      assert.isDefined(tripRequestSnapshot.val().confirm_time);
 
       // assert partner was requested
       let partner1Snapshot = await partnersRef.child(partnerID1).once("value");
@@ -1597,6 +1616,7 @@ describe("trip", () => {
         destination_place_id: valid_destination_place_id,
         trip_status: "waiting-confirmation",
         origin_zone: "AA",
+        destination_zone: "BB",
       };
       const tripRequestRef = admin
         .database()
@@ -1662,6 +1682,7 @@ describe("trip", () => {
         trip_status: "waiting-partner",
         partner_id: anotherPartnerID,
         origin_zone: "AA",
+        destination_zone: "BB",
       };
       const tripRequestRef = admin
         .database()
@@ -1825,6 +1846,7 @@ describe("trip", () => {
       assert.equal(partner1Snapshot.val().status, "busy");
 
       // assert trip status has changed to waiting-partner
+      // and its start_time propery is set
       tripSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripSnapshot.val());
       assert.equal(tripSnapshot.val().trip_status, "waiting-partner");
@@ -1842,6 +1864,9 @@ describe("trip", () => {
       tripSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripSnapshot.val());
       assert.equal(tripSnapshot.val().trip_status, "in-progress");
+
+      // assert start_time property is defined
+      assert.isDefined(tripSnapshot.val().start_time);
     });
   });
 
@@ -2105,6 +2130,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -2251,6 +2277,7 @@ describe("trip", () => {
           destination_lat: "33.333333",
           destination_lng: "44.444444",
           origin_zone: "AA",
+          destination_zone: "BB",
           fare_price: farePrice,
           distance_meters: "123",
           distance_text: "123 meters",
@@ -2403,6 +2430,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: farePrice,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -2507,6 +2535,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: farePrice,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -2723,6 +2752,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -2838,6 +2868,9 @@ describe("trip", () => {
       let tripSnapshot = await tripRequestRef.once("value");
       assert.isNotNull(tripSnapshot.val());
       assert.isDefined(tripSnapshot.val().partner_past_trip_ref_key);
+
+      // assert complete_time has been set
+      assert.isDefined(tripSnapshot.val().complete_time);
     });
   });
 
@@ -3049,6 +3082,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -3135,6 +3169,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -3400,6 +3435,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -3548,6 +3584,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -3693,6 +3730,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -3789,6 +3827,7 @@ describe("trip", () => {
         origin_place_id: valid_origin_place_id,
         destination_place_id: valid_destination_place_id,
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -3830,6 +3869,7 @@ describe("trip", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
