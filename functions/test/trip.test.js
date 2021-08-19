@@ -2567,10 +2567,10 @@ describe("trip", () => {
       await wrappedComplete({ client_rating: 5 }, { auth: { uid: partnerID } });
       await sleep(200);
 
-      // after completing trip, assert partner owes amountOwed + 20% of farePrice
+      // after completing trip, assert partner owes amountOwed + 15% of farePrice
       p = await partner.getPartner();
       assert.isDefined(p);
-      assert.equal(p.amount_owed, amountOwed + Math.ceil(0.2 * farePrice));
+      assert.equal(p.amount_owed, amountOwed + Math.ceil(0.15 * farePrice));
     });
 
     it("fails when trying to complete a trip with status different from in-progress", async () => {

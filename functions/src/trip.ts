@@ -1195,7 +1195,7 @@ const completeTrip = async (
     trip.payment = cpt;
   } else {
     // if payment is cash, increase amount partner owes venni by 20% of fare price
-    await p.increaseAmountOwedBy(Math.ceil(0.2 * trip.fare_price));
+    await p.increaseAmountOwedBy(Math.ceil(0.15 * trip.fare_price));
   }
 
   // free the partner to handle other trips
