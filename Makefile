@@ -152,7 +152,7 @@ emulator: use-dev-project emulator-config build
 # "firebaseFunctionsTest" in trip.test.js, where we pass the path to devAdminCredentials.json
 # test: test-dependencies test-config build
 # 	$(NPMTEST)
-test: functions/devAdminCredentials.json build
+test: functions/devAdminCredentials.json
 	$(NPMTEST)
 
 

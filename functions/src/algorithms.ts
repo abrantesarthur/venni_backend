@@ -1,20 +1,76 @@
 import { Partner } from "./database/partner";
-import { toTwoFixedNumber } from "./utils";
 
 // calculateFare uses trip distance to calculate fare price in cents
 // TODO: test the fucking shit out of this
-export function calculateFare(distanceMeters: number): number {
-  var result: number;
-  if (distanceMeters <= 1500) {
-    result = 4;
-    return result * 100;
+export function calculateFare(
+  distanceMeters: number,
+  durationSeconds: number,
+  defaultPaymentMethod: "cash" | "credit_card"
+): number {
+  let minimumPrice = 500;
+  let basePrice = 250;
+
+  let pricePerKm;
+  let pricePerMinute;
+  if (distanceMeters < 2000) {
+    // less than 2km
+    pricePerKm = 110;
+  } else if (distanceMeters < 3000) {
+    // between 2km and 3km
+    pricePerKm = 100;
+  } else if (distanceMeters < 6000) {
+    // between 3km and 6km is the cheapest
+    pricePerKm = 95;
+  } else if (distanceMeters < 10000) {
+    // between 3km and 6km is more expensive
+    // this is probably going to be a trip to out of town
+    // so partner will spend more idle time coming back
+    pricePerKm = 120;
+  } else {
+    // more than 10km is the most expensive. This is definitely
+    // out of town and must be worth the partner's while
+    pricePerKm = 180;
   }
-  if (distanceMeters > 1500 && distanceMeters < 10000) {
-    result = (0.67 * distanceMeters) / 1000 + 3;
-    return Math.round(toTwoFixedNumber(result) * 100);
+
+  // the longer the trip, the more expensive it is per minute
+  if (durationSeconds < 360) {
+    // less than 6 minutes. More expensive to account for pushing
+    // partner to the end of the line for such a cheap trip
+    pricePerMinute = 26;
+  } else if (durationSeconds < 600) {
+    // between 2 and 10 minutes
+    pricePerMinute = 21;
+  } else {
+    // more than 10 minutes
+    pricePerMinute = 19;
   }
-  result = (0.7 * distanceMeters) / 1000 + 3;
-  return Math.round(toTwoFixedNumber(result) * 100);
+
+  let finalPrice = Math.round(
+    basePrice +
+      pricePerKm * (distanceMeters / 1000) +
+      pricePerMinute * (durationSeconds / 60)
+  );
+
+  // if defaultPaymentMethod is 'cash', round the final price
+  if (defaultPaymentMethod == "cash") {
+    finalPrice = roundToMultipleOfFifty(finalPrice);
+  }
+
+  return finalPrice < minimumPrice ? minimumPrice : finalPrice;
+}
+
+// roundToMultipleOfFifty rounds 'priceInCents' to its closest multiple of 50.
+// for example, if priceInCents = 578, the function returns 600, but if its
+// 574, it returns 550.
+export function roundToMultipleOfFifty(priceInCents: number): number {
+  let remainder = priceInCents % 100;
+  let delta =
+    remainder < 25
+      ? -remainder
+      : remainder < 75
+      ? 50 - remainder
+      : 100 - remainder;
+  return priceInCents + delta;
 }
 
 export enum Demand {

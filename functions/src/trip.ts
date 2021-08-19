@@ -3,7 +3,10 @@ import * as firebaseAdmin from "firebase-admin";
 import { calculateFare } from "./algorithms";
 import {
   Client as GoogleMapsClient,
+  DirectionsRoute,
   Language,
+  TrafficModel,
+  TravelMode,
 } from "@googlemaps/google-maps-services-js";
 import { StandardError, treatDirectionsError } from "./errors";
 import { HttpsError } from "firebase-functions/lib/providers/https";
@@ -212,6 +215,10 @@ const requestTrip = async (
         key: functions.config().googleapi.key,
         origin: "place_id:" + body.origin_place_id,
         destination: "place_id:" + body.destination_place_id,
+        mode: TravelMode.driving,
+        departure_time: Date.now() + 4 * 60 * 1000, // estimate departing 4 minutes from now
+        traffic_model: TrafficModel.optimistic, // optimistic so travel time is as small as possible
+        alternatives: true, // so we can receive multiple routes and pick the one with the smallest fare price
         language: Language.pt_BR,
       },
     });
@@ -220,9 +227,38 @@ const requestTrip = async (
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
+  let route: DirectionsRoute;
+
+  // if more than one route was returned
+  if (directionsResponse.data.routes.length > 1) {
+    // pick the one that will yield the smallest credit_card price.
+    // we don't estimate based on cash price, because 'cash' prices
+    // are rounded
+    route = directionsResponse.data.routes.sort(
+      (routeA, routeB) =>
+        calculateFare(
+          routeA.legs[0].distance.value,
+          routeA.legs[0].duration_in_traffic != null
+            ? routeA.legs[0].duration_in_traffic.value
+            : routeA.legs[0].duration.value,
+          "credit_card"
+        ) -
+        calculateFare(
+          routeB.legs[0].distance.value,
+          routeB.legs[0].duration_in_traffic != null
+            ? routeB.legs[0].duration_in_traffic.value
+            : routeB.legs[0].duration.value,
+          "credit_card"
+        )
+    )[0];
+  } else {
+    // otherwise, pick the one route returned
+    route = directionsResponse.data.routes[0];
+  }
+
   // create a trip request entry in the database
-  const route = directionsResponse.data.routes[0];
   const leg = route.legs[0]; // we don't support multiple stops in same route
+
   const result: TripRequest.Interface = {
     uid: context.auth?.uid,
     trip_status: TripRequest.Status.waitingConfirmation,
@@ -236,7 +272,13 @@ const requestTrip = async (
     origin_lng: leg.start_location.lng.toString(),
     destination_lat: leg.end_location.lat.toString(),
     destination_lng: leg.end_location.lng.toString(),
-    fare_price: calculateFare(leg.distance.value),
+    fare_price: calculateFare(
+      leg.distance.value,
+      leg.duration_in_traffic != undefined
+        ? leg.duration_in_traffic.value
+        : leg.duration.value,
+      client.payment_method.default
+    ),
     distance_meters: leg.distance.value.toString(),
     distance_text: leg.distance.text,
     duration_seconds: leg.duration.value.toString(),
