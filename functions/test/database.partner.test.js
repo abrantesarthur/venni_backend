@@ -56,6 +56,7 @@ describe("Partner", () => {
         origin_place_id: "origin_place_id",
         destination_place_id: "destination_place_id",
         origin_zone: "AA",
+        destination_zone: "AA",
         fare_price: 500,
         distance_meters: 100,
         distance_text: "100 metes",

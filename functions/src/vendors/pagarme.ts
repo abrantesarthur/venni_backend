@@ -18,7 +18,10 @@ import { BankAccountCreateOptions } from "pagarme-js-types/src/client/bankAccoun
 import { RecipientCreateOptions } from "pagarme-js-types/src/client/recipients/options";
 import { BalanceFindOptions } from "pagarme-js-types/src/client/balance/options";
 import { BalanceResponse } from "pagarme-js-types/src/client/balance/responses";
-import { TransferAllOptions, TransferCreateOptions } from "pagarme-js-types/src/client/transfers/options";
+import {
+  TransferAllOptions,
+  TransferCreateOptions,
+} from "pagarme-js-types/src/client/transfers/options";
 import { Transfer } from "pagarme-js-types/src/client/transfers/responses";
 import {
   BulkAnticipationsConfirmOptions,
@@ -163,21 +166,21 @@ export class Pagarme {
   getBalance = async (opts: BalanceFindOptions): Promise<BalanceResponse> => {
     return await this._client.balance.find(opts);
   };
-  
+
   // TRANSFERS
-  getTransfers = async(opts: TransferAllOptions) => {
+  getTransfers = async (opts: TransferAllOptions) => {
     return await this._client.transfers.all(opts);
-  }
+  };
 
   // SECURITY
 
-/**
- *          client requests backend for new public key. Backend requests pagarme for public key
- *          client uses public key and card info to create a hash
- *          client sends card_hash and card info without cvv to backend
- *          backend requests pagarme to create card info
- *          backend sends success of failure response back to client
- */
+  /**
+   *          client requests backend for new public key. Backend requests pagarme for public key
+   *          client uses public key and card info to create a hash
+   *          client sends card_hash and card info without cvv to backend
+   *          backend requests pagarme to create card info
+   *          backend sends success of failure response back to client
+   */
   encrypt = async (card: {
     card_holder_name: string;
     card_expiration_date: string;
@@ -187,4 +190,3 @@ export class Pagarme {
     return await this._client.security.encrypt(card);
   };
 }
-

@@ -65,13 +65,20 @@ export namespace TripRequest {
     destination_lat: string;
     destination_lng: string;
     origin_zone: ZoneName;
+    destination_zone: ZoneName;
     fare_price: number; // in cents
     distance_meters: string;
     distance_text: string;
     duration_seconds: string;
     duration_text: string;
     encoded_points: string;
-    request_time: string; // number of milliseconds since 01/01/1970
+    request_time: string; // added when client first sends a request trip
+    confirm_time?: string; // added when client confirms trip
+    accept_time?: string; // added when partner accepts trip
+    start_time?: string; // added when partner starts the trip
+    complete_time?: string; // added when partner completes the trip
+    client_cancel_time?: string; // added when and if client cancels the trip
+    partner_cancel_time?: string; // added when and if partner cancels the trip
     origin_address: string;
     destination_address: string;
     partner_past_trip_ref_key?: string; // added when partner completes the trip
@@ -189,6 +196,13 @@ export namespace TripRequest {
       if (obj.origin_zone == undefined || !ZoneName.is(obj.origin_zone)) {
         return false;
       }
+      // type check required destination_zone
+      if (
+        obj.destination_zone == undefined ||
+        !ZoneName.is(obj.destination_zone)
+      ) {
+        return false;
+      }
 
       // type check required numeric fields
       const typeCheckNumericStringField = (field: string) => {
@@ -270,6 +284,28 @@ export namespace TripRequest {
         return false;
       }
 
+      // type check optional numeric fields
+      const typeCheckOptionalNumericStringField = (field: string) => {
+        if (
+          obj[field] != undefined &&
+          (typeof obj[field] != "string" || isNaN(parseInt(obj[field], 10)))
+        ) {
+          return false;
+        }
+
+        return true;
+      };
+      if (
+        !typeCheckOptionalNumericStringField("start_time") ||
+        !typeCheckOptionalNumericStringField("accept_time") ||
+        !typeCheckOptionalNumericStringField("confirm_time") ||
+        !typeCheckOptionalNumericStringField("complete_time") ||
+        !typeCheckOptionalNumericStringField("client_cancel_time") ||
+        !typeCheckOptionalNumericStringField("partner_cancel_time")
+      ) {
+        return false;
+      }
+
       // type check remaining required fields
       return (
         "uid" in obj &&
@@ -279,6 +315,7 @@ export namespace TripRequest {
         "duration_text" in obj &&
         "destination_place_id" in obj &&
         "origin_zone" in obj &&
+        "destination_zone" in obj &&
         "encoded_points" in obj &&
         "origin_address" in obj &&
         "destination_address" in obj &&

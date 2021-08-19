@@ -22,6 +22,7 @@ import { ClientPastTrips, PartnerPastTrips } from "./database/pastTrips";
 import { Pagarme } from "./vendors/pagarme";
 import { captureTripPayment } from "./payment";
 import { DemandByZone } from "./database/demandByZone";
+import { Amplitude } from "./vendors/amplitude";
 // initialize google maps API client
 const googleMaps = new GoogleMapsClient({});
 
@@ -267,6 +268,10 @@ const requestTrip = async (
       leg.start_location.lat,
       leg.start_location.lng
     ),
+    destination_zone: getZoneNameFromCoordinate(
+      leg.end_location.lat,
+      leg.end_location.lng
+    ),
     destination_place_id: body.destination_place_id,
     origin_lat: leg.start_location.lat.toString(),
     origin_lng: leg.start_location.lng.toString(),
@@ -353,6 +358,7 @@ const clientCancelTrip = async (
     }
     tripRequest.trip_status = TripRequest.Status.cancelledByClient;
     tripRequest.partner_id = "";
+    tripRequest.client_cancel_time = Date.now().toString();
     return tripRequest;
   });
 
@@ -425,15 +431,20 @@ const partnerCancelTrip = async (
     }
     tripRequest.trip_status = TripRequest.Status.cancelledByPartner;
     tripRequest.partner_id = "";
+    tripRequest.partner_cancel_time = Date.now().toString();
     return tripRequest;
   });
 
   // notify client about cancellation
   const c = new Client(clientID);
   let client = await c.getClient();
-  if (client != undefined && client.fcm_token != undefined) {
+  if (
+    client != undefined &&
+    client.fcm_token != undefined &&
+    client.fcm_token.length > 0
+  ) {
     try {
-      await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
+      await firebaseAdmin.messaging().sendToDevice(client.fcm_token, {
         notification: {
           title: "Corrida cancelada",
           body: "O(a) piloto cancelou a corrida",
@@ -508,6 +519,8 @@ const confirmTrip = async (
   // use transactions to modify trip request, and us using set would
   // cancel their transactions.
   tripRequest.trip_status = TripRequest.Status.waitingPayment;
+  // also, set confirm_time already
+  tripRequest.confirm_time = Date.now().toString();
   promises.push(tr.ref.set(tripRequest));
 
   // make sure client exists
@@ -608,6 +621,11 @@ const confirmTrip = async (
     // if failed to find partners, update trip-request status to no-partners-available
     tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
     promises.push(tr.ref.set(tripRequest));
+
+    // log 'Found No Partner' event
+    const a = new Amplitude();
+    promises.push(a.logFoundNoPartner(tripRequest));
+
     await Promise.all(promises);
     throw new functions.https.HttpsError(error.code, error.message);
   }
@@ -829,13 +847,14 @@ const confirmTrip = async (
       );
 
       // set trip_status to waiting-partner. this is how the client knows that
-      // confirm-trip was successful.
+      // confirm-trip was successful. Also, set accept_time.
       promises.push(
         tr.ref.transaction((tripRequest: TripRequest.Interface) => {
           if (tripRequest == null) {
             return {};
           }
           tripRequest.trip_status = TripRequest.Status.waitingPartner;
+          tripRequest.accept_time = Date.now().toString();
           return tripRequest;
         })
       );
@@ -857,18 +876,24 @@ const confirmTrip = async (
         .transaction(requestPartner, async (_, completed, snapshot) => {
           if (completed) {
             let partner: Partner.Interface = snapshot?.val();
-            try {
-              await firebaseAdmin
-                .messaging()
-                .sendToDevice(partner?.fcm_token ?? "", {
-                  notification: {
-                    title: "Novo pedido de corrida",
-                    body: "Abra o aplicativo para aceitar",
-                    badge: "0",
-                    sound: "default",
-                  },
-                });
-            } catch (e) {}
+            if (
+              partner != undefined &&
+              partner.fcm_token != undefined &&
+              partner.fcm_token.length > 0
+            ) {
+              try {
+                await firebaseAdmin
+                  .messaging()
+                  .sendToDevice(partner?.fcm_token ?? "", {
+                    notification: {
+                      title: "Novo pedido de corrida",
+                      body: "Abra o aplicativo para aceitar",
+                      badge: "0",
+                      sound: "default",
+                    },
+                  });
+              } catch (e) {}
+            }
           }
         })
     );
@@ -940,17 +965,20 @@ const confirmTrip = async (
     await Promise.all(promises);
 
     // notify client that partner is on his way
-    try {
-      await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
-        notification: {
-          title: "Piloto a caminho",
-          body: "Dirija-se ao local de encontro",
-          badge: "0",
-          sound: "default",
-          icon: "notification_icon.png",
-        },
-      });
-    } catch (_) {}
+    if (client.fcm_token != undefined && client.fcm_token.length > 0) {
+      try {
+        await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
+          notification: {
+            title: "Piloto a caminho",
+            body: "Dirija-se ao local de encontro",
+            badge: "0",
+            sound: "default",
+            icon: "notification_icon.png",
+          },
+        });
+      } catch (_) {}
+    }
+
     return confirmTripResponse;
   }
 
@@ -1059,7 +1087,7 @@ const startTrip = async (
   const tr = new TripRequest(clientID);
 
   // set trip's status to in-progress in a transaction only if it is waiting for
-  // partner who is trying to start the trip
+  // partner who is trying to start the trip. Also set start_time property
   await transaction(
     tr.ref,
     (tripRequest: TripRequest.Interface) => {
@@ -1068,12 +1096,14 @@ const startTrip = async (
         return {};
       }
 
-      // set trip's status only if it is waiting for our partner
+      // set trip's status only if it is waiting for our partner.
+      // also set its start_time property
       if (
         tripRequest.trip_status == "waiting-partner" &&
         tripRequest.partner_id == context.auth?.uid
       ) {
         tripRequest.trip_status = TripRequest.Status.inProgress;
+        tripRequest.start_time = Date.now().toString();
         return tripRequest;
       }
 
@@ -1140,6 +1170,9 @@ const completeTrip = async (
   // validate arguments
   validateCompleteTripArguments(data);
 
+  // save complete time in a variable to be used later
+  const completeTime = Date.now().toString();
+
   // make sure the partner's status is busy and trip's current_client_id is set
   const partnerID = context.auth.uid;
   let p = new Partner(partnerID);
@@ -1203,11 +1236,12 @@ const completeTrip = async (
 
   // add trip with completed status to partner's list of past trips
   trip.trip_status = TripRequest.Status.completed;
+  trip.complete_time = completeTime;
   let partnerPastTripRefKey = await p.pushPastTrip(trip);
 
   // save past trip's reference key in trip request's partner_past_trip_ref_key
   // this is so the client can retrieve it later when rating the partner. Also,
-  // add payment info to it
+  // add payment info and complete_time to it
   await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
     if (tripRequest == null) {
       return {};
@@ -1219,6 +1253,7 @@ const completeTrip = async (
       // TODO: test
       tripRequest.payment = trip.payment;
     }
+    tripRequest.complete_time = completeTime;
     return tripRequest;
   });
 
@@ -1248,25 +1283,40 @@ const completeTrip = async (
     }
   }
 
-  // set trip's status to completed in a transaction
-  await transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
-    if (tripRequest == null) {
-      return {};
-    }
-    tripRequest.trip_status = TripRequest.Status.completed;
-    return tripRequest;
-  });
+  let promises: Promise<any>[] = [];
+
+  // set trip's status to completed in a transaction. Also set complete_time
+  promises.push(
+    transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
+      if (tripRequest == null) {
+        return {};
+      }
+      tripRequest.trip_status = TripRequest.Status.completed;
+      tripRequest.complete_time = completeTime;
+      return tripRequest;
+    })
+  );
 
   // notify the client to rate trip
+  if (client.fcm_token != undefined && client.fcm_token.length > 0) {
+    promises.push(
+      firebaseAdmin.messaging().sendToDevice(client.fcm_token, {
+        notification: {
+          title: "Corrida finalizada",
+          body: "Avalie a sua experiência",
+          badge: "0",
+          sound: "default",
+        },
+      })
+    );
+  }
+
+  // log event to amplitude
+  const a = new Amplitude();
+  promises.push(a.logCompleteTrip(trip));
+
   try {
-    await firebaseAdmin.messaging().sendToDevice(client.fcm_token ?? "", {
-      notification: {
-        title: "Corrida finalizada",
-        body: "Avalie a sua experiência",
-        badge: "0",
-        sound: "default",
-      },
-    });
+    await Promise.all(promises);
   } catch (_) {}
 };
 

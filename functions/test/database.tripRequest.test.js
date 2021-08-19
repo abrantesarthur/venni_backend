@@ -27,6 +27,8 @@ describe("TripRequest.Interface", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -76,6 +78,7 @@ describe("TripRequest.Interface", () => {
     falseIfNotPresent("destination_lat");
     falseIfNotPresent("destination_lng");
     falseIfNotPresent("origin_zone");
+    falseIfNotPresent("destination_zone");
     falseIfNotPresent("fare_price");
     falseIfNotPresent("distance_meters");
     falseIfNotPresent("distance_text");
@@ -100,6 +103,7 @@ describe("TripRequest.Interface", () => {
     falseIfWronglyTyped("origin_place_id", 123);
     falseIfWronglyTyped("destination_place_id", 123);
     falseIfWronglyTyped("origin_zone", "not valid");
+    falseIfWronglyTyped("destination_zone", "not valid");
     falseIfWronglyTyped("fare_price", "not a number");
     falseIfWronglyTyped("distance_meters", "not numeric");
     falseIfWronglyTyped("distance_text", 123);
@@ -137,6 +141,18 @@ describe("TripRequest.Interface", () => {
     falseIfOptionalWronglyTyped("credit_card", { id: "card_id" });
     falseIfOptionalWronglyTyped("transaction_id", 123);
     falseIfOptionalWronglyTyped("payment", { invalid_field: "invalid" });
+    falseIfOptionalWronglyTyped("start_time", 123);
+    falseIfOptionalWronglyTyped("accept_time", 123);
+    falseIfOptionalWronglyTyped("confirm_time", 123);
+    falseIfOptionalWronglyTyped("complete_time", 123);
+    falseIfOptionalWronglyTyped("client_cancel_time", 123);
+    falseIfOptionalWronglyTyped("partner_cancel_time", 123);
+    falseIfOptionalWronglyTyped("start_time", "abc");
+    falseIfOptionalWronglyTyped("accept_time", "abc");
+    falseIfOptionalWronglyTyped("confirm_time", "abc");
+    falseIfOptionalWronglyTyped("complete_time", "abc");
+    falseIfOptionalWronglyTyped("client_cancel_time", "abc");
+    falseIfOptionalWronglyTyped("partner_cancel_time", "abc");
 
     it("returns false if, partner_rating, if present, is not an object", () => {
       let invalidArg = validArg;
@@ -180,6 +196,7 @@ describe("TripRequest.Interface", () => {
         destination_lat: "33.333333",
         destination_lng: "44.444444",
         origin_zone: "AA",
+        destination_zone: "BB",
         fare_price: 500,
         distance_meters: "123",
         distance_text: "123 meters",
@@ -187,6 +204,12 @@ describe("TripRequest.Interface", () => {
         duration_text: "5 minutes",
         encoded_points: "encoded_points",
         request_time: "124759",
+        start_time: "12345",
+        accept_time: "12345",
+        confirm_time: "01234",
+        complete_time: "54321",
+        client_cancel_time: "6789",
+        partner_cancel_time: "9876",
         origin_address: "origin_address",
         destination_address: "destination_address",
         partner_past_trip_ref_key: "partner_past_trip_ref_key",
@@ -243,6 +266,7 @@ describe("TripRequest.Interface", () => {
       assert.equal(response.origin_place_id, "origin_place_id");
       assert.equal(response.destination_place_id, "destination_place_id");
       assert.equal(response.origin_zone, "AA");
+      assert.equal(response.destination_zone, "BB");
       assert.equal(response.fare_price, "500");
       assert.equal(response.distance_meters, "123");
       assert.equal(response.distance_text, "123 meters");
@@ -250,6 +274,12 @@ describe("TripRequest.Interface", () => {
       assert.equal(response.duration_text, "5 minutes");
       assert.equal(response.encoded_points, "encoded_points");
       assert.equal(response.request_time, "124759");
+      assert.equal(response.start_time, "12345");
+      assert.equal(response.accept_time, "12345");
+      assert.equal(response.confirm_time, "01234");
+      assert.equal(response.complete_time, "54321");
+      assert.equal(response.client_cancel_time, "6789");
+      assert.equal(response.partner_cancel_time, "9876");
       assert.equal(response.origin_address, "origin_address");
       assert.equal(response.destination_address, "destination_address");
       assert.isDefined(response.partner_rating);

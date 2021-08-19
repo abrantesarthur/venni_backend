@@ -374,18 +374,20 @@ export const on_partner_nearby = database
       if (partnerIsNear == true) {
         const c = new Client(context.params.clientID);
         const client = await c.getClient();
-        if (client != undefined) {
+        if (
+          client != undefined &&
+          client.fcm_token != undefined &&
+          client.fcm_token.length > 0
+        ) {
           try {
-            await firebaseAdmin
-              .messaging()
-              .sendToDevice(client.fcm_token ?? "", {
-                notification: {
-                  title: "Piloto próximo(a)",
-                  body: "Vá ao local de encontro",
-                  badge: "0",
-                  sound: "default",
-                },
-              });
+            await firebaseAdmin.messaging().sendToDevice(client.fcm_token, {
+              notification: {
+                title: "Piloto próximo(a)",
+                body: "Vá ao local de encontro",
+                badge: "0",
+                sound: "default",
+              },
+            });
           } catch (_) {}
         }
       }
