@@ -1337,44 +1337,10 @@ describe("trip", () => {
       await removeTripRequests();
     });
 
-    it("issues a refund if trip is paid with credit card but no findAllAvailable findsNoONe", async () => {
+    it("issues a refund if trip is paid with credit card but no findAllAvailable finds no one", async () => {
       // delete all partners from the database
       const partnersRef = admin.database().ref("partners");
       await partnersRef.remove();
-
-      // add three available partners to the database
-      const partnerID1 = "partnerID1";
-      const partnerID2 = "partnerID2";
-      const partnerID3 = "partnerID3";
-      let partner = {
-        uid: "",
-        name: "Fulano",
-        last_name: "de Tal",
-        cpf: "00000000000",
-        gender: "masculino",
-        account_status: "approved",
-        member_since: Date.now().toString(),
-        phone_number: "(38) 99999-9999",
-        current_latitude: "-17.217587",
-        current_longitude: "-46.881064",
-        current_zone: "AA",
-        pagarme_recipient_id: "pagarme_recipient_id",
-        status: "available",
-        vehicle: {
-          brand: "honda",
-          model: "CG 150",
-          year: 2020,
-          plate: "HMR 1092",
-        },
-        idle_since: Date.now().toString(),
-        rating: "5.0",
-      };
-      partner.uid = partnerID1;
-      await partnersRef.child(partnerID1).set(partner);
-      partner.uid = partnerID2;
-      await partnersRef.child(partnerID2).set(partner);
-      partner.uid = partnerID3;
-      await partnersRef.child(partnerID3).set(partner);
 
       // add trip request to database
       const tripRequestRef = await createTripRequest();
@@ -1419,24 +1385,20 @@ describe("trip", () => {
         { auth: { uid: defaultUID } }
       );
 
-      // wait enough time for transaction to be made but not enough
-      // for 'no-partners-available' status to be set
-      await sleep(10000);
+      // wait enough time for findAllAVailable to find no one
+      await sleep(5000);
 
       // assert that a transaction was created
       let tripRequestSnapshot = await tripRequestRef.once("value");
       let transactionId = tripRequestSnapshot.val().transaction_id;
       assert.isDefined(transactionId);
 
-      // assert transaction's status is 'authorized'
+      // assert transaction's status is 'refunded'
       const p = new Pagarme();
       await p.ensureInitialized();
       let transaction = await p.findTransaction(transactionId);
       console.log(transaction.status);
-      assert.equal(transaction.status, "authorized");
-
-      // wait enough time for partners to ignore request
-      await sleep(34000);
+      assert.equal(transaction.status, "refunded");
 
       // assert trip has 'no-partners-available' status
       tripRequestSnapshot = await tripRequestRef.once("value");
@@ -1445,11 +1407,6 @@ describe("trip", () => {
         tripRequestSnapshot.val().trip_status,
         "no-partners-available"
       );
-
-      // assert transaction was refunded
-      transaction = await p.findTransaction(transactionId);
-      console.log(transaction.status);
-      assert.equal(transaction.status, "refunded");
 
       // clean database
       await partnersRef.remove();
