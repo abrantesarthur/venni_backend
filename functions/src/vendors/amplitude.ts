@@ -8,6 +8,8 @@ export class Amplitude {
     this._client = amplitude.init(functions.config().amplitudeapi.key);
   }
 
+  // 1) log where requested partners were, so we can know how far it is sending requests
+  // 2) log other partner info
   logFoundNoPartner = async (
     trip: TripRequest.Interface,
     reason:
@@ -25,6 +27,10 @@ export class Amplitude {
         clientID: "client " + trip.uid,
         originZone: "paracatu" + trip.origin_zone,
         destinationZone: "paracatu" + trip.destination_zone,
+        originLatitude: Number(trip.origin_lat),
+        originLongitude: Number(trip.origin_lng),
+        destinationLatitude: Number(trip.destination_lat),
+        destinationLongitude: Number(trip.destination_lng),
         requestTime: trip.request_time,
         confirmTime: trip.confirm_time,
         reason: reason,

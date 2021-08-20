@@ -753,9 +753,9 @@ const confirmTrip = async (
         a.logFoundNoPartner(
           tripRequest,
           "partners_ignored_request",
-          nearbyPartners.length >= 1 ? "partner " + nearbyPartners[0].uid : "",
-          nearbyPartners.length >= 2 ? "partner " + nearbyPartners[1].uid : "",
-          nearbyPartners.length >= 3 ? "partner " + nearbyPartners[2].uid : ""
+          nearbyPartners.length >= 1 ? nearbyPartners[0].uid : "",
+          nearbyPartners.length >= 2 ? nearbyPartners[1].uid : "",
+          nearbyPartners.length >= 3 ? nearbyPartners[2].uid : ""
         )
       );
     }
@@ -919,7 +919,7 @@ const confirmTrip = async (
         })
     );
 
-    // wait 11 seconds before request next partner. This way, each partner has ~10 seconds
+    // wait 10 seconds before request next partner. This way, each partner has ~10 seconds
     // to accept request, before it is sent to another partner. Don't wait after
     // runnign transactoin for last partner, though. In case cancelFurtherPartnerRequests
     // is set to true, we stop waiting.
@@ -931,7 +931,7 @@ const confirmTrip = async (
           break;
         }
         msPassed += 1;
-      } while (msPassed < 11000);
+      } while (msPassed < 10000);
     }
   }
 

@@ -99,11 +99,11 @@ export class Partners extends Database {
     partners = this.filterByRecipientID(partners, tripRequest);
 
     // filter partners nearby the client
-    partners = this.filterByZone(
-      tripRequest.origin_zone,
-      partners,
-      tryingAgain
-    );
+    // partners = this.filterByZone(
+    //   tripRequest.origin_zone,
+    //   partners,
+    //   tryingAgain
+    // );
 
     // assing positions to the partners
     partners = await this.assignDistances(
@@ -118,7 +118,7 @@ export class Partners extends Database {
     // return three best ranked partners
     return rankedPartners.slice(
       0,
-      rankedPartners.length < 3 ? rankedPartners.length : 3
+      rankedPartners.length < 4 ? rankedPartners.length : 4
     );
   };
 
