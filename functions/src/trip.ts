@@ -548,62 +548,21 @@ const confirmTrip = async (
     );
   }
 
-  let paymentFailed = false;
-  let pagarmeError;
+  // define payment method before looking for partners, so we can properly
+  // disconsider partners without a pagarme_recipient_id in case client is
+  // paying with a 'credit_card'
   if (creditCard == undefined) {
-    // if paying with cash, update trip request's payment method
     tripRequest.payment_method = "cash";
-    await tr.ref.set(tripRequest);
   } else {
-    // if paying with credit card
-    const p = new Pagarme();
-    await p.ensureInitialized();
-    try {
-      // create a transaction to be captured later
-      let transaction = await p.createTransaction(
-        creditCard.id,
-        tripRequest.fare_price,
-        {
-          id: creditCard.pagarme_customer_id,
-          name: creditCard.holder_name,
-        },
-        creditCard.billing_address
-      );
-
-      if (transaction.status !== "authorized") {
-        paymentFailed = true;
-      } else {
-        // if authorization succeded, save transaction info to capture later
-        tripRequest.payment_method = "credit_card";
-        tripRequest.credit_card = creditCard;
-        tripRequest.transaction_id = transaction.tid.toString();
-        await tr.ref.set(tripRequest);
-      }
-    } catch (e) {
-      paymentFailed = true;
-      pagarmeError = e;
-    }
+    tripRequest.payment_method = "credit_card";
   }
+  await tr.ref.set(tripRequest);
 
-  // if transaction was not authorized, update trip status and throw error
-  if (paymentFailed) {
-    tripRequest.trip_status = TripRequest.Status.paymentFailed;
-    promises.push(tr.ref.set(tripRequest));
-    await Promise.all(promises);
-    throw new functions.https.HttpsError(
-      "cancelled",
-      "Payment was not authorized.",
-      pagarmeError?.response.errors[0]
-    );
-  }
-
-  // now that trip meets all requirements to look for a partner,
   // push its confirmation timestamp to the appropriate demand-by-zone/{zoneName} path
   const dbz = new DemandByZone();
   promises.push(
     dbz.pushTripTimestampToZone(Date.now(), tripRequest.origin_zone)
   );
-
   // change trip-request status to lookingForPartner
   tripRequest.trip_status = TripRequest.Status.lookingForPartner;
   promises.push(tr.ref.set(tripRequest));
@@ -632,12 +591,58 @@ const confirmTrip = async (
 
   // if didn't find partners, update trip-reqeust status to noPartnersAvailable and throw exception
   if (nearbyPartners.length == 0) {
+    console.log("nearbyPartners.length == 0");
     tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
     promises.push(tr.ref.set(tripRequest));
     await Promise.all(promises);
     throw new functions.https.HttpsError(
       "failed-precondition",
       "There are no available partners. Try again later."
+    );
+  }
+
+  // create a transaction to be captured later if paying wiht a credit card
+  let paymentFailed = false;
+  let pagarmeError;
+  const p = new Pagarme();
+  await p.ensureInitialized();
+  if (creditCard != undefined && tripRequest.payment_method == "credit_card") {
+    try {
+      // create a transaction to be captured later. Note that this transaction is cancelled
+      // if trip confirmation fails.
+      let transaction = await p.createTransaction(
+        creditCard.id,
+        tripRequest.fare_price,
+        {
+          id: creditCard.pagarme_customer_id,
+          name: creditCard.holder_name,
+        },
+        creditCard.billing_address
+      );
+
+      if (transaction.status !== "authorized") {
+        paymentFailed = true;
+      } else {
+        // if authorization succeded, save transaction info to capture later
+        tripRequest.credit_card = creditCard;
+        tripRequest.transaction_id = transaction.tid.toString();
+        await tr.ref.set(tripRequest);
+      }
+    } catch (e) {
+      paymentFailed = true;
+      pagarmeError = e;
+    }
+  }
+
+  // if transaction was not authorized, update trip status and throw error
+  if (paymentFailed) {
+    tripRequest.trip_status = TripRequest.Status.paymentFailed;
+    promises.push(tr.ref.set(tripRequest));
+    await Promise.all(promises);
+    throw new functions.https.HttpsError(
+      "cancelled",
+      "Payment was not authorized.",
+      pagarmeError?.response.errors[0]
     );
   }
 
@@ -704,7 +709,7 @@ const confirmTrip = async (
   };
 
   // cancelRequest is a callback that is triggered if partners fail
-  // to accept a trip in 30 seconds. It stops listening for their responses
+  // to accept a trip in 40 seconds. It stops listening for their responses
   // and unrequests them, setting their statuses back to available.
   const cancelRequest = async () => {
     // when timeout expires, stop listening for changes in partner_id
@@ -723,19 +728,23 @@ const confirmTrip = async (
       requestedPartnersUIDs = requestedPartnersUIDs.slice(1);
     }
 
-    // set tripRequest status to noPartnersAvailable
-    promises.push(
-      transaction(tr.ref, (tripRequest: TripRequest.Interface) => {
-        if (tripRequest == null) {
-          return {};
-        }
-        tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
-        return tripRequest;
-      })
-    );
-
     if (tripRequest != undefined) {
+      // set tripRequest status to noPartnersAvailable
       tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
+      //if payment was through credit card
+      if (
+        tripRequest.payment_method == "credit_card" &&
+        tripRequest.transaction_id != undefined
+      ) {
+        try {
+          // try issuing refund
+          await p.refundTransaction(Number(tripRequest.transaction_id));
+        } catch (e) {
+          // it's ok if refund fails. Transaction will be automatically canceled in 5 days
+          console.log(e);
+        }
+        tripRequest.transaction_id = "";
+      }
       promises.push(tr.ref.set(tripRequest));
     }
 
