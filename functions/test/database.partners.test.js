@@ -3,6 +3,7 @@ const assert = chai.assert;
 const expect = chai.expect;
 const admin = require("firebase-admin");
 let p = require("../lib/database/partners");
+const { sleep } = require("../lib/utils");
 const { ZoneName } = require("../lib/zones");
 
 describe("partners", () => {
@@ -735,6 +736,8 @@ describe("partners", () => {
         current_latitude: "-17.221879",
         current_longitude: "-46.875143",
       });
+
+      await sleep(200);
 
       // count partners again
       map = await Partners.countAvailablePartnersByZone();

@@ -1,30 +1,13 @@
 {
-  "googleapi": {
-    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
-  },
-
-  "pagarmeapi": {
-    "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq",
-    "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ"
-  },
   "functions": {
     "predeploy": "npm --prefix \"functions\" run build"
-  },
-  "amplitudeapi": {
-    "key": "051ddadc6f2ae780306feee4c375f007"
-  },
-  "emulators": {
-    "functions": {
-      "port": "5001",
-      "host": "192.168.0.104"
-    },
-    "ui": {
-      "enabled": "true"
-    }
   },
   "pagarmeapi": {
     "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ",
     "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq"
+  },
+  "amplitudeapi": {
+    "key": "051ddadc6f2ae780306feee4c375f007"
   },
   "googleapi": {
     "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"

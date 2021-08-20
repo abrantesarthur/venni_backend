@@ -127,6 +127,14 @@ export class Pagarme {
     });
   };
 
+  refundTransaction = async (transactionID: number) => {
+    return await this._client.transactions.refund({ id: transactionID });
+  };
+
+  findTransaction = async (transactionID: number) => {
+    return await this._client.transactions.find({ id: transactionID }, {});
+  };
+
   getCardHashKey = async (): Promise<CardHashKey> => {
     return await this._client.transactions.cardHashKey({});
   };
