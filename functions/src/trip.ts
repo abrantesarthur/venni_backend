@@ -570,6 +570,7 @@ const confirmTrip = async (
   // search available partners nearby client
   let nearbyPartners: Partner.Interface[];
   let ps = new Partners();
+  const a = new Amplitude();
   try {
     nearbyPartners = await ps.findAllAvailable(
       tripRequest,
@@ -582,7 +583,6 @@ const confirmTrip = async (
     promises.push(tr.ref.set(tripRequest));
 
     // log 'Found No Partner' event
-    const a = new Amplitude();
     promises.push(a.logFoundNoPartner(tripRequest));
 
     await Promise.all(promises);
@@ -591,9 +591,9 @@ const confirmTrip = async (
 
   // if didn't find partners, update trip-reqeust status to noPartnersAvailable and throw exception
   if (nearbyPartners.length == 0) {
-    console.log("nearbyPartners.length == 0");
     tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
     promises.push(tr.ref.set(tripRequest));
+    promises.push(a.logFoundNoPartner(tripRequest));
     await Promise.all(promises);
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -746,6 +746,9 @@ const confirmTrip = async (
         tripRequest.transaction_id = "";
       }
       promises.push(tr.ref.set(tripRequest));
+
+      // log event
+      promises.push(a.logFoundNoPartner(tripRequest));
     }
 
     await Promise.all(promises);
