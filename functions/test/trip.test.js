@@ -1337,6 +1337,125 @@ describe("trip", () => {
       await removeTripRequests();
     });
 
+    it("issues a refund if trip is paid with credit card but no findAllAvailable findsNoONe", async () => {
+      // delete all partners from the database
+      const partnersRef = admin.database().ref("partners");
+      await partnersRef.remove();
+
+      // add three available partners to the database
+      const partnerID1 = "partnerID1";
+      const partnerID2 = "partnerID2";
+      const partnerID3 = "partnerID3";
+      let partner = {
+        uid: "",
+        name: "Fulano",
+        last_name: "de Tal",
+        cpf: "00000000000",
+        gender: "masculino",
+        account_status: "approved",
+        member_since: Date.now().toString(),
+        phone_number: "(38) 99999-9999",
+        current_latitude: "-17.217587",
+        current_longitude: "-46.881064",
+        current_zone: "AA",
+        pagarme_recipient_id: "pagarme_recipient_id",
+        status: "available",
+        vehicle: {
+          brand: "honda",
+          model: "CG 150",
+          year: 2020,
+          plate: "HMR 1092",
+        },
+        idle_since: Date.now().toString(),
+        rating: "5.0",
+      };
+      partner.uid = partnerID1;
+      await partnersRef.child(partnerID1).set(partner);
+      partner.uid = partnerID2;
+      await partnersRef.child(partnerID2).set(partner);
+      partner.uid = partnerID3;
+      await partnersRef.child(partnerID3).set(partner);
+
+      // add trip request to database
+      const tripRequestRef = await createTripRequest();
+
+      // create credit card
+      validCard = {
+        card_number: "5234213829598909",
+        card_expiration_date: "0235",
+        card_holder_name: "Joao das Neves",
+        card_cvv: "600",
+      };
+      cardHash = await pagarmeClient.encrypt(validCard);
+      let createCardArg = {
+        card_number: validCard.card_number,
+        card_expiration_date: validCard.card_expiration_date,
+        card_holder_name: validCard.card_holder_name,
+        card_hash: cardHash,
+        cpf_number: "58229366365",
+        email: "fulano@venni.app",
+        phone_number: "+5538998601275",
+        billing_address: {
+          country: "br",
+          state: "mg",
+          city: "Paracatu",
+          street: "Rua i",
+          street_number: "151",
+          zipcode: "38600000",
+        },
+      };
+      const wrappedCreateCard = test.wrap(payment.create_card);
+      creditCard = await wrappedCreateCard(createCardArg, defaultCtx);
+
+      // add client to the datbase who owns the credit ard
+      const c = new Client(defaultUID);
+      await c.addClient(defaultClient);
+      await c.addCard(creditCard);
+
+      // confirm trip to be paid with credit_card
+      const wrappedConfirm = test.wrap(trip.confirm);
+      const confirmPromise = wrappedConfirm(
+        { card_id: creditCard.id },
+        { auth: { uid: defaultUID } }
+      );
+
+      // wait enough time for transaction to be made but not enough
+      // for 'no-partners-available' status to be set
+      await sleep(10000);
+
+      // assert that a transaction was created
+      let tripRequestSnapshot = await tripRequestRef.once("value");
+      let transactionId = tripRequestSnapshot.val().transaction_id;
+      assert.isDefined(transactionId);
+
+      // assert transaction's status is 'authorized'
+      const p = new Pagarme();
+      await p.ensureInitialized();
+      let transaction = await p.findTransaction(transactionId);
+      console.log(transaction.status);
+      assert.equal(transaction.status, "authorized");
+
+      // wait enough time for partners to ignore request
+      await sleep(34000);
+
+      // assert trip has 'no-partners-available' status
+      tripRequestSnapshot = await tripRequestRef.once("value");
+      assert.isNotNull(tripRequestSnapshot.val());
+      assert.equal(
+        tripRequestSnapshot.val().trip_status,
+        "no-partners-available"
+      );
+
+      // assert transaction was refunded
+      transaction = await p.findTransaction(transactionId);
+      console.log(transaction.status);
+      assert.equal(transaction.status, "refunded");
+
+      // clean database
+      await partnersRef.remove();
+      await tripRequestRef.remove();
+    });
+
     it("issues a refund if trip is paid with credit card but no partner acccepts request", async () => {
       // delete all partners from the database
       const partnersRef = admin.database().ref("partners");

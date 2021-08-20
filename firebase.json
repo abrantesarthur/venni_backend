@@ -1,15 +1,15 @@
 {
-  "functions": {
-    "predeploy": "npm --prefix \"functions\" run build"
+  "amplitudeapi": {
+    "key": "3aed3983fe0e75065265a6858631db08"
   },
   "pagarmeapi": {
-    "key": "ak_test_ELcAY9ZUxlqeEMSpUppf6ftWXewWmJ",
-    "recipient_id": "re_cks2e2ala0bzs0h9tjy1m5vlq"
-  },
-  "amplitudeapi": {
-    "key": "051ddadc6f2ae780306feee4c375f007"
+    "recipient_id": "re_cks0lhotj1jf70h9twd6x2f4j",
+    "key": "ak_live_swnXQQKEnuuJYv3phnp6D3ZzTALHMB"
   },
   "googleapi": {
-    "key": "AIzaSyBBIJW3IUj9uU60BIpIFNlzcMhhSrsgegQ"
+    "key": "AIzaSyBtRAUX6DzmRSirasZueL4wR1m--8Wjg8Q"
+  },
+  "functions": {
+    "predeploy": "npm --prefix \"functions\" run build"
   }
 }

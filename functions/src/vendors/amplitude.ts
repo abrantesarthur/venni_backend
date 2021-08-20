@@ -8,7 +8,16 @@ export class Amplitude {
     this._client = amplitude.init(functions.config().amplitudeapi.key);
   }
 
-  logFoundNoPartner = async (trip: TripRequest.Interface) => {
+  logFoundNoPartner = async (
+    trip: TripRequest.Interface,
+    reason:
+      | "partners_ignored_request"
+      | "found_zero_partners"
+      | "caught_exception",
+    firstRequestedPartnerUID = "",
+    secondRequestedPartnerUID = "",
+    thirdRequestedPartnerUID = ""
+  ) => {
     this._client.logEvent({
       event_type: "Found No Partner",
       user_id: "client " + trip.uid,
@@ -18,6 +27,10 @@ export class Amplitude {
         destinationZone: "paracatu" + trip.destination_zone,
         requestTime: trip.request_time,
         confirmTime: trip.confirm_time,
+        reason: reason,
+        firstRequestedPartner: "partner " + firstRequestedPartnerUID,
+        secondRequestedPartner: "partner " + secondRequestedPartnerUID,
+        thirdRequestedPartner: "partner " + thirdRequestedPartnerUID,
       },
     });
   };

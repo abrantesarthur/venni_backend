@@ -583,7 +583,7 @@ const confirmTrip = async (
     promises.push(tr.ref.set(tripRequest));
 
     // log 'Found No Partner' event
-    promises.push(a.logFoundNoPartner(tripRequest));
+    promises.push(a.logFoundNoPartner(tripRequest, "caught_exception"));
 
     await Promise.all(promises);
     throw new functions.https.HttpsError(error.code, error.message);
@@ -591,9 +591,10 @@ const confirmTrip = async (
 
   // if didn't find partners, update trip-reqeust status to noPartnersAvailable and throw exception
   if (nearbyPartners.length == 0) {
+    // TODO: test this too!
     tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
     promises.push(tr.ref.set(tripRequest));
-    promises.push(a.logFoundNoPartner(tripRequest));
+    promises.push(a.logFoundNoPartner(tripRequest, "found_zero_partners"));
     await Promise.all(promises);
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -748,7 +749,15 @@ const confirmTrip = async (
       promises.push(tr.ref.set(tripRequest));
 
       // log event
-      promises.push(a.logFoundNoPartner(tripRequest));
+      promises.push(
+        a.logFoundNoPartner(
+          tripRequest,
+          "partners_ignored_request",
+          nearbyPartners.length >= 1 ? "partner " + nearbyPartners[0].uid : "",
+          nearbyPartners.length >= 2 ? "partner " + nearbyPartners[1].uid : "",
+          nearbyPartners.length >= 3 ? "partner " + nearbyPartners[2].uid : ""
+        )
+      );
     }
 
     await Promise.all(promises);
