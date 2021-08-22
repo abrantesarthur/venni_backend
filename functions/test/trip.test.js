@@ -1337,7 +1337,7 @@ describe("trip", () => {
       await removeTripRequests();
     });
 
-    it("issues a refund if trip is paid with credit card but no rankAvailablePartners finds no one", async () => {
+    it("issues a refund if trip is paid with credit card but no rankAvailable finds no one", async () => {
       // delete all partners from the database
       const partnersRef = admin.database().ref("partners");
       await partnersRef.remove();
@@ -1385,7 +1385,7 @@ describe("trip", () => {
         { auth: { uid: defaultUID } }
       );
 
-      // wait enough time for rankAvailablePartners to find no one
+      // wait enough time for rankAvailable to find no one
       await sleep(5000);
 
       // assert that a transaction was created

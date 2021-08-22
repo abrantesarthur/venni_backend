@@ -504,7 +504,7 @@ const confirmTrip = async (
   }
 
   // see whether user is trying again after not having found a partner
-  // so we can properly use rankAvailablePartners
+  // so we can properly use rankAvailable
   let tryingToFindPartnersAgain = false;
   if (tripRequest.trip_status == TripRequest.Status.noPartnersAvailable) {
     tryingToFindPartnersAgain = true;
@@ -572,7 +572,7 @@ const confirmTrip = async (
   let ps = new Partners();
   const a = new Amplitude();
   try {
-    nearbyPartners = await ps.rankAvailablePartners(
+    nearbyPartners = await ps.rankAvailable(
       tripRequest,
       tryingToFindPartnersAgain
     );
