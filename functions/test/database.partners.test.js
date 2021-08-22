@@ -858,7 +858,7 @@ describe("partners", () => {
     });
   });
 
-  describe("findAllAvailable", () => {
+  describe("rankAvailablePartners", () => {
     beforeEach(async () => {
       // clear partners from database
       await admin.database().ref("partners").remove();
@@ -925,7 +925,7 @@ describe("partners", () => {
 
       // find available partners near zone DC
 
-      const partners = await Partners.findAllAvailable({
+      const partners = await Partners.rankAvailablePartners({
         origin_zone: "DC",
         origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
         payment_method: "cash",
@@ -1038,7 +1038,7 @@ describe("partners", () => {
       });
 
       // find available partners near zone DC
-      const partners = await Partners.findAllAvailable({
+      const partners = await Partners.rankAvailablePartners({
         origin_zone: "DC",
         origin_place_id: "ChIJGwWotolKqJQREFaef54gf3k",
         payment_method: "cash",

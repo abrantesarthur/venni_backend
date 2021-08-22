@@ -67,7 +67,7 @@ export class Partners extends Database {
   };
 
   // TODO: filter out partners without pagarme_recipient_id.
-  findAllAvailable = async (
+  rankAvailablePartners = async (
     tripRequest: TripRequest.Interface,
     tryingAgain: boolean
   ): Promise<Partner.Interface[]> => {
