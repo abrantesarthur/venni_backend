@@ -66,7 +66,30 @@ export class Partners extends Database {
     return response;
   };
 
-  findAllAvailable = async (): Promise<Partner.Interface[]> => {
+  findAllApproved = async (): Promise<Partner.Interface[]> => {
+    // retrieve all available partners
+    const snapshot = await this.ref
+      .orderByChild("account_status")
+      .equalTo("approved")
+      .once("value");
+
+    if (snapshot.val() == null) {
+      // if none is available, return empty list
+      return [];
+    }
+    let partners = this.fromObjs(snapshot.val());
+    if (partners.length == 0) {
+      return [];
+    }
+
+    return partners;
+  }
+
+  // TODO: filter out partners without pagarme_recipient_id.
+  rankAllAvailable = async (
+    tripRequest: TripRequest.Interface,
+    tryingAgain: boolean
+  ): Promise<Partner.Interface[]> => {
     // retrieve all available partners
     const snapshot = await this.ref
       .orderByChild("status")
@@ -82,25 +105,14 @@ export class Partners extends Database {
       return [];
     }
 
-     // filter out partners with 'account_status' different from 'approved'
-     partners = this.filterByAccountStatus(
+    /// filter out partners with 'account_status' different from 'approved'
+    partners = this.filterByAccountStatus(
       partners,
       Partner.AccountStatus.approved
     );
 
     // filter out eventual partners without set coordinates
     partners = this.filterByPosition(partners);
-
-    return partners;
-  }
-
-  // TODO: filter out partners without pagarme_recipient_id.
-  rankAllAvailable = async (
-    tripRequest: TripRequest.Interface,
-    tryingAgain: boolean
-  ): Promise<Partner.Interface[]> => {
-    // retrieve all available partners
-    let partners = await this.findAllAvailable();
 
     // filter out partners without pagarme_recipient_id if payment is 'credit_card'
     partners = this.filterByRecipientID(partners, tripRequest);

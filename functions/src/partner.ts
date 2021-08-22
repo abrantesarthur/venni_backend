@@ -137,6 +137,21 @@ const getByID = async (
   return partner;
 };
 
+
+const getStats = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  // do validations
+  if (context.auth == null) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Missing authentication credentials."
+    );
+  }
+}
+
 export const connect = functions.https.onCall(_connect);
 export const disconnect = functions.https.onCall(_disconnect);
 export const get_by_id = functions.https.onCall(getByID);
+export const get_stats = functions.https.onCall(getStats);
