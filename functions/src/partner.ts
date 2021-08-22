@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions";
 import { Partner } from "./database/partner";
-import { validateArgument } from "./utils";
+import { Partners } from "./database/partners";
+import { LooseObject, validateArgument } from "./utils";
 
 const _connect = async (
   data: any,
@@ -138,8 +139,8 @@ const getByID = async (
 };
 
 
-const getStats = async (
-  data: any,
+const getApproved = async (
+  _: any,
   context: functions.https.CallableContext
 ) => {
   // do validations
@@ -149,9 +150,25 @@ const getStats = async (
       "Missing authentication credentials."
     );
   }
+  const ps = new Partners();
+  const partners = await ps.findAllApproved();
+
+  let response: any[] = []
+
+  partners.forEach((partner) => {
+    response.push({
+      partner_status: partner.status,
+      partner_latitude: partner.current_latitude,
+      partner_longitude: partner.current_longitude,
+    })
+  });
+
+  return response;
+
 }
+
 
 export const connect = functions.https.onCall(_connect);
 export const disconnect = functions.https.onCall(_disconnect);
 export const get_by_id = functions.https.onCall(getByID);
-export const get_stats = functions.https.onCall(getStats);
+export const get_stats = functions.https.onCall(getApproved);
