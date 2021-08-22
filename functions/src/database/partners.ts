@@ -67,14 +67,12 @@ export class Partners extends Database {
   };
 
   findAllApproved = async (): Promise<Partner.Interface[]> => {
-    // retrieve all available partners
     const snapshot = await this.ref
       .orderByChild("account_status")
       .equalTo("approved")
       .once("value");
 
     if (snapshot.val() == null) {
-      // if none is available, return empty list
       return [];
     }
     let partners = this.fromObjs(snapshot.val());
