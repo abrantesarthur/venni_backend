@@ -72,6 +72,7 @@ export class Amplitude {
         startTime: Number(trip.start_time),
         completeTime: Number(trip.complete_time),
         expectedDuration: trip.duration_seconds,
+        actualDuration: Number(trip.complete_time) - Number(trip.accept_time),
         clientID: "client " + trip.uid,
         partnerID: "partner " + trip.partner_id,
         originZone: "paracatu" + trip.origin_zone,
