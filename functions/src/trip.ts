@@ -643,7 +643,6 @@ const confirmTrip = async (
     throw new functions.https.HttpsError(
       "cancelled",
       "Payment was not authorized.",
-      pagarmeError?.response.errors[0]
     );
   }
 
