@@ -132,7 +132,7 @@ const mockTripAccept = async (partner: Partner.Interface) => {
 
       // if transaction was aborted
       if (completed == false) {
-        // another partner has already requested the trip, so throw error.
+        // another partner has already requested the trip, so throw error
         console.log("another partner has already picked up the trip");
         return;
       }
