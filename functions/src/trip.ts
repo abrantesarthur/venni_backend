@@ -604,7 +604,7 @@ const confirmTrip = async (
 
   // create a transaction to be captured later if paying wiht a credit card
   let paymentFailed = false;
-  let pagarmeError;
+  let pagarmeError : any;
   const p = new Pagarme();
   await p.ensureInitialized();
   if (creditCard != undefined && tripRequest.payment_method == "credit_card") {
@@ -643,6 +643,7 @@ const confirmTrip = async (
     throw new functions.https.HttpsError(
       "cancelled",
       "Payment was not authorized.",
+      pagarmeError?.response.errors[0]
     );
   }
 

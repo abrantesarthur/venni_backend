@@ -224,7 +224,7 @@ const createCard = async (
       ],
       phone_numbers: [data.phone_number],
     });
-  } catch (e) {
+  } catch (e: any) {
     throw new functions.https.HttpsError(
       "invalid-argument",
       "Falha ao criar cliente no pagarme.",
@@ -242,7 +242,7 @@ const createCard = async (
       customer_id: customer.id,
       card_hash: data.card_hash,
     });
-  } catch (e) {
+  } catch (e: any) {
     throw new functions.https.HttpsError(
       "invalid-argument",
       "Falha ao criar cartão para o cliente.",
@@ -529,8 +529,7 @@ export const captureTripPayment = async (
       if (transaction.status != "paid") {
         return { success: false };
       }
-    } catch (e) {
-      console.log(e);
+    } catch (e: any) {
       console.log(e.response.errors[0]);
       return { success: false };
     }
@@ -596,8 +595,7 @@ const createBankAccount = async (
       opts["agencia_dv"] = data.agencia_dv;
     }
     bankAccount = await p.createBankAccount(opts);
-  } catch (e) {
-    console.log(e.response.errors[0]);
+  } catch (e: any) {
     throw new functions.https.HttpsError(
       "invalid-argument",
       "Falha ao criar conta bancária no pagarme.",
@@ -650,8 +648,7 @@ const getBalance = async (
     balance = await pagarme.getBalance({
       recipientId: data.pagarme_recipient_id,
     });
-  } catch (e) {
-    console.log(e.response.errors[0]);
+  } catch (e: any) {
     throw new functions.https.HttpsError(
       "unknown",
       "Falha ao solicitar saldo do recipiente com id " +
@@ -690,8 +687,7 @@ const getTransfers = async (
       page: data.page,
       recipient_id: data.pagarme_recipient_id,
     });
-  } catch (e) {
-    console.log(e.response.errors[0]);
+  } catch (e: any) {
     throw new functions.https.HttpsError(
       "unknown",
       "Falha ao solicitar trasnferências do recipiente com id " +

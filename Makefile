@@ -160,7 +160,9 @@ emulator: use-dev-project emulator-config build
 # start online testing with services pointing to test project
 # the environment used for tests is development, which is determined when we initialize
 # "firebaseFunctionsTest" in trip.test.js, where we pass the path to devAdminCredentials.json
-test: functions/devAdminCredentials.json test-dependencies test-config build
+# test: functions/devAdminCredentials.json use-dev-project test-dependencies test-config build
+# 	$(NPMTEST)
+test: functions/devAdminCredentials.json
 	$(NPMTEST)
 
 

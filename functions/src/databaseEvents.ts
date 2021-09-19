@@ -217,7 +217,7 @@ export const on_account_status_change = database
             },
             metadata: {},
           });
-        } catch (e) {
+        } catch (e: any) {
           // on failure, lock partner's account
           console.log(
             "failed to create a pagarme recipient for partner with UID " +
