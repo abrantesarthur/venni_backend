@@ -227,8 +227,7 @@ const createCard = async (
   } catch (e) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Falha ao criar cliente no pagarme.",
-      e.response.errors[0]
+      "Falha ao criar cliente no pagarme."
     );
   }
 
@@ -245,8 +244,7 @@ const createCard = async (
   } catch (e) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Falha ao criar cartão para o cliente.",
-      e.response.errors[0]
+      "Falha ao criar cartão para o cliente."
     );
   }
 
@@ -530,8 +528,6 @@ export const captureTripPayment = async (
         return { success: false };
       }
     } catch (e) {
-      console.log(e);
-      console.log(e.response.errors[0]);
       return { success: false };
     }
   }
@@ -597,11 +593,9 @@ const createBankAccount = async (
     }
     bankAccount = await p.createBankAccount(opts);
   } catch (e) {
-    console.log(e.response.errors[0]);
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Falha ao criar conta bancária no pagarme.",
-      e.response.errors[0]
+      "Falha ao criar conta bancária no pagarme."
     );
   }
 
@@ -651,13 +645,11 @@ const getBalance = async (
       recipientId: data.pagarme_recipient_id,
     });
   } catch (e) {
-    console.log(e.response.errors[0]);
     throw new functions.https.HttpsError(
       "unknown",
       "Falha ao solicitar saldo do recipiente com id " +
         data.pagarme_recipient_id +
-        ".",
-      e.response.errors[0]
+        "."
     );
   }
   return balance;
@@ -691,13 +683,11 @@ const getTransfers = async (
       recipient_id: data.pagarme_recipient_id,
     });
   } catch (e) {
-    console.log(e.response.errors[0]);
     throw new functions.https.HttpsError(
       "unknown",
       "Falha ao solicitar trasnferências do recipiente com id " +
         data.pagarme_recipient_id +
-        ".",
-      e.response.errors[0]
+        "."
     );
   }
   return transfers;

@@ -1,8 +1,44 @@
 import { database } from "firebase-admin";
 import * as functions from "firebase-functions";
 import { DemandByZone } from "./database/demandByZone";
+import { ClientPastTrips, PartnerPastTrips } from "./database/pastTrips";
+import { TripRequest } from "./database/tripRequest";
 import { LooseObject } from "./utils";
 import { ZoneName } from "./zones";
+
+export const copyPartnerTrips = async() => {
+  const source = new PartnerPastTrips("gNWtQoCZJiaw2GR5mO2pctgXWMt2");
+  const dest = new PartnerPastTrips("MwlaUN3fpXTv2C6MAXam6dUAilF2")
+  let trips = await source.getPastTrips();
+
+  let newTrips : TripRequest.Interface[] = [];
+  trips.forEach((trip) => {
+    let newTrip = trip;
+    newTrip.partner_id = "MwlaUN3fpXTv2C6MAXam6dUAilF2";
+    newTrips.push(newTrip);
+  })
+
+  newTrips.forEach(async(t) => {
+    await dest.pushPastTrip(t);
+  })
+}
+
+export const copyClientTrips = async() => {
+  const source = new ClientPastTrips("gNWtQoCZJiaw2GR5mO2pctgXWMt2");
+  const dest = new ClientPastTrips("MwlaUN3fpXTv2C6MAXam6dUAilF2")
+  let trips = await source.getPastTrips();
+
+  let newTrips : TripRequest.Interface[] = [];
+  trips.forEach((trip) => {
+    let newTrip = trip;
+    newTrip.partner_id = "MwlaUN3fpXTv2C6MAXam6dUAilF2";
+    newTrips.push(newTrip);
+  })
+
+  newTrips.forEach(async(t) => {
+    await dest.pushPastTrip(t);
+  })
+}
 
 // cleanupDemandByZone runs periodically and once per minte. It deletes children
 // in path 'demand-by-zone/{zoneName}' whose 'timestamp' value is more than 5 minutes ago.
@@ -57,4 +93,16 @@ export const cleanup_demand_by_zone = functions.pubsub
   .schedule("every 1 minutes")
   .onRun(async (_: functions.EventContext) => {
     cleanupDemandByZone();
+  });
+
+  export const copy_partner_trips = functions.pubsub
+  .schedule("every 2 hours")
+  .onRun(async (_: functions.EventContext) => {
+    copyPartnerTrips();
+  });
+
+  export const copy_client_trips = functions.pubsub
+  .schedule("every 2 hours")
+  .onRun(async (_: functions.EventContext) => {
+    copyClientTrips();
   });

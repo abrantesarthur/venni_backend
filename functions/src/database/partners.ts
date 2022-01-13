@@ -151,6 +151,7 @@ export class Partners extends Database {
   };
 
   // filterByPosition filters out partners without position
+  // TODO: also filter out partners who are too far away so we don't get a Matrix API error later
   filterByPosition = (partners: Partner.Interface[]): Partner.Interface[] => {
     let approvedPartners: Partner.Interface[] = [];
     partners.forEach((partner) => {
@@ -263,6 +264,7 @@ export class Partners extends Database {
       // request distances from google distance matrix API
       // initialize google maps API client
       const googleMaps = new Client({});
+      
       distanceMatrixResponse = await googleMaps.distancematrix({
         params: {
           key: googleApiKey,

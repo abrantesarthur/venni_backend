@@ -243,7 +243,10 @@ export namespace Partner {
   }
   export namespace Interface {
     export const fromObj = (obj: any): Partner.Interface | undefined => {
+      console.log("Partner.fromObj");
       if (is(obj)) {
+        console.log("fromObj lat: " + obj.current_latitude);
+        console.log("fromObj lat: " + obj.current_longitude);
         // create partner obj, ignoring eventual extra irrelevant fields
         return {
           uid: obj.uid,

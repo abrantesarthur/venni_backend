@@ -643,7 +643,6 @@ const confirmTrip = async (
     throw new functions.https.HttpsError(
       "cancelled",
       "Payment was not authorized.",
-      pagarmeError?.response.errors[0]
     );
   }
 
@@ -742,7 +741,6 @@ const confirmTrip = async (
           await p.refundTransaction(Number(tripRequest.transaction_id));
         } catch (e) {
           // it's ok if refund fails. Transaction will be automatically canceled in 5 days
-          console.log(e);
         }
         tripRequest.transaction_id = "";
       }
