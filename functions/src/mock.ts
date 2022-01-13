@@ -151,7 +151,7 @@ const mockTripAccept = async (partner: Partner.Interface) => {
     updatedPartner?.status != Partner.Status.busy &&
     updatedPartner?.status != Partner.Status.available
   ) {
-    await sleep(1);
+    await sleep(20);
     updatedPartner = await p.getPartner();
   }
 
@@ -239,7 +239,7 @@ const mockDrivingToClient = async (partner: Partner.Interface) => {
   });
 
   // after arriving to trip's origin, wait 0.5 second before starting trip
-  await sleep(5000);
+  await sleep(4000);
 
   // get partner's updated coordinates
   let updatedPartner = await p.getPartner();

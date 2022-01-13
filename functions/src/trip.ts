@@ -589,8 +589,10 @@ const confirmTrip = async (
     throw new functions.https.HttpsError(error.code, error.message);
   }
 
+
   // if didn't find partners, update trip-reqeust status to noPartnersAvailable and throw exception
   if (nearbyPartners.length == 0) {
+    console.log("nearbyPartners.length == 0");
     // TODO: test this too!
     tripRequest.trip_status = TripRequest.Status.noPartnersAvailable;
     promises.push(tr.ref.set(tripRequest));
@@ -601,6 +603,10 @@ const confirmTrip = async (
       "There are no available partners. Try again later."
     );
   }
+
+  console.log("nearbyPartners.length == " + nearbyPartners.length.toString());
+  console.log(nearbyPartners[0].uid);
+
 
   // create a transaction to be captured later if paying wiht a credit card
   let paymentFailed = false;
@@ -655,7 +661,9 @@ const confirmTrip = async (
   // requestPartner is the callback used to update partners' statuses to requested.
   // it tires to set availablePartner's status to 'requested' and current_client_id to client's uid
   const requestPartner = (partner: Partner.Interface) => {
+    console.log("requestPartner");
     if (partner == null) {
+      console.log("partner == null");
       // this will run in a transaction. When running a function in a transaction,
       // we should always check for null even if there is data at this reference in the server.
       // If there is no cached data for this node, the SDK will 'guess' its value as 'null'.
@@ -671,6 +679,7 @@ const confirmTrip = async (
       (partner.current_client_uid == undefined ||
         partner.current_client_uid == "")
     ) {
+      console.log("partner is available. change torequested");
       // if partner is still available, change its status to 'requested'
       // and current_client_uid to uid of client making requests.
       // each partner has 10 seconds to reply on their end.
@@ -684,6 +693,9 @@ const confirmTrip = async (
 
       return partner;
     } else {
+      console.log("abort");
+      console.log(partner.status);
+
       // abort transaction if partner is no longer available
       return;
     }
@@ -880,6 +892,8 @@ const confirmTrip = async (
     }
   });
 
+  console.log("nearby partners length " + nearbyPartners.length.toString());
+
   // send request to each partner after we start listening for partner_id changes
   for (var i = 0; i < nearbyPartners.length; i++) {
     if (cancelFurtherPartnerRequests) {
@@ -887,6 +901,8 @@ const confirmTrip = async (
       // further requests by setting this variable, so we abort loop.
       break;
     }
+
+    console.log("nearby partner "+ i.toString +" uid " + nearbyPartners[i].uid);
 
     promises.push(
       // request partners and notify them on success
