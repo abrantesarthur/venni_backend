@@ -225,7 +225,7 @@ const mockDrivingToClient = async (partner: Partner.Interface) => {
       partner.current_longitude = steps[i].start_location.lng.toString();
       return partner;
     });
-    await sleep(500);
+    await sleep(1000);
   }
   await transaction(p.ref, (partner) => {
     if (partner == null) {
@@ -239,7 +239,7 @@ const mockDrivingToClient = async (partner: Partner.Interface) => {
   });
 
   // after arriving to trip's origin, wait 0.5 second before starting trip
-  await sleep(500);
+  await sleep(5000);
 
   // get partner's updated coordinates
   let updatedPartner = await p.getPartner();
@@ -378,7 +378,7 @@ const mockDriveToDestination = async (partner: Partner.Interface) => {
       partner.current_longitude = steps[i].start_location.lng.toString();
       return partner;
     });
-    await sleep(500);
+    await sleep(1000);
   }
   await transaction(p.ref, (partner) => {
     if (partner == null) {
@@ -392,7 +392,7 @@ const mockDriveToDestination = async (partner: Partner.Interface) => {
   });
 
   // wait 0.5 seconds before completing the trip
-  await sleep(500);
+  await sleep(3000);
   await mockTripComplete(partner.uid);
 };
 
@@ -547,14 +547,14 @@ const mockTripComplete = async (partnerID: string) => {
   });
 };
 
-// // mock partner behaves as a partner accepting a trip request would behave
-// // TODO: delete on production
-// export const partner_handling_trip = database
-//   .ref("partners/{partnerID}")
-//   .onUpdate(
-//     async (change: Change<database.DataSnapshot>, context: EventContext) => {
-//       // make sure the status changed to requested and current_client_id did too
-//       let partner = change.after.val();
-//       await mockTripAccept(partner as Partner.Interface);
-//     }
-//   );
+// mock partner behaves as a partner accepting a trip request would behave
+// TODO: delete on production
+export const partner_handling_trip = database
+  .ref("partners/{partnerID}")
+  .onUpdate(
+    async (change: Change<database.DataSnapshot>, context: EventContext) => {
+      // make sure the status changed to requested and current_client_id did too
+      let partner = change.after.val();
+      await mockTripAccept(partner as Partner.Interface);
+    }
+  );
